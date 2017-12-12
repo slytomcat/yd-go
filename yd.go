@@ -242,6 +242,7 @@ func (yd *YDisk) Start() (string, error) {
     //log.Println("Watcher not started, start it.")
     yd.watcherStart()
   }
+  log.Println("Daemon Started")
   return "", nil
 }
 
@@ -257,6 +258,7 @@ func (yd *YDisk) Stop() (string, error) {
     //log.Println("Watcher was started, stop it.")
     yd.watcherStop()
   }
+  log.Println("Daemon Stopped")
   return "", nil
 }
 
@@ -287,7 +289,8 @@ func main() {
     }
   }()
 
-  log.Println("Status:", YD.Status())
+  log.Println("Current status:", YD.Status())
+
   // TO_DO:
   // 1. Check that yandex-disk should be started on startup
   // 2. Call YD.Start() only it is requered
@@ -295,18 +298,19 @@ func main() {
   if err != nil {
     log.Fatal(err)
   }
-  log.Println("Daemon Started")
 
   //time.Sleep(time.Second)
   fmt.Scanln()
+  log.Println("Current status:", YD.Status())
   log.Println("Exit requested")
+
   // TO_DO:
   // 1. Check that yandex-disk should be stopped on exit
   // 2. Call YD.Stop() only it is requered
   _, err = YD.Stop()
 
   time.Sleep(time.Second * 1)
-  log.Println("Status:", YD.Status())
+  log.Println("Current status:", YD.Status())
   log.Println("All done. Bye!")
 
 }
