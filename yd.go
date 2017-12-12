@@ -300,6 +300,7 @@ func main() {
   }
 
   //time.Sleep(time.Second)
+
   fmt.Scanln()
   log.Println("Current status:", YD.Status())
   log.Println("Exit requested")
