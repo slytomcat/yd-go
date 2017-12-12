@@ -56,7 +56,7 @@ func setChange (v *string, val string, ch *bool) {
 
 /* Update Daemon status values from the daemon output string
  * Returns true if values change detected otherways returns false */
-func (val *YDvals) Update(out string) bool {
+func (val *YDvals) update(out string) bool {
   changed := false  // track changes
   val.prev = val.stat
   if out == "" {
@@ -109,7 +109,7 @@ type YDstat struct {
   replay chan string   // output channel for replay on status request
 }
 
-func NewYDstatus() YDstat {
+func newYDstatus() YDstat {
   st := YDstat {
     make(chan string),
     make(chan YDvals, 1), // Output should be buffered
@@ -121,7 +121,7 @@ func NewYDstatus() YDstat {
     for {
       select {
         case upd := <- st.update:
-          if yds.Update(upd) {
+          if yds.update(upd) {
             st.change <- yds
           }
         case stat := <- st.status:
@@ -149,7 +149,7 @@ func NewYDisk(conf string, path string) YDisk {
   return YDisk{
     conf,
     path,
-    NewYDstatus(),
+    newYDstatus(),
     make(chan bool, 1),
     0,
   }
@@ -203,6 +203,7 @@ func (yd *YDisk) watcherStart() {
           return
         case <-tick.C:
           //log.Println("timer:", n)
+          // continiously increase timer period: 2s, 4s, 8s.
           if n < 4 {
             n++
             tick.Reset(time.Duration(second * n * 2))
@@ -214,7 +215,7 @@ func (yd *YDisk) watcherStart() {
     }
   }()
 
-  err = watcher.Add(yd.path + "/.sync/cli.log") //"/.sync/status")
+  err = watcher.Add(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
   if err != nil {
     log.Fatal(err)
   }
@@ -305,7 +306,7 @@ func main() {
   _, err = YD.Stop()
 
   time.Sleep(time.Second * 1)
-  log.Println("Status", YD.Status())
-  log.Println("All done")
+  log.Println("Status:", YD.Status())
+  log.Println("All done. Bye!")
 
 }
