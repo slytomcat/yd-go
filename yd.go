@@ -12,6 +12,7 @@ import (
   //"os"
 )
 
+/* Tool function that returns shorten version (up to l symbols) of original string  */
 func ShortName(f string, l int) string {
   v := []rune(f)
   if len(v) > l {
@@ -26,14 +27,7 @@ func ShortName(f string, l int) string {
   }
 }
 
-/* tool function that controls the change of value in variable */
-func setChange (v *string, val string, ch *bool) {
-  if *v != val {
-    *v = val
-    *ch = true
-  }
-}
-
+/* Daemon status values */
 type YDvals struct {
   stat string      // current status
   prev string      // previous status
@@ -43,8 +37,27 @@ type YDvals struct {
   last [10]string  // last-updated files/folders
 }
 
+func newYDvals() YDvals {
+  return YDvals{
+        "unknown",
+        "unknown",
+        "...", "...", "...",
+        [10]string{},
+      }
+}
+
+/* Tool function that controls the change of value in variable */
+func setChange (v *string, val string, ch *bool) {
+  if *v != val {
+    *v = val
+    *ch = true
+  }
+}
+
+/* Update Daemon status values from the daemon output string
+ * Returns true if values change detected otherways returns false */
 func (val *YDvals) Update(out string) bool {
-  changed := false
+  changed := false  // track changes
   val.prev = val.stat
   if out == "" {
     setChange(&val.stat, "none", &changed)
@@ -74,19 +87,23 @@ func (val *YDvals) Update(out string) bool {
     }
     if len(split) > 1 {
       f := regexp.MustCompile(`: '(.*).\n`).FindAllStringSubmatch(split[1], -1)
-      for i:= 0; i < len(f); i++ {
-        if val.last[i] != f[i][1] {
-          val.last[i] = f[i][1]
-          changed = true
+      var p string
+      for i:= 0; i < 10; i++ {
+        if i < len(f) {
+          p = f[i][1]
+        } else {
+          p = ""
         }
+        setChange(&val.last[i], p, &changed)
       }
     }
   }
   return changed
 }
 
+/* Status control component */
 type YDstat struct {
-  update chan string   // input channel for update values with data from strong
+  update chan string   // input channel for update values with data from string
   change chan YDvals   // output channel for detected changes
   status chan bool     // input channel for status request
   replay chan string   // output channel for replay on status request
@@ -95,17 +112,12 @@ type YDstat struct {
 func NewYDstatus() YDstat {
   st := YDstat {
     make(chan string),
-    make(chan YDvals, 1), // Output shoud be buffered
+    make(chan YDvals, 1), // Output should be buffered
     make(chan bool),
-    make(chan string, 1), // Output shoud be buffered
+    make(chan string, 1), // Output should be buffered
   }
   go func() {
-    yds := YDvals{
-        "unknown",
-        "unknown",
-        "...", "...", "...",
-        [10]string{},
-      }
+    yds := newYDvals()
     for {
       select {
         case upd := <- st.update:
@@ -223,7 +235,7 @@ func (yd *YDisk) Start() (string, error) {
     if err != nil {
       log.Fatal(err)
     }
-    log.Println("Daemon started:", string(out))
+    log.Println("Daemon start:", string(out))
   }
   if !yd.watcherStat() {
     //log.Println("Watcher not started, start it.")
@@ -238,7 +250,7 @@ func (yd *YDisk) Stop() (string, error) {
     if err != nil {
       log.Fatal(err)
     }
-    log.Println("Daemon stopped:", string(out))
+    log.Println("Daemon stop:", string(out))
   }
   if yd.watcherStat() {
     //log.Println("Watcher was started, stop it.")
@@ -253,10 +265,17 @@ func (yd *YDisk) Status() string {
 }
 
 func main() {
-  // need to check that yandex-disk is installed and properly configured
-  // get syncronized path from yandex-disk config
+  // TO_DO:
+  // 1. need to check that yandex-disk is installed and properly configured
+  // 2. get synchronized path from yandex-disk config
   YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
-  // Start change display routine
+
+  // TO_DO:
+  // 1. Decide what to do with status updates:
+  //  - how to show them to user
+  //  - if show facility is in the oter program - how to pass updates to that process (pipe?/socket?)
+
+  // Start the change display routine - it just stub to see updates in the log
   go func() {
     for {
       yds := <- YD.stat.change
@@ -268,6 +287,9 @@ func main() {
   }()
 
   log.Println("Status:", YD.Status())
+  // TO_DO:
+  // 1. Check that yandex-disk should be started on startup
+  // 2. Call YD.Start() only it is requered
   _, err := YD.Start()
   if err != nil {
     log.Fatal(err)
@@ -277,6 +299,9 @@ func main() {
   //time.Sleep(time.Second)
   fmt.Scanln()
   log.Println("Exit requested")
+  // TO_DO:
+  // 1. Check that yandex-disk should be stopped on exit
+  // 2. Call YD.Stop() only it is requered
   _, err = YD.Stop()
 
   time.Sleep(time.Second * 1)
