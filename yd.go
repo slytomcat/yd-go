@@ -267,6 +267,14 @@ func (yd *YDisk) Status() string {
   return <- yd.stat.replay
 }
 
+func notify(msg string) {
+  err := exec.Command("notify-send", msg).Run()
+  if err != nil {
+    log.Fatal(err)
+  }
+}
+
+
 func main() {
   // TO_DO:
   // 1. need to check that yandex-disk is installed and properly configured
@@ -282,10 +290,12 @@ func main() {
   go func() {
     for {
       yds := <- YD.stat.change
-      log.Println(strings.Join([]string{"Change detected!\n  Prev = ", yds.prev, "  Stat = ",
-                                        yds.stat,"\n  Total=", yds.total, " Used = ",
-                                        yds.used, " Trash= ", yds.trash,
-                                        "\n  Last =", yds.last[0]},""))
+      msg := strings.Join([]string{"Change detected!\n  Prev = ", yds.prev, "  Stat = ",
+                                   yds.stat,"\n  Total=", yds.total, " Used = ",
+                                   yds.used, " Trash= ", yds.trash,
+                                  "\n  Last =", yds.last[0]},"")
+      log.Println(msg)
+      notify(msg)
     }
   }()
 
