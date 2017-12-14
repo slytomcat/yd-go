@@ -139,9 +139,9 @@ func newYDstatus() YDstat {
         case upd := <- st.update:
           if yds.update(upd) {
             st.change <- yds
-            lg.Println(strings.Join([]string{"Change detected!\n  Prev=", yds.Prev, "  Stat=", yds.Stat,
+            lg.Println("Change:  Prev=", yds.Prev, "  Stat=", yds.Stat,
                     "\n  Total=", yds.Total, " Used=", yds.Used, " Trash=", yds.Trash,
-                    "\n  Last=", list(yds.Last[:])},""))
+                    " Last=", yds.Last[0], "...")
           }
         case stat := <- st.status:
           switch stat {
@@ -309,7 +309,7 @@ func notify(msg string) {
 func CommandCycle(YD *YDisk) {
   // command receive cycle
   for {
-    lg.Print("Commands: start, stop, status, exit")
+    fmt.Println("Commands: start, stop, status, output, exit")
     inp:=""
     fmt.Scanln(&inp)
     switch inp {
@@ -318,7 +318,9 @@ func CommandCycle(YD *YDisk) {
       case "stop":
         if _, err := YD.Stop(); err != nil { lg.Fatal(err) }
       case "status":
-        lg.Println("Current status:", YD.Status())
+        fmt.Println("Current status:", YD.Status())
+      case "output":
+        fmt.Println(YD.Output())
       case "exit":
         lg.Println("Exit requested")
         return
@@ -345,7 +347,8 @@ func main() {
       select{
         case yds := <- YD.stat.change:
           msj, _ := json.Marshal(yds)
-          notify(string(msj))
+          //notify(string(msj))
+          fmt.Println(string(msj))
         case <- exit:
           lg.Print("Status display routine finished")
           return
