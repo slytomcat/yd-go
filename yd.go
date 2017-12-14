@@ -51,6 +51,7 @@ type YDvals struct {
   Free string      // Free space
   Trash string     // Trash size
   Last []string    // Last-updated files/folders
+  ChLast bool      // Indicator that Last was changed
   Err string       // Error status messaage
   ErrP string      // Error path
   Prog string      // Syncronization progress (when in busy status)
@@ -62,6 +63,7 @@ func newYDvals() YDvals {
         "unknown",
         "", "", "", "", // Total, Used, Free, Trash
         []string{},     // Last
+        false,          // ChLast
         "", "", "",     // Err, ErrP, Prog
       }
 }
@@ -117,18 +119,26 @@ func (val *YDvals) update(out string) bool {
     }
 
     // Parse the "Last syncronized items" section (list of paths and files)
+    changedLast := false
     if len(split) > 1 {
       f := regexp.MustCompile(`: '(.*).\n`).FindAllStringSubmatch(split[1], -1)
       if len(f) != len(val.Last) {
-        changed = true
+        changedLast = true
         val.Last = []string{}
         for _, p := range f {
           val.Last = append(val.Last, p[1])
         }
       } else {
         for i, p := range f {
-          setChange(&val.Last[i], p[1], &changed)
+          setChange(&val.Last[i], p[1], &changedLast)
         }
+      }
+      val.ChLast = changedLast
+      changed = changedLast || changed
+    } else {
+      if len(val.Last) > 0 {
+        val.Last = []string{}
+        val.ChLast = true
       }
     }
   }
