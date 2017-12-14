@@ -48,18 +48,21 @@ type YDvals struct {
   Prev string      // Previous Status
   Total string     // Total space available
   Used string      // Used space
+  Free string      // Free space
   Trash string     // Trash size
-  Last [10]string  // Last-updated files/folders
+  Last []string    // Last-updated files/folders
   Err string       // Error status messaage
+  ErrP string      // Error path
+  Prog string      // Syncronization progress (when in busy status)
 }
 
 func newYDvals() YDvals {
   return YDvals{
         "unknown",
         "unknown",
-        "", "", "",
-        [10]string{},
-        "",
+        "", "", "", "", // Total, Used, Free, Trash
+        []string{},     // Last
+        "", "", "",     // Err, ErrP, Prog
       }
 }
 
@@ -82,14 +85,13 @@ func (val *YDvals) update(out string) bool {
       val.Total = ""
       val.Used = ""
       val.Trash = ""
-      val.Last = [10]string{}
+      val.Last = []string{}
     }
   } else {
     split := strings.Split(string(out), "Last synchronized items:")
     // Need tp remove "Path to " as another "Path:" exists in case of access error
     split[0] = strings.Replace(split[0], "Path to ", "", 1)
     // Take only first word in the phrase before ":"
-    Err := ""
     for _, v := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
       if v[2][0] == byte('\'') {
         v[2] = v[2][1:len(v[2])-1]
@@ -97,31 +99,36 @@ func (val *YDvals) update(out string) bool {
       switch v[1] {
         case "Synchronization" :
           setChange(&val.Stat, v[2], &changed)
+        case "Sync" :
+          setChange(&val.Prog, v[2], &changed)
         case "Total" :
           setChange(&val.Total, v[2], &changed)
         case "Used" :
           setChange(&val.Used, v[2], &changed)
+        case "Available" :
+          setChange(&val.Free, v[2], &changed)
         case "Trash" :
           setChange(&val.Trash, v[2], &changed)
         case "Error" :
-          Err = v[2] + Err
+          setChange(&val.Err, v[2], &changed)
         case "Path" :
-          Err += ": " + v[2]
+          setChange(&val.ErrP, v[2], &changed)
       }
     }
-    setChange(&val.Err, Err, &changed)
 
     // Parse the "Last syncronized items" section (list of paths and files)
     if len(split) > 1 {
       f := regexp.MustCompile(`: '(.*).\n`).FindAllStringSubmatch(split[1], -1)
-      var p string
-      for i:= 0; i < 10; i++ {
-        if i < len(f) {
-          p = f[i][1]
-        } else {
-          p = ""
+      if len(f) != len(val.Last) {
+        changed = true
+        val.Last = []string{}
+        for _, p := range f {
+          val.Last = append(val.Last, p[1])
         }
-        setChange(&val.Last[i], p, &changed)
+      } else {
+        for i, p := range f {
+          setChange(&val.Last[i], p[1], &changed)
+        }
       }
     }
   }
@@ -151,9 +158,8 @@ func newYDstatus() YDstat {
         case upd := <- st.update:
           if yds.update(upd) {
             st.change <- yds
-            lg.Println("Change:  Prev=", yds.Prev, "  Stat=", yds.Stat,
-                    "\n  Total=", yds.Total, " Used=", yds.Used, " Trash=", yds.Trash,
-                    " Last=", yds.Last[0], "...")
+            lg.Println("Change: Prev=", yds.Prev, " Stat=", yds.Stat,
+                    "\n  Total=", yds.Total, " Len(Last)=", len(yds.Last))
           }
         case stat := <- st.status:
           switch stat {
@@ -209,7 +215,6 @@ func (yd YDisk) Output() string {
 }
 
 func (yd *YDisk) watcherStart() {
-  const second = int(time.Second)
   watcher, err := fsnotify.NewWatcher()
   if err != nil {
     lg.Fatal(err)
@@ -230,18 +235,17 @@ func (yd *YDisk) watcherStart() {
       select {
         case <-watcher.Events: //event := <-watcher.Events:
           //lg.Println("Watcher event:", event)
-          tick.Reset(time.Second)
+          tick.Reset(time.Millisecond * 500)
           n = 0
           yd.stat.update <- yd.getOutput(false)
         case err := <-watcher.Errors:
           lg.Println("Watcher error:", err)
           return
         case <-tick.C:
-          //lg.Println("timer:", n)
           // continiously increase timer period: 2s, 4s, 8s.
           if n < 4 {
             n++
-            tick.Reset(time.Duration(second * n * 2))
+            tick.Reset(time.Duration(n * 2) * time.Second)
           }
           yd.stat.update <- yd.getOutput(false)
         case <-yd.stop:
@@ -276,7 +280,6 @@ func (yd *YDisk) Start() {
     lg.Println("Daemon already Started")
   }
   if !yd.watcherStat() {
-    //lg.Println("Watcher not started, start it.")
     yd.watcherStart()
   }
 
@@ -291,10 +294,6 @@ func (yd *YDisk) Stop() {
     lg.Println("Daemon stop:", string(out))
     return
   }
-  //if yd.watcherStat() {
-  //  //lg.Println("Watcher was started, stop it.")
-  //  yd.watcherStop()
-  // }
   lg.Println("Daemon already stopped")
 }
 
@@ -320,7 +319,6 @@ func (yd *YDisk) Close() {
     yd.watcherStop()
   }
   yd.stat.status <- false
-  time.Sleep(time.Millisecond * 100)
 }
 
 func notify(msg string) {
@@ -330,14 +328,11 @@ func notify(msg string) {
   }
 }
 
+// Command receive cycle
 func CommandCycle(YD *YDisk) {
-  type YDOutput struct {
-    Output string
-  }
-  // command receive cycle
+  var inp string
   for {
-    fmt.Println("Commands: start, stop, sync, status, output, exit")
-    inp:=""
+    //fmt.Println("Commands: start, stop, sync, status, output, exit")
     fmt.Scanln(&inp)
     switch inp {
       case "start":
@@ -398,6 +393,7 @@ func main() {
   lg.Println("Exit Status:", YD.Status())
   exit <- true
   YD.Close()
+  time.Sleep(time.Millisecond * 100)
   lg.Println("All done. Bye!")
 
 }
