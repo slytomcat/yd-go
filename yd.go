@@ -50,6 +50,7 @@ type YDvals struct {
   Used string      // Used space
   Trash string     // Trash size
   Last [10]string  // Last-updated files/folders
+  Err string       // Error status messaage
 }
 
 func newYDvals() YDvals {
@@ -58,6 +59,7 @@ func newYDvals() YDvals {
         "unknown",
         "", "", "",
         [10]string{},
+        "",
       }
 }
 
@@ -70,10 +72,10 @@ func setChange (v *string, val string, ch *bool) {
 }
 
 /* Update Daemon status values from the daemon output string
- * Returns true if values change detected otherways returns false */
+ * Returns true if change detected in any value, otherways returns false */
 func (val *YDvals) update(out string) bool {
-  changed := false  // track changes
   val.Prev = val.Stat
+  changed := false  // track changes for all rest values
   if out == "" {
     setChange(&val.Stat, "none", &changed)
     if changed {
@@ -84,8 +86,11 @@ func (val *YDvals) update(out string) bool {
     }
   } else {
     split := strings.Split(string(out), "Last synchronized items:")
-    vals := regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1)
-    for _, v := range vals {
+    // Need tp remove "Path to " as another "Path:" exists in case of access error
+    split[0] = strings.Replace(split[0], "Path to ", "", 1)
+    // Take only first word in the phrase before ":"
+    Err := ""
+    for _, v := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
       if v[2][0] == byte('\'') {
         v[2] = v[2][1:len(v[2])-1]
       }
@@ -98,8 +103,15 @@ func (val *YDvals) update(out string) bool {
           setChange(&val.Used, v[2], &changed)
         case "Trash" :
           setChange(&val.Trash, v[2], &changed)
+        case "Error" :
+          Err = v[2] + Err
+        case "Path" :
+          Err += ": " + v[2]
       }
     }
+    setChange(&val.Err, Err, &changed)
+
+    // Parse the "Last syncronized items" section (list of paths and files)
     if len(split) > 1 {
       f := regexp.MustCompile(`: '(.*).\n`).FindAllStringSubmatch(split[1], -1)
       var p string
@@ -145,10 +157,9 @@ func newYDstatus() YDstat {
           }
         case stat := <- st.status:
           switch stat {
-            case true:       // true : Full state request
+            case true:       // true : status request
               st.replay <- yds.Stat
-            case false:      // false : report status and exit
-              st.replay <- yds.Stat
+            case false:      // false : exit
               lg.Print("Status component routine finished")
               return
           }
@@ -254,36 +265,49 @@ func (yd *YDisk) watcherStat() bool {
   return atomic.LoadUint32(&yd.watch) != 0
 }
 
-func (yd *YDisk) Start() (string, error) {
+func (yd *YDisk) Start() {
   if yd.getOutput(true) == "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
     if err != nil {
-      lg.Fatal(err)
+      lg.Println(err)
     }
     lg.Println("Daemon start:", string(out))
+  } else {
+    lg.Println("Daemon already Started")
   }
   if !yd.watcherStat() {
     //lg.Println("Watcher not started, start it.")
     yd.watcherStart()
   }
-  lg.Println("Daemon Started")
-  return "", nil
+
 }
 
-func (yd *YDisk) Stop() (string, error) {
+func (yd *YDisk) Stop() {
   if yd.getOutput(true) != "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
     if err != nil {
-      lg.Fatal(err)
+      lg.Println(err)
     }
     lg.Println("Daemon stop:", string(out))
+    return
   }
   //if yd.watcherStat() {
   //  //lg.Println("Watcher was started, stop it.")
   //  yd.watcherStop()
   // }
-  lg.Println("Daemon Stopped")
-  return "", nil
+  lg.Println("Daemon already stopped")
+}
+
+func (yd *YDisk) Sync() {
+  if yd.getOutput(true) != "" {
+    out, err := exec.Command("yandex-disk", "-c", yd.conf, "sync").Output()
+    if err != nil {
+      lg.Fatal(err)
+    }
+    lg.Println("Sync:", string(out))
+    return
+  }
+  lg.Println("Sync can't be inicialized")
 }
 
 func (yd *YDisk) Status() string {
@@ -307,20 +331,26 @@ func notify(msg string) {
 }
 
 func CommandCycle(YD *YDisk) {
+  type YDOutput struct {
+    Output string
+  }
   // command receive cycle
   for {
-    fmt.Println("Commands: start, stop, status, output, exit")
+    fmt.Println("Commands: start, stop, sync, status, output, exit")
     inp:=""
     fmt.Scanln(&inp)
     switch inp {
       case "start":
-        if _, err := YD.Start(); err != nil { lg.Fatal(err) }
+        YD.Start()
       case "stop":
-        if _, err := YD.Stop(); err != nil { lg.Fatal(err) }
+        YD.Stop()
+      case "sync":
+        YD.Sync()
       case "status":
-        fmt.Println("Current status:", YD.Status())
+        fmt.Printf("{\"Status\": \"%s\"}\n", YD.Status())
       case "output":
-        fmt.Println(YD.Output())
+        msj, _ := json.Marshal(YD.Output())
+        fmt.Printf("{\"Output\": %s}\n", string(msj))
       case "exit":
         lg.Println("Exit requested")
         return
