@@ -14,7 +14,7 @@ import (
 )
 
 /* Initialize logger */
-var lg *log.Logger = log.New(os.Stderr, "", log.Lmicroseconds | log.Lshortfile)
+var lg *log.Logger = log.New(os.Stderr, "", log.Lshortfile) // | log.Lmicroseconds)
 
 /* Tool function that returns shorten version (up to l symbols) of original string  */
 func ShortName(f string, l int) string {
@@ -87,11 +87,16 @@ func (val *YDvals) update(out string) bool {
       val.Total = ""
       val.Used = ""
       val.Trash = ""
+      val.Free = ""
+      val.Prog = ""
+      val.Err = ""
+      val.ErrP = ""
       val.Last = []string{}
+      val.ChLast = true
     }
   } else {
     split := strings.Split(string(out), "Last synchronized items:")
-    // Need tp remove "Path to " as another "Path:" exists in case of access error
+    // Need to remove "Path to " as another "Path:" exists in case of access error
     split[0] = strings.Replace(split[0], "Path to ", "", 1)
     // Take only first word in the phrase before ":"
     for _, v := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
@@ -121,7 +126,7 @@ func (val *YDvals) update(out string) bool {
     // Parse the "Last syncronized items" section (list of paths and files)
     changedLast := false
     if len(split) > 1 {
-      f := regexp.MustCompile(`: '(.*).\n`).FindAllStringSubmatch(split[1], -1)
+      f := regexp.MustCompile(`: '(.*)'\n`).FindAllStringSubmatch(split[1], -1)
       if len(f) != len(val.Last) {
         changedLast = true
         val.Last = []string{}
@@ -169,7 +174,7 @@ func newYDstatus() YDstat {
           if yds.update(upd) {
             st.change <- yds
             lg.Println("Change: Prev=", yds.Prev, " Stat=", yds.Stat,
-                    "\n  Total=", yds.Total, " Len(Last)=", len(yds.Last))
+                    "\n  Total=", yds.Total, " Len(Last)=", len(yds.Last), " Err=", yds.Err)
           }
         case stat := <- st.status:
           switch stat {
@@ -189,8 +194,8 @@ type YDisk struct {
   conf string     // Path to yandex-disc configuration file
   path string     // Path to synchronized folder (should be obtained from y-d conf. file)
   stat YDstat     // Status object
-  stop chan bool  // Stop signal channel
-  watch uint32    // Watcher Status (0 - not started) !!! Use atomic functions to access it!
+  stop chan bool  // Stop signal channel file wathcer routine
+  watch uint32    // Watcher status (0 - not started) !!! Use atomic functions to access it!
 }
 
 func NewYDisk(conf string, path string) YDisk {
@@ -367,15 +372,18 @@ func main() {
   // TO_DO:
   // 1. need to check that yandex-disk is installed and properly configured
   // 2. get synchronized path from yandex-disk config
+  // or
+  // pass paths via command line arguments
   YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
   lg.Println("Current status:", YD.Status())
 
   // TO_DO:
   // 1. Decide what to do with status updates:
-  //  - how to show them to user
-  //  - if show facility is in the oter program - how to pass updates to that process (pipe?/socket?)
+  //  - how to show them to user = via external program
+  //  - if show facility is in the other program - how to pass
+  //  updates to that process (pipe?/socket?) = stdout - updates, stdin - commands, stderr - log
 
-  // Start the change display routine - it just stub to see updates in the log
+  // Start the change display routine
   exit := make(chan bool)
   go func() {
     for {
@@ -394,12 +402,17 @@ func main() {
   // TO_DO:
   // 1. Check that yandex-disk should be started on startup
   // 2. Call YD.Start() only it is requered
+  //  or
+  // Leave the solution on external program
 
   CommandCycle(&YD)
 
   // TO_DO:
   // 1. Check that yandex-disk should be stopped on exit
   // 2. Call YD.Stop() only it is requered
+  //  or
+  // Leave the solution on external program
+
   lg.Println("Exit Status:", YD.Status())
   exit <- true
   YD.Close()
