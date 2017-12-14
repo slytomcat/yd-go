@@ -56,7 +56,7 @@ func newYDvals() YDvals {
   return YDvals{
         "unknown",
         "unknown",
-        "...", "...", "...",
+        "", "", "",
         [10]string{},
       }
 }
@@ -77,9 +77,9 @@ func (val *YDvals) update(out string) bool {
   if out == "" {
     setChange(&val.Stat, "none", &changed)
     if changed {
-      val.Total = "..."
-      val.Used = "..."
-      val.Trash = "..."
+      val.Total = ""
+      val.Used = ""
+      val.Trash = ""
       val.Last = [10]string{}
     }
   } else {
@@ -120,8 +120,8 @@ func (val *YDvals) update(out string) bool {
 type YDstat struct {
   update chan string   // input channel for update values with data from the daemon output string
   change chan YDvals   // output channel for detected changes
-  status chan bool     // input channel for Status request
-  replay chan string   // output channel for replay on Status request
+  status chan bool     // input channel for status request
+  replay chan string   // output channel for replay on status request
 }
 
 /* This control component implemented as State-full go-routine with 4 communication channels */
@@ -139,12 +139,18 @@ func newYDstatus() YDstat {
         case upd := <- st.update:
           if yds.update(upd) {
             st.change <- yds
+            lg.Println(strings.Join([]string{"Change detected!\n  Prev=", yds.Prev, "  Stat=", yds.Stat,
+                    "\n  Total=", yds.Total, " Used=", yds.Used, " Trash=", yds.Trash,
+                    "\n  Last=", list(yds.Last[:])},""))
           }
-        case Stat := <- st.status:
-          if Stat {  // true : Status request
-            st.replay <- yds.Stat
-          } else {   // false : exit
-            return
+        case stat := <- st.status:
+          switch stat {
+            case true:       // true : Full state request
+              st.replay <- yds.Stat
+            case false:      // false : report status and exit
+              st.replay <- yds.Stat
+              lg.Print("Status component routine finished")
+              return
           }
       }
     }
@@ -162,13 +168,15 @@ type YDisk struct {
 
 func NewYDisk(conf string, path string) YDisk {
   lg.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
-  return YDisk{
+  yd := YDisk{
     conf,
     path,
     newYDstatus(),
     make(chan bool, 1),
     0,
   }
+  yd.watcherStart()
+  return yd
 }
 
 func (yd YDisk) getOutput(userLang bool) (string) {
@@ -195,17 +203,17 @@ func (yd *YDisk) watcherStart() {
   if err != nil {
     lg.Fatal(err)
   }
+  tick := time.NewTimer(time.Second)
+  n := 0
+  atomic.StoreUint32(&yd.watch, 1)
+  lg.Println("File watcher started")
 
   go func() {
-    tick := time.NewTimer(time.Second)
-    n := 0
-    atomic.StoreUint32(&yd.watch, 1)
-    lg.Println("Watcher started")
     defer func() {
       tick.Stop()
       watcher.Close()
       atomic.StoreUint32(&yd.watch, 0)
-      lg.Println("Watcher stopped")
+      lg.Println("File watcher routine finished")
     }()
     for {
       select {
@@ -270,10 +278,10 @@ func (yd *YDisk) Stop() (string, error) {
     }
     lg.Println("Daemon stop:", string(out))
   }
-  if yd.watcherStat() {
-    //lg.Println("Watcher was started, stop it.")
-    yd.watcherStop()
-  }
+  //if yd.watcherStat() {
+  //  //lg.Println("Watcher was started, stop it.")
+  //  yd.watcherStop()
+  // }
   lg.Println("Daemon Stopped")
   return "", nil
 }
@@ -283,10 +291,38 @@ func (yd *YDisk) Status() string {
   return <- yd.stat.replay
 }
 
+func (yd *YDisk) Close() {
+  if yd.watcherStat() {
+    yd.watcherStop()
+  }
+  yd.stat.status <- false
+  time.Sleep(time.Millisecond * 100)
+}
+
 func notify(msg string) {
   err := exec.Command("notify-send", msg).Run()
   if err != nil {
     lg.Fatal(err)
+  }
+}
+
+func CommandCycle(YD *YDisk) {
+  // command receive cycle
+  for {
+    lg.Print("Commands: start, stop, status, exit")
+    inp:=""
+    fmt.Scanln(&inp)
+    switch inp {
+      case "start":
+        if _, err := YD.Start(); err != nil { lg.Fatal(err) }
+      case "stop":
+        if _, err := YD.Stop(); err != nil { lg.Fatal(err) }
+      case "status":
+        lg.Println("Current status:", YD.Status())
+      case "exit":
+        lg.Println("Exit requested")
+        return
+    }
   }
 }
 
@@ -295,6 +331,7 @@ func main() {
   // 1. need to check that yandex-disk is installed and properly configured
   // 2. get synchronized path from yandex-disk config
   YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
+  lg.Println("Current status:", YD.Status())
 
   // TO_DO:
   // 1. Decide what to do with status updates:
@@ -302,42 +339,32 @@ func main() {
   //  - if show facility is in the oter program - how to pass updates to that process (pipe?/socket?)
 
   // Start the change display routine - it just stub to see updates in the log
+  exit := make(chan bool)
   go func() {
     for {
-      yds := <- YD.stat.change
-      msg := strings.Join([]string{"Change detected!\n  Prev=", yds.Prev, "  Stat=",
-                                   yds.Stat,"\n  Total=", yds.Total, " Used=",
-                                   yds.Used, " Trash=", yds.Trash,
-                                  "\n  Last=", list(yds.Last[:])},"")
-      lg.Println(msg)
-      msj, _ := json.Marshal(yds)
-      notify(string(msj))
+      select{
+        case yds := <- YD.stat.change:
+          msj, _ := json.Marshal(yds)
+          notify(string(msj))
+        case <- exit:
+          lg.Print("Status display routine finished")
+          return
+      }
     }
   }()
-
-  lg.Println("Current status:", YD.Status())
 
   // TO_DO:
   // 1. Check that yandex-disk should be started on startup
   // 2. Call YD.Start() only it is requered
-  _, err := YD.Start()
-  if err != nil {
-    lg.Fatal(err)
-  }
 
-  //time.Sleep(time.Second)
-
-  fmt.Scanln()
-  lg.Println("Current status:", YD.Status())
-  lg.Println("Exit requested")
+  CommandCycle(&YD)
 
   // TO_DO:
   // 1. Check that yandex-disk should be stopped on exit
   // 2. Call YD.Stop() only it is requered
-  _, err = YD.Stop()
-
-  time.Sleep(time.Second * 1)
-  lg.Println("Current Status:", YD.Status())
+  lg.Println("Exit Status:", YD.Status())
+  exit <- true
+  YD.Close()
   lg.Println("All done. Bye!")
 
 }
