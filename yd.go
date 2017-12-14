@@ -9,8 +9,12 @@ import (
   "regexp"
   "strings"
   "sync/atomic"
-  //"os"
+  "os"
+  "encoding/json"
 )
+
+/* Initialize logger */
+var lg *log.Logger = log.New(os.Stderr, "", log.Lmicroseconds | log.Lshortfile)
 
 /* Tool function that returns shorten version (up to l symbols) of original string  */
 func ShortName(f string, l int) string {
@@ -27,14 +31,25 @@ func ShortName(f string, l int) string {
   }
 }
 
-/* Daemon status values */
+/* string representation of []string slice */
+func list(Last []string) string {
+  l := []string{}
+  for _, s := range(Last) {
+    if s != "" {
+      l = append(l, s)
+    }
+  }
+  return strings.Join(l, ",")
+}
+
+/* Daemon Status values */
 type YDvals struct {
-  stat string      // current status
-  prev string      // previous status
-  total string     // total space available
-  used string      // used space
-  trash string     // trash size
-  last [10]string  // last-updated files/folders
+  Stat string      // current Status
+  Prev string      // Previous Status
+  Total string     // Total space available
+  Used string      // Used space
+  Trash string     // Trash size
+  Last [10]string  // Last-updated files/folders
 }
 
 func newYDvals() YDvals {
@@ -58,14 +73,14 @@ func setChange (v *string, val string, ch *bool) {
  * Returns true if values change detected otherways returns false */
 func (val *YDvals) update(out string) bool {
   changed := false  // track changes
-  val.prev = val.stat
+  val.Prev = val.Stat
   if out == "" {
-    setChange(&val.stat, "none", &changed)
+    setChange(&val.Stat, "none", &changed)
     if changed {
-      val.total = "..."
-      val.used = "..."
-      val.trash = "..."
-      val.last = [10]string{}
+      val.Total = "..."
+      val.Used = "..."
+      val.Trash = "..."
+      val.Last = [10]string{}
     }
   } else {
     split := strings.Split(string(out), "Last synchronized items:")
@@ -76,13 +91,13 @@ func (val *YDvals) update(out string) bool {
       }
       switch v[1] {
         case "Synchronization" :
-          setChange(&val.stat, v[2], &changed)
+          setChange(&val.Stat, v[2], &changed)
         case "Total" :
-          setChange(&val.total, v[2], &changed)
+          setChange(&val.Total, v[2], &changed)
         case "Used" :
-          setChange(&val.used, v[2], &changed)
+          setChange(&val.Used, v[2], &changed)
         case "Trash" :
-          setChange(&val.trash, v[2], &changed)
+          setChange(&val.Trash, v[2], &changed)
       }
     }
     if len(split) > 1 {
@@ -94,7 +109,7 @@ func (val *YDvals) update(out string) bool {
         } else {
           p = ""
         }
-        setChange(&val.last[i], p, &changed)
+        setChange(&val.Last[i], p, &changed)
       }
     }
   }
@@ -103,12 +118,13 @@ func (val *YDvals) update(out string) bool {
 
 /* Status control component */
 type YDstat struct {
-  update chan string   // input channel for update values with data from string
+  update chan string   // input channel for update values with data from the daemon output string
   change chan YDvals   // output channel for detected changes
-  status chan bool     // input channel for status request
-  replay chan string   // output channel for replay on status request
+  status chan bool     // input channel for Status request
+  replay chan string   // output channel for replay on Status request
 }
 
+/* This control component implemented as State-full go-routine with 4 communication channels */
 func newYDstatus() YDstat {
   st := YDstat {
     make(chan string),
@@ -124,9 +140,9 @@ func newYDstatus() YDstat {
           if yds.update(upd) {
             st.change <- yds
           }
-        case stat := <- st.status:
-          if stat {  // true : status request
-            st.replay <- yds.stat
+        case Stat := <- st.status:
+          if Stat {  // true : Status request
+            st.replay <- yds.Stat
           } else {   // false : exit
             return
           }
@@ -141,11 +157,11 @@ type YDisk struct {
   path string     // Path to synchronized folder (should be obtained from y-d conf. file)
   stat YDstat     // Status object
   stop chan bool  // Stop signal channel
-  watch uint32    // Watcher status (0 - not started) !!! Use atomic functions to access it!
+  watch uint32    // Watcher Status (0 - not started) !!! Use atomic functions to access it!
 }
 
 func NewYDisk(conf string, path string) YDisk {
-  log.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
+  lg.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
   return YDisk{
     conf,
     path,
@@ -160,9 +176,9 @@ func (yd YDisk) getOutput(userLang bool) (string) {
   if !userLang {
     cmd = append([]string{"env", "-i", "LANG='en_US.UTF8'"}, cmd...)
   }
-  //log.Printf("cmd=", cmd)
+  //lg.Printf("cmd=", cmd)
   out, err := exec.Command(cmd[0], cmd[1:]...).Output()
-  //log.Printf("Status=%s", string(out))
+  //lg.Printf("Status=%s", string(out))
   if err != nil {
     out = []byte{}
   }
@@ -177,32 +193,32 @@ func (yd *YDisk) watcherStart() {
   const second = int(time.Second)
   watcher, err := fsnotify.NewWatcher()
   if err != nil {
-    log.Fatal(err)
+    lg.Fatal(err)
   }
 
   go func() {
     tick := time.NewTimer(time.Second)
     n := 0
     atomic.StoreUint32(&yd.watch, 1)
-    log.Println("Watcher started")
+    lg.Println("Watcher started")
     defer func() {
       tick.Stop()
       watcher.Close()
       atomic.StoreUint32(&yd.watch, 0)
-      log.Println("Watcher stopped")
+      lg.Println("Watcher stopped")
     }()
     for {
       select {
         case <-watcher.Events: //event := <-watcher.Events:
-          //log.Println("Watcher event:", event)
+          //lg.Println("Watcher event:", event)
           tick.Reset(time.Second)
           n = 0
           yd.stat.update <- yd.getOutput(false)
         case err := <-watcher.Errors:
-          log.Println("Watcher error:", err)
+          lg.Println("Watcher error:", err)
           return
         case <-tick.C:
-          //log.Println("timer:", n)
+          //lg.Println("timer:", n)
           // continiously increase timer period: 2s, 4s, 8s.
           if n < 4 {
             n++
@@ -217,9 +233,9 @@ func (yd *YDisk) watcherStart() {
 
   err = watcher.Add(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
   if err != nil {
-    log.Fatal(err)
+    lg.Fatal(err)
   }
-  log.Println("Watch path added")
+  lg.Println("Watch path added")
 }
 
 func (yd *YDisk) watcherStop() {
@@ -234,15 +250,15 @@ func (yd *YDisk) Start() (string, error) {
   if yd.getOutput(true) == "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
     if err != nil {
-      log.Fatal(err)
+      lg.Fatal(err)
     }
-    log.Println("Daemon start:", string(out))
+    lg.Println("Daemon start:", string(out))
   }
   if !yd.watcherStat() {
-    //log.Println("Watcher not started, start it.")
+    //lg.Println("Watcher not started, start it.")
     yd.watcherStart()
   }
-  log.Println("Daemon Started")
+  lg.Println("Daemon Started")
   return "", nil
 }
 
@@ -250,15 +266,15 @@ func (yd *YDisk) Stop() (string, error) {
   if yd.getOutput(true) != "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
     if err != nil {
-      log.Fatal(err)
+      lg.Fatal(err)
     }
-    log.Println("Daemon stop:", string(out))
+    lg.Println("Daemon stop:", string(out))
   }
   if yd.watcherStat() {
-    //log.Println("Watcher was started, stop it.")
+    //lg.Println("Watcher was started, stop it.")
     yd.watcherStop()
   }
-  log.Println("Daemon Stopped")
+  lg.Println("Daemon Stopped")
   return "", nil
 }
 
@@ -270,10 +286,9 @@ func (yd *YDisk) Status() string {
 func notify(msg string) {
   err := exec.Command("notify-send", msg).Run()
   if err != nil {
-    log.Fatal(err)
+    lg.Fatal(err)
   }
 }
-
 
 func main() {
   // TO_DO:
@@ -290,30 +305,31 @@ func main() {
   go func() {
     for {
       yds := <- YD.stat.change
-      msg := strings.Join([]string{"Change detected!\n  Prev = ", yds.prev, "  Stat = ",
-                                   yds.stat,"\n  Total=", yds.total, " Used = ",
-                                   yds.used, " Trash= ", yds.trash,
-                                  "\n  Last =", yds.last[0]},"")
-      log.Println(msg)
-      notify(msg)
+      msg := strings.Join([]string{"Change detected!\n  Prev=", yds.Prev, "  Stat=",
+                                   yds.Stat,"\n  Total=", yds.Total, " Used=",
+                                   yds.Used, " Trash=", yds.Trash,
+                                  "\n  Last=", list(yds.Last[:])},"")
+      lg.Println(msg)
+      msj, _ := json.Marshal(yds)
+      notify(string(msj))
     }
   }()
 
-  log.Println("Current status:", YD.Status())
+  lg.Println("Current status:", YD.Status())
 
   // TO_DO:
   // 1. Check that yandex-disk should be started on startup
   // 2. Call YD.Start() only it is requered
   _, err := YD.Start()
   if err != nil {
-    log.Fatal(err)
+    lg.Fatal(err)
   }
 
   //time.Sleep(time.Second)
 
   fmt.Scanln()
-  log.Println("Current status:", YD.Status())
-  log.Println("Exit requested")
+  lg.Println("Current status:", YD.Status())
+  lg.Println("Exit requested")
 
   // TO_DO:
   // 1. Check that yandex-disk should be stopped on exit
@@ -321,7 +337,7 @@ func main() {
   _, err = YD.Stop()
 
   time.Sleep(time.Second * 1)
-  log.Println("Current status:", YD.Status())
-  log.Println("All done. Bye!")
+  lg.Println("Current Status:", YD.Status())
+  lg.Println("All done. Bye!")
 
 }
