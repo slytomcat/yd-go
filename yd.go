@@ -79,81 +79,74 @@ func setChange (v *string, val string, ch *bool) {
 /* Update Daemon status values from the daemon output string
  * Returns true if change detected in any value, otherways returns false */
 func (val *YDvals) update(out string) bool {
-  val.Prev = val.Stat
-  changed := false  // track changes for all rest values
+  val.Prev = val.Stat  // store previous status but don't track changes of val.Prev
+  changed := false     // track changes for values
   if out == "" {
     setChange(&val.Stat, "none", &changed)
     if changed {
-      val.Total = ""
-      val.Used = ""
-      val.Trash = ""
-      val.Free = ""
-      val.Prog = ""
-      val.Err = ""
-      val.ErrP = ""
+      val.Total, val.Used, val.Trash, val.Free = "", "", "", ""
+      val.Prog, val.Err, val.ErrP, val.ChLast = "", "", "", true
+      val.Last = []string{}
+      return true
+    }
+    return false
+  }
+  split := strings.Split(string(out), "Last synchronized items:")
+  // Need to remove "Path to " as another "Path:" exists in case of access error
+  split[0] = strings.Replace(split[0], "Path to ", "", 1)
+  // Take only first word in the phrase before ":"
+  for _, v := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
+    if v[2][0] == byte('\'') {
+      v[2] = v[2][1:len(v[2])-1]
+    }
+    switch v[1] {
+      case "Synchronization" :
+        switch v[2] {
+          case "no internet access":
+            v[2] = "no_net"
+          case "index":
+            v[2] = "busy"
+        }
+        setChange(&val.Stat, v[2], &changed)
+      case "Sync" :
+        setChange(&val.Prog, v[2], &changed)
+      case "Total" :
+        setChange(&val.Total, v[2], &changed)
+      case "Used" :
+        setChange(&val.Used, v[2], &changed)
+      case "Available" :
+        setChange(&val.Free, v[2], &changed)
+      case "Trash" :
+        setChange(&val.Trash, v[2], &changed)
+      case "Error" :
+        setChange(&val.Err, v[2], &changed)
+      case "Path" :
+        setChange(&val.ErrP, v[2], &changed)
+    }
+  }
+
+  // Parse the "Last syncronized items" section (list of paths and files)
+  val.ChLast = false  // track last list changes separately
+  if len(split) > 1 {
+    f := regexp.MustCompile(`: '(.*)'\n`).FindAllStringSubmatch(split[1], -1)
+    if len(f) != len(val.Last) {
+      val.ChLast = true
+      val.Last = []string{}
+      for _, p := range f {
+        val.Last = append(val.Last, p[1])
+      }
+    } else {  // len(split) = 1 - there is no section with last sync. paths
+      for i, p := range f {
+        setChange(&val.Last[i], p[1], &val.ChLast)
+      }
+    }
+  } else {
+    if len(val.Last) > 0 {
       val.Last = []string{}
       val.ChLast = true
     }
-  } else {
-    split := strings.Split(string(out), "Last synchronized items:")
-    // Need to remove "Path to " as another "Path:" exists in case of access error
-    split[0] = strings.Replace(split[0], "Path to ", "", 1)
-    // Take only first word in the phrase before ":"
-    for _, v := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
-      if v[2][0] == byte('\'') {
-        v[2] = v[2][1:len(v[2])-1]
-      }
-      switch v[1] {
-        case "Synchronization" :
-          switch v[2] {
-            case "no internet access":
-              v[2] = "no_net"
-            case "index":
-              v[2] = "busy"
-          }
-          setChange(&val.Stat, v[2], &changed)
-        case "Sync" :
-          setChange(&val.Prog, v[2], &changed)
-        case "Total" :
-          setChange(&val.Total, v[2], &changed)
-        case "Used" :
-          setChange(&val.Used, v[2], &changed)
-        case "Available" :
-          setChange(&val.Free, v[2], &changed)
-        case "Trash" :
-          setChange(&val.Trash, v[2], &changed)
-        case "Error" :
-          setChange(&val.Err, v[2], &changed)
-        case "Path" :
-          setChange(&val.ErrP, v[2], &changed)
-      }
-    }
-
-    // Parse the "Last syncronized items" section (list of paths and files)
-    changedLast := false
-    if len(split) > 1 {
-      f := regexp.MustCompile(`: '(.*)'\n`).FindAllStringSubmatch(split[1], -1)
-      if len(f) != len(val.Last) {
-        changedLast = true
-        val.Last = []string{}
-        for _, p := range f {
-          val.Last = append(val.Last, p[1])
-        }
-      } else {
-        for i, p := range f {
-          setChange(&val.Last[i], p[1], &changedLast)
-        }
-      }
-      val.ChLast = changedLast
-      changed = changedLast || changed
-    } else {
-      if len(val.Last) > 0 {
-        val.Last = []string{}
-        val.ChLast = true
-      }
-    }
   }
-  return changed
+  return changed || val.ChLast
 }
 
 /* Status control component */
@@ -375,12 +368,17 @@ func CommandCycle(YD *YDisk) {
 }
 
 func main() {
+  if len(os.Args) < 3 {
+    lg.Fatal("Error: Path to yandex-disc config-file and path to synchronized folder",
+             "must be provided via first and second command line arguments")
+  }
   // TO_DO:
   // 1. need to check that yandex-disk is installed and properly configured
   // 2. get synchronized path from yandex-disk config
   // or
   // pass paths via command line arguments
-  YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
+  YD := NewYDisk(os.Args[1], os.Args[2])
+  //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
   lg.Println("Current status:", YD.Status())
 
   // TO_DO:

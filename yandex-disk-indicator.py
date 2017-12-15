@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 #
 appName = 'yandex-disk-indicator'
-appVer = '1.9.13_go'
+appVer = '2.0.1_go'
 #
-COPYRIGHT = 'Copyright ' + '\u00a9' + ' 2013-2016 Sly_tom_cat'
+COPYRIGHT = 'Copyright ' + '\u00a9' + ' 2013-2017 Sly_tom_cat'
 #
 LICENSE = """
 This program is free software: you can redistribute it and/or
@@ -35,7 +35,10 @@ from gi.repository.GLib import timeout_add, source_remove
 require_version('GdkPixbuf', '2.0')
 from gi.repository.GdkPixbuf import Pixbuf
 
-from subprocess import check_output, call, CalledProcessError
+from subprocess import Popen, PIPE, DEVNULL, check_output #call, CalledProcessError
+from threading import Thread
+from json import loads as json_loads
+from queue import Queue, Empty
 
 from re import findall as reFindall, sub as reSub, search as reSearch, M as reM, S as reS
 from argparse import ArgumentParser
@@ -479,23 +482,99 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
           break
         else:
           appExit('Daemon is not configured')
-    self.vals = YDDaemon._dvals.copy()                # Load default daemon status values
+    #self.vals = YDDaemon._dvals.copy()                # Load default daemon status values
     # Start daemon wrap. pass self.config['dir'] and cfgFile to it.
     # Make stdin and stdout pipes
     # Start thread to listen for stdout
     # If logging enabled make stderr and start thread for stderr
     # see args.level for log level
+    self.events = Queue(10)
+    def stdout_reader(pipe):
+      while True:
+        data = pipe.readline()
+        if data != "":
+          data = json_loads(data)
+          # process data
+          if data.get("Stat", "") != "":
+            logger.debug("Update: " + str(data))
+            #self.change(data)
+            self.events.put([0, data])
+            continue
+          out = data.get("Output", "")
+          if out != "":
+            #logger.debug("Output: " + out)
+            #self.output(out)
+            self.events.put([1, out])
+        else:
+          break
+      logger.info("stdout_reader finished")
 
+    def stderr_reader(pipe):
+      while True:
+        data = pipe.readline()
+        if data != "":
+          logger.debug(data[:-1])
+        else:
+          break
+      logger.info("stderr_reader finished")
 
+    def qtime():
+      logger.info("queue size "+str(self.events.qsize()))
+      try:
+        item = self.events.get(False)
+      except Empty:
+        item = None
+      logger.info("Item read "+str(item))
+      if item is not None:
+        if item[0] == 0:
+          self.change(item[1])
+        else:
+          self.output(item[1])
+      return True
+
+    self.qtimer = Timer(300, qtime)
+    if args.level == 10:
+      errpipe = PIPE
+    else:
+      errpipe = DEVNULL
+    proc = Popen(["/home/stc/DEV/GO/src/YD.go/yd", cfgFile, self.config['dir']],
+                   bufsize=1,
+                   universal_newlines=True,
+                   stdin=PIPE, stdout=PIPE, stderr=errpipe,
+                   shell=False, cwd=None)
+
+    self.stdin = proc.stdin
+
+    Thread(target=stdout_reader, args=(proc.stdout,)).start()
+    if errpipe == PIPE :
+      Thread(target=stderr_reader, args=(proc.stderr,)).start()
 
     if self.config.get('startonstartofindicator', True):
       self.start()                       # Start daemon if it is required
 
+  def start(self):                      # Request to execute 'yandex-disk start'
+    # "start" -> stdin
+    print("start", file=self.stdin)
+
+  def stop(self):                       # Request to execute 'yandex-disk stop'
+    # "stop" -> stdin
+    print("stop", file=self.stdin)
+
+  def exit(self):                       # Handle daemon/indicator closing
+    # Stop yandex-disk daemon if it is required by its configuration
+    if self.config.get('stoponexitfromindicator', False):
+      self.stop()
+    print("exit", file=self.stdin)
+    self.qtimer.stop()
+
+  def getOutput(self):  # request result of 'yandex-disk status'
+    print("output", file=self.stdin)
+
   def change(self, vals):       # Redefined update handler
     logger.debug('Update event, Values : %s' % str(vals))
 
-  def getOutput(self):  # request result of 'yandex-disk status'
-    #"output" -> stdin
+  def output(self, out):        # Redefined output handler
+    logger.debug('redef Output: ' + out)
 
   def _errorDialog(self, err):          # Show error messages according to the error
     global logo
@@ -535,18 +614,6 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
     dialog.destroy()
     return retCode              # 0 when error is not critical or fixed (daemon has been configured)
 
-  def start(self):                      # Request to execute 'yandex-disk start'
-    # "start" -> stdin
-
-  def stop(self):                       # Request to execute 'yandex-disk stop'
-    # "stop" -> stdin
-
-  def exit(self):                       # Handle daemon/indicator closing
-    # Stop yandex-disk daemon if it is required by its configuration
-    if self.vals['status'] != 'none' and self.config.get('stoponexitfromindicator', False):
-      self.stop()
-      logger.info('Demon %sstopped' % self.ID)
-
 class Indicator(YDDaemon):      # Yandex.Disk appIndicator
 
   def __init__(self, path, ID):
@@ -576,8 +643,8 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
     # Update information in menu
     self.menu.update(vals, self.config['dir'])
     # Handle daemon status change by icon change
-    logger.info('Status: ' + self.vals['Prev'] + ' -> ' + self.vals['Stat'])
-    self.updateIcon()                   # Update icon
+    logger.info('Status: ' + vals['Prev'] + ' -> ' + vals['Stat'])
+    self.updateIcon(vals['Stat'])               # Update icon
     # Create notifications for status change events
     if vals['Prev'] != vals['Stat']:
       if vals['Prev'] == 'none':    # Daemon has been started
@@ -613,11 +680,11 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
     # Set theme paths according to existence of first busy icon
     self.themePath = userPath if pathExists(userIcon) else defaultPath
 
-  def updateIcon(self):             # Change indicator icon according to just changed daemon status
+  def updateIcon(self, status):             # Change indicator icon according to just changed daemon status
     # Set icon according to the current status
-    self.ind.set_icon(self.icon[self.vals['Stat']])
+    self.ind.set_icon(self.icon[status])
     # Handle animation
-    if self.vals['Stat'] == 'busy':   # Just entered into 'busy' status
+    if status == 'busy':            # Just entered into 'busy' status
       self._seqNum = 2                  # Next busy icon number for animation
       self.timer.start()                # Start animation timer
     elif self.timer.active:
@@ -717,7 +784,7 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
           self.lastItems.append(widget)
           widget.show()
         # Switch off last items menu sensitivity if no items in list
-        self.last.set_sensitive(len(vals['lastitems']) != 0)
+        self.last.set_sensitive(len(vals['Last']) != 0)
         logger.debug("Sub-menu 'Last synchronized' has been updated " + str(vals['Last']))
       # Update 'static' elements of menu
       if 'none' in (vals['Stat'], vals['Prev']) or vals['Prev'] == 'unknown':
@@ -766,24 +833,6 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
       for i in indicators:
         i.menu.about.set_sensitive(True)            # Enable menu item
 
-    def showOutput(self, widget):           # Display daemon output in dialogue window
-      global logo
-      # "output" -> stdin
-      # All the rest in callback
-      widget.set_sensitive(False)                         # Disable menu item
-      statusWindow = Gtk.Dialog(_('Yandex.Disk daemon output message'))
-      statusWindow.set_icon(logo)
-      statusWindow.set_border_width(6)
-      statusWindow.add_button(_('Close'), Gtk.ResponseType.CLOSE)
-      textBox = Gtk.TextView()                            # Create text-box to display daemon output
-      # Set output buffer with daemon output in user language
-      textBox.get_buffer().set_text(self.daemon.getOutput(True))
-      textBox.set_editable(False)
-      # Put it inside the dialogue content area
-      statusWindow.get_content_area().pack_start(textBox, True, True, 6)
-      statusWindow.show_all();  statusWindow.run();   statusWindow.destroy()
-      widget.set_sensitive(True)                          # Enable menu item
-
     def openInBrowser(self, widget, url):   # Open URL
       openNewBrowser(url)
 
@@ -803,6 +852,32 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
 
     def close(self, widget):                # Quit from indicator
       appExit()
+
+    def showOutput(self, widget):           # Display daemon output in dialogue window
+      # "output" -> stdin
+      self.daemon.getOutput()
+      # All the rest in 'output' callback (see below)
+
+    def output(self, out):
+      global logo
+      self.status.set_sensitive(False)                         # Disable menu item
+      logger.debug('menu Output: ' + out)
+      statusWindow = Gtk.Dialog() #_('Yandex.Disk daemon output message'))
+      statusWindow.set_icon(logo)
+      statusWindow.set_border_width(6)
+      statusWindow.add_button(_('Close'), Gtk.ResponseType.CLOSE)
+      textBox = Gtk.TextView()                            # Create text-box to display daemon output
+      # Set output buffer with daemon output in user language
+      textBox.get_buffer().set_text(out)
+      textBox.set_editable(False)
+      # Put it inside the dialogue content area
+      statusWindow.get_content_area().pack_start(textBox, True, True, 6)
+      statusWindow.show_all();  statusWindow.run();   statusWindow.destroy()
+      self.status.set_sensitive(True)                          # Enable menu item
+
+  def output(self, out):
+    #logger.debug('ind Output: ' + out)
+    self.menu.output(out)
 
 #### Application functions and classes
 class Preferences(Gtk.Dialog):  # Preferences window of application and daemons
