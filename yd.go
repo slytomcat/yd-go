@@ -105,6 +105,12 @@ func (val *YDvals) update(out string) bool {
       }
       switch v[1] {
         case "Synchronization" :
+          switch v[2] {
+            case "no internet access":
+              v[2] = "no_net"
+            case "index":
+              v[2] = "busy"
+          }
           setChange(&val.Stat, v[2], &changed)
         case "Sync" :
           setChange(&val.Prog, v[2], &changed)
