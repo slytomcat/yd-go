@@ -395,31 +395,30 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
   Public methods:
   __init__ - Handles initialization of the object and as a part - auto-start daemon if it
              is required by configuration settings.
-  getOuput - Provides daemon output (in user language when optional parameter userLang is
-             True)
-  start    - Starts daemon if it is not started yet
-  stop     - Stops running daemon
-  exit     - Handles 'Stop on exit' facility according to daemon configuration settings.
-  change   - Call back function for handling daemon status changes outside the class.
-             It have to be redefined by UI update routine.
-             The parameters of the call - status values dictionary (see vars description below)
-             and the UpdateEvent object with with 5 boolean values:
-              stat is True when status has been changed,
-              prog is True when synchronization progress has been changed,
-              size is True when some of sizes has been changed,
-              last is True when list of last synchronized has been changed,
-              init is True when initial update event is raised.
+  output   - Request for daemon output in user language (result have to be received
+             via outText callback)
+  outText  - CallBack function that receives requested daemon output in user language
+  start    - Request start of daemon (nothing happens is it is already started)
+  stop     - Request stop of daemon (nothing happens is it is already stopped)
+  close    - Hadles the object rsources utilization and to stop daemon if is required by
+             configuration settings. It should be called on exit from application.
+  change   - Callback function that receives changes of daemon status.
+             It have to be redefined by UI update class.
+             The parameters of the call - status values dictionary (see description below).
+  Change dictionary:
+             'Stat' - current daemon status
+             'Prog' - synchronization progress or ''
+             'Prev' - previous daemon status
+             'Total' - total Yandex disk space
+             'Used' - currently used space
+             'Free' - available space
+             'Trash' - size of trash
+             'Last' - list of last synchronized items or []
+             'ChLast' - boolean flag indicating tha Last was changed.
+             'Err' - error message
+             'ErrP' - path of error file
   Class interface variables:
   config   - The daemon configuration dictionary (object of _DConfig(Config) class)
-  vars     - status values dictionary with following keys:
-              'status' - current daemon status
-              'progress' - synchronization progress or ''
-              'laststatus' - previous daemon status
-              'total' - total Yandex disk space
-              'used' - currently used space
-              'free' - available space
-              'trash' - size of trash
-              'lastitems' - list of last synchronized items or []
   ID       - the daemon identity string (empty in single daemon configuration)
   '''
 
@@ -484,7 +483,7 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
         else:
           sysExit('Daemon is not configured')
 
-    # Callback for rea from stdout
+    # Declare call-back for read from stdout
     def stdout_reader(pipe, _):
       data = pipe.readline()
       if data != "":
@@ -493,37 +492,36 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
         if data.get("Stat", "") != "":
           logger.debug("Update: " + str(data))
           self.change(data)
-          #self.events.put([0, data])
         else:
           out = data.get("Output", "")
           if out != "":
             #logger.debug("Output: " + out)
-            self.output(out)
-            #self.events.put([1, out])
+            self.outText(out)
         return True
+      # return None if io.stam closed (returns empty string in readline() call)
 
-    # Callback for rea from stderr
+    # Declare call-back for read from stderr
     def stderr_reader(pipe, _):
       data = pipe.readline()
       if data != "":
         logger.debug(data[:-1])
         return True
+      # return None if io.stam closed (returns empty string in readline() call)
 
     if args.level == 10:
-      errpipe = PIPE
+      errpipe = PIPE    # Pass through the wrapper messages to logger in DEBUG logging mode
     else:
-      errpipe = DEVNULL
+      errpipe = DEVNULL # In other logging modes - pass stderr of wrapper to /dev/null
     proc = Popen(["/home/stc/DEV/GO/src/YD.go/yd", cfgFile, self.config['dir']],
-                   bufsize=1,
-                   universal_newlines=True,
-                   stdin=PIPE, stdout=PIPE, stderr=errpipe,
-                   shell=False, cwd=None)
+                 bufsize=1, universal_newlines=True, stdin=PIPE, stdout=PIPE, stderr=errpipe)
 
-    self.stdin = proc.stdin
-    self.closepoll = proc.poll
+    self.stdin = proc.stdin  # store stdin for sending commands to wrapper
+    self.closepoll = proc.poll  # store wrapper finishing poll func
 
+    # Register new io.stesm wathcher for stdout
     io_add_watch(proc.stdout, 0, IOCondition.IN, stdout_reader)
     if errpipe == PIPE :
+      # Pass through the wrapper messages to logger in DEBUG logging mode
       io_add_watch(proc.stderr, 0, IOCondition.IN, stderr_reader)
 
     if self.config.get('startonstartofindicator', True):
@@ -542,15 +540,16 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
     if self.config.get('stoponexitfromindicator', False):
       self.stop()
     print("exit", file=self.stdin)
-    logger.debug("Exit sent")
 
-  def getOutput(self):  # request result of 'yandex-disk status'
+  def output(self):             # request for results of 'yandex-disk status' in user language
     print("output", file=self.stdin)
 
-  def change(self, vals):       # Redefined update handler
+  def change(self, vals):       # Callback for status update handler
+    # it should be redifined in UI class
     logger.debug('Update event, Values : %s' % str(vals))
 
-  def output(self, out):        # Redefined output handler
+  def outText(self, out):           # CallBack for output display handler
+    # it should be redifined in UI class
     logger.debug('redef Output: ' + out)
 
   def _errorDialog(self, err):          # Show error messages according to the error
@@ -610,11 +609,12 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
     # Initialize Yandex.Disk daemon connection object
     super(Indicator, self).__init__(path, ID)
 
-  def change(self, vals):   # Redefinition of daemon class call-back function
+  def change(self, vals):   # Callback that recives daemon status changes
     '''
     It handles daemon status changes by updating icon, creating messages and also update
     status information in menu (status, sizes and list of last synchronized items).
-    It is called when daemon detects any change of its status.
+    It is called when a change of daemon status detected.
+    vals - the dictionary with daemon status values
     '''
     logger.info(self.ID + 'Change event')
     # Update information in menu
@@ -831,15 +831,15 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
       appExit()
 
     def showOutput(self, widget):           # Display daemon output in dialogue window
-      # "output" -> stdin
-      self.daemon.getOutput()
-      # All the rest in 'output' callback (see below)
+      # Request for daemon output
+      self.daemon.output()
+      # Receive output in 'openOutput' callback (see below)
 
-    def output(self, out):
+    def openOutput(self, out):
       global logo
       self.status.set_sensitive(False)                         # Disable menu item
       logger.debug('menu Output: ' + out)
-      statusWindow = Gtk.Dialog() #_('Yandex.Disk daemon output message'))
+      statusWindow = Gtk.Dialog(_('Yandex.Disk daemon output message'))
       statusWindow.set_icon(logo)
       statusWindow.set_border_width(6)
       statusWindow.add_button(_('Close'), Gtk.ResponseType.CLOSE)
@@ -852,9 +852,9 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
       statusWindow.show_all();  statusWindow.run();   statusWindow.destroy()
       self.status.set_sensitive(True)                          # Enable menu item
 
-  def output(self, out):
+  def outText(self, out):     # CallBack that receves daemon output in user language
     #logger.debug('ind Output: ' + out)
-    self.menu.output(out)
+    self.menu.openOutput(out)
 
 #### Application functions and classes
 class Preferences(Gtk.Dialog):  # Preferences window of application and daemons
