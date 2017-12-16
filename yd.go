@@ -172,15 +172,15 @@ func newYDstatus() YDstat {
         case upd := <- st.update:
           if yds.update(upd) {
             st.change <- yds
-            lg.Println("Change: Prev=", yds.Prev, " Stat=", yds.Stat,
-                    "\n  Total=", yds.Total, " Len(Last)=", len(yds.Last), " Err=", yds.Err)
+            lg.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
+                       "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
           }
         case stat := <- st.status:
           switch stat {
             case true:       // true : status request
               st.replay <- yds.Stat
             case false:      // false : exit
-              lg.Print("Status component routine finished")
+              lg.Println("Status component routine finished")
               return
           }
       }
@@ -215,9 +215,9 @@ func (yd YDisk) getOutput(userLang bool) (string) {
   if !userLang {
     cmd = append([]string{"env", "-i", "LANG='en_US.UTF8'"}, cmd...)
   }
-  //lg.Printf("cmd=", cmd)
+  //lg.Println("cmd=", cmd)
   out, err := exec.Command(cmd[0], cmd[1:]...).Output()
-  //lg.Printf("Status=%s", string(out))
+  //lg.Println("Status=%s", string(out))
   if err != nil {
     out = []byte{}
   }
@@ -397,7 +397,7 @@ func main() {
           //notify(string(msj))
           fmt.Println(string(msj))
         case <- exit:
-          lg.Print("Status display routine finished")
+          lg.Println("Status display routine finished")
           return
       }
     }
@@ -420,7 +420,7 @@ func main() {
   lg.Println("Exit Status:", YD.Status())
   exit <- true
   YD.Close()
-  time.Sleep(time.Millisecond * 100)
+  time.Sleep(time.Millisecond * 50)
   lg.Println("All done. Bye!")
 
 }

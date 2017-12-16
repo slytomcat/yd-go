@@ -30,10 +30,11 @@ require_version('AppIndicator3', '0.1')
 from gi.repository import AppIndicator3 as appIndicator
 require_version('Notify', '0.7')
 from gi.repository import Notify
-require_version('GLib', '2.0')
-from gi.repository.GLib import timeout_add, source_remove
 require_version('GdkPixbuf', '2.0')
 from gi.repository.GdkPixbuf import Pixbuf
+
+require_version('GLib', '2.0')
+from gi.repository.GLib import timeout_add, source_remove, io_add_watch, IOCondition, IOChannel
 
 from subprocess import Popen, PIPE, DEVNULL, check_output #call, CalledProcessError
 from threading import Thread
@@ -469,7 +470,7 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
     self.YDC = which('yandex-disk')
     if not self.YDC:
       self._errorDialog('NOTINSTALLED')
-      appExit('Daemon is not installed')
+      sysExit('Daemon is not installed')
     # Try to read Yandex.Disk configuration file and make sure that it is correctly configured
     self.config = self._DConfig(cfgFile, load=False)
     while not (self.config.load() and
@@ -481,58 +482,33 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
           # Exit from loop in multi-instance configuration
           break
         else:
-          appExit('Daemon is not configured')
-    #self.vals = YDDaemon._dvals.copy()                # Load default daemon status values
-    # Start daemon wrap. pass self.config['dir'] and cfgFile to it.
-    # Make stdin and stdout pipes
-    # Start thread to listen for stdout
-    # If logging enabled make stderr and start thread for stderr
-    # see args.level for log level
-    self.events = Queue(10)
-    def stdout_reader(pipe):
-      while True:
-        data = pipe.readline()
-        if data != "":
-          data = json_loads(data)
-          # process data
-          if data.get("Stat", "") != "":
-            logger.debug("Update: " + str(data))
-            #self.change(data)
-            self.events.put([0, data])
-            continue
+          sysExit('Daemon is not configured')
+
+    # Callback for rea from stdout
+    def stdout_reader(pipe, _):
+      data = pipe.readline()
+      if data != "":
+        data = json_loads(data)
+        # process data
+        if data.get("Stat", "") != "":
+          logger.debug("Update: " + str(data))
+          self.change(data)
+          #self.events.put([0, data])
+        else:
           out = data.get("Output", "")
           if out != "":
             #logger.debug("Output: " + out)
-            #self.output(out)
-            self.events.put([1, out])
-        else:
-          break
-      logger.info("stdout_reader finished")
+            self.output(out)
+            #self.events.put([1, out])
+        return True
 
-    def stderr_reader(pipe):
-      while True:
-        data = pipe.readline()
-        if data != "":
-          logger.debug(data[:-1])
-        else:
-          break
-      logger.info("stderr_reader finished")
+    # Callback for rea from stderr
+    def stderr_reader(pipe, _):
+      data = pipe.readline()
+      if data != "":
+        logger.debug(data[:-1])
+        return True
 
-    def qtime():
-      logger.info("queue size "+str(self.events.qsize()))
-      try:
-        item = self.events.get(False)
-      except Empty:
-        item = None
-      logger.info("Item read "+str(item))
-      if item is not None:
-        if item[0] == 0:
-          self.change(item[1])
-        else:
-          self.output(item[1])
-      return True
-
-    self.qtimer = Timer(300, qtime)
     if args.level == 10:
       errpipe = PIPE
     else:
@@ -544,10 +520,11 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
                    shell=False, cwd=None)
 
     self.stdin = proc.stdin
+    self.closepoll = proc.poll
 
-    Thread(target=stdout_reader, args=(proc.stdout,)).start()
+    io_add_watch(proc.stdout, 0, IOCondition.IN, stdout_reader)
     if errpipe == PIPE :
-      Thread(target=stderr_reader, args=(proc.stderr,)).start()
+      io_add_watch(proc.stderr, 0, IOCondition.IN, stderr_reader)
 
     if self.config.get('startonstartofindicator', True):
       self.start()                       # Start daemon if it is required
@@ -565,7 +542,7 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
     if self.config.get('stoponexitfromindicator', False):
       self.stop()
     print("exit", file=self.stdin)
-    self.qtimer.stop()
+    logger.debug("Exit sent")
 
   def getOutput(self):  # request result of 'yandex-disk status'
     print("output", file=self.stdin)
@@ -1077,7 +1054,7 @@ def appExit(msg=None):          # Exit from application (it closes all indicator
   global indicators
   for i in indicators:
     i.exit()
-  sysExit(msg)
+  Timer(100*len(indicators), Gtk.main_quit)
 
 def activateActions():          # Install/deinstall file extensions
   activate = config["fmextensions"]
