@@ -17,30 +17,30 @@ import (
 var lg *log.Logger = log.New(os.Stderr, "", log.Lshortfile) // | log.Lmicroseconds)
 
 /* Tool function that returns shorten version (up to l symbols) of original string  */
-func ShortName(f string, l int) string {
-  v := []rune(f)
-  if len(v) > l {
-    n := (l - 3) / 2
-    k := n
-    if n+k+3 < l {
-      k += 1
-    }
-    return string(v[:n]) + "..." + string(v[len(v)-k:])
-  } else {
-    return f
-  }
-}
+//func ShortName(f string, l int) string {
+  //v := []rune(f)
+  //if len(v) > l {
+    //n := (l - 3) / 2
+    //k := n
+    //if n+k+3 < l {
+      //k += 1
+    //}
+    //return string(v[:n]) + "..." + string(v[len(v)-k:])
+  //} else {
+    //return f
+  //}
+//}
 
 /* string representation of []string slice */
-func list(Last []string) string {
-  l := []string{}
-  for _, s := range(Last) {
-    if s != "" {
-      l = append(l, s)
-    }
-  }
-  return strings.Join(l, ",")
-}
+//func list(Last []string) string {
+  //l := []string{}
+  //for _, s := range(Last) {
+    //if s != "" {
+      //l = append(l, s)
+    //}
+  //}
+  //return strings.Join(l, ",")
+//}
 
 /* Daemon Status values */
 type YDvals struct {
@@ -87,45 +87,43 @@ func (val *YDvals) update(out string) bool {
       val.Total, val.Used, val.Trash, val.Free = "", "", "", ""
       val.Prog, val.Err, val.ErrP, val.ChLast = "", "", "", true
       val.Last = []string{}
-      return true
     }
-    return false
+    return changed
   }
   split := strings.Split(string(out), "Last synchronized items:")
   // Need to remove "Path to " as another "Path:" exists in case of access error
   split[0] = strings.Replace(split[0], "Path to ", "", 1)
+  // Initialize map with keys that can be missed
+  keys := map[string]string {"Sync":"", "Error":"", "Path":""}
   // Take only first word in the phrase before ":"
-  for _, v := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
-    if v[2][0] == byte('\'') {
-      v[2] = v[2][1:len(v[2])-1]
+  for _, s := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
+    if s[2][0] == byte('\'') {
+      s[2] = s[2][1:len(s[2])-1]   // remove ' in the beggining and at end
     }
-    switch v[1] {
+    keys[s[1]] = s[2]
+  }
+  for k, v := range keys {
+    switch k {
       case "Synchronization" :
-        switch v[2] {
-          case "no internet access":
-            v[2] = "no_net"
-          case "index":
-            v[2] = "busy"
-        }
-        setChange(&val.Stat, v[2], &changed)
+        setChange(&val.Stat, v, &changed)
       case "Sync" :
-        setChange(&val.Prog, v[2], &changed)
+        setChange(&val.Prog, v, &changed)
       case "Total" :
-        setChange(&val.Total, v[2], &changed)
+        setChange(&val.Total, v, &changed)
       case "Used" :
-        setChange(&val.Used, v[2], &changed)
+        setChange(&val.Used, v, &changed)
       case "Available" :
-        setChange(&val.Free, v[2], &changed)
+        setChange(&val.Free, v, &changed)
       case "Trash" :
-        setChange(&val.Trash, v[2], &changed)
+        setChange(&val.Trash, v, &changed)
       case "Error" :
-        setChange(&val.Err, v[2], &changed)
+        setChange(&val.Err, v, &changed)
       case "Path" :
-        setChange(&val.ErrP, v[2], &changed)
+        setChange(&val.ErrP, v, &changed)
     }
   }
 
-  // Parse the "Last syncronized items" section (list of paths and files)
+  // Parse the "Last synchronized items" section (list of paths and files)
   val.ChLast = false  // track last list changes separately
   if len(split) > 1 {
     f := regexp.MustCompile(`: '(.*)'\n`).FindAllStringSubmatch(split[1], -1)
@@ -135,12 +133,12 @@ func (val *YDvals) update(out string) bool {
       for _, p := range f {
         val.Last = append(val.Last, p[1])
       }
-    } else {  // len(split) = 1 - there is no section with last sync. paths
+    } else {
       for i, p := range f {
         setChange(&val.Last[i], p[1], &val.ChLast)
       }
     }
-  } else {
+  } else {   // len(split) = 1 - there is no section with last sync. paths
     if len(val.Last) > 0 {
       val.Last = []string{}
       val.ChLast = true
@@ -171,9 +169,9 @@ func newYDstatus() YDstat {
       select {
         case upd := <- st.update:
           if yds.update(upd) {
-            st.change <- yds
             lg.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
                        "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
+            st.change <- yds
           }
         case stat := <- st.status:
           switch stat {
@@ -189,12 +187,93 @@ func newYDstatus() YDstat {
   return st
 }
 
+type watcher struct {
+  watch *fsnotify.Watcher
+  stop chan bool  // Stop signal channel file watcher routine
+  active uint32   // Watcher status (0 - not started) !!! Use atomic functions to access it!
+  path bool       // Flag that means that wather path was succesfully added
+}
+
+func newWatcher(yd YDisk) watcher {
+  watch, err := fsnotify.NewWatcher()
+  if err != nil {
+    lg.Fatal(err)
+  }
+  w := watcher{
+      watch,
+      make(chan bool, 1),
+      0,
+      false,
+    }
+
+  tick := time.NewTimer(time.Second)
+  n := 0
+  //atomic.StoreUint32(&w.active, 1)
+  w.active = 1
+  lg.Println("File watcher started")
+
+  go func() {
+    defer func() {
+      tick.Stop()
+      watch.Close()
+      atomic.StoreUint32(&w.active, 0)
+      lg.Println("File watcher routine finished")
+    }()
+    busy_status := false
+    out := ""
+    for {
+      select {
+        case <-watch.Events: //event := <-watcher.Events:
+          //lg.Println("Watcher event:", event)
+          tick.Reset(time.Millisecond * 500)
+          n = 0
+        case err := <-watch.Errors:
+          lg.Println("Watcher error:", err)
+          return
+        case <-tick.C:
+          if busy_status {
+            n = 0  // keep 2s interval in busy mode
+          }
+          if n < 4 {
+            n++ // continuously increase timer period: 2s, 4s, 8s.
+            tick.Reset(time.Duration(n * 2) * time.Second)
+          }
+        case <-w.stop:
+          return
+      }
+      out = yd.getOutput(false)
+      busy_status = strings.HasPrefix(out, "Sync progress")
+      yd.stat.update <- out
+    }
+  }()
+  return w
+}
+
+func (w *watcher) Activate(path string) {
+  if w.Status() && !w.path {
+    err := w.watch.Add(path)
+    if err != nil {
+      lg.Println("Watch path error:", err)
+      return
+    }
+    lg.Println("Watch path added")
+    w.path = true
+  }
+}
+
+func (w *watcher) Close() {
+  w.stop<-true
+}
+
+func (w *watcher) Status() bool {
+  return atomic.LoadUint32(&w.active) != 0
+}
+
 type YDisk struct {
   conf string     // Path to yandex-disc configuration file
   path string     // Path to synchronized folder (should be obtained from y-d conf. file)
   stat YDstat     // Status object
-  stop chan bool  // Stop signal channel file wathcer routine
-  watch uint32    // Watcher status (0 - not started) !!! Use atomic functions to access it!
+  watch watcher   // Watcher object
 }
 
 func NewYDisk(conf string, path string) YDisk {
@@ -203,10 +282,10 @@ func NewYDisk(conf string, path string) YDisk {
     conf,
     path,
     newYDstatus(),
-    make(chan bool, 1),
-    0,
+    watcher{},
   }
-  yd.watcherStart()
+  yd.watch = newWatcher(yd)
+  yd.watch.Activate(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
   return yd
 }
 
@@ -219,68 +298,13 @@ func (yd YDisk) getOutput(userLang bool) (string) {
   out, err := exec.Command(cmd[0], cmd[1:]...).Output()
   //lg.Println("Status=%s", string(out))
   if err != nil {
-    out = []byte{}
+    return ""
   }
   return string(out)
 }
 
 func (yd YDisk) Output() string {
   return yd.getOutput(true)
-}
-
-func (yd *YDisk) watcherStart() {
-  watcher, err := fsnotify.NewWatcher()
-  if err != nil {
-    lg.Fatal(err)
-  }
-  tick := time.NewTimer(time.Second)
-  n := 0
-  atomic.StoreUint32(&yd.watch, 1)
-  lg.Println("File watcher started")
-
-  go func() {
-    defer func() {
-      tick.Stop()
-      watcher.Close()
-      atomic.StoreUint32(&yd.watch, 0)
-      lg.Println("File watcher routine finished")
-    }()
-    for {
-      select {
-        case <-watcher.Events: //event := <-watcher.Events:
-          //lg.Println("Watcher event:", event)
-          tick.Reset(time.Millisecond * 500)
-          n = 0
-          yd.stat.update <- yd.getOutput(false)
-        case err := <-watcher.Errors:
-          lg.Println("Watcher error:", err)
-          return
-        case <-tick.C:
-          // continiously increase timer period: 2s, 4s, 8s.
-          if n < 4 {
-            n++
-            tick.Reset(time.Duration(n * 2) * time.Second)
-          }
-          yd.stat.update <- yd.getOutput(false)
-        case <-yd.stop:
-          return
-      }
-    }
-  }()
-
-  err = watcher.Add(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
-  if err != nil {
-    lg.Fatal(err)
-  }
-  lg.Println("Watch path added")
-}
-
-func (yd *YDisk) watcherStop() {
-  yd.stop<-true
-}
-
-func (yd *YDisk) watcherStat() bool {
-  return atomic.LoadUint32(&yd.watch) != 0
 }
 
 func (yd *YDisk) Start() {
@@ -293,10 +317,7 @@ func (yd *YDisk) Start() {
   } else {
     lg.Println("Daemon already Started")
   }
-  if !yd.watcherStat() {
-    yd.watcherStart()
-  }
-
+  yd.watch.Activate(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
 }
 
 func (yd *YDisk) Stop() {
@@ -329,24 +350,23 @@ func (yd *YDisk) Status() string {
 }
 
 func (yd *YDisk) Close() {
-  if yd.watcherStat() {
-    yd.watcherStop()
-  }
+  yd.watch.Close()
   yd.stat.status <- false
 }
 
-func notify(msg string) {
-  err := exec.Command("notify-send", msg).Run()
-  if err != nil {
-    lg.Fatal(err)
-  }
-}
+//func notify(msg string) {
+  //err := exec.Command("notify-send", msg).Run()
+  //if err != nil {
+    //lg.Fatal(err)
+  //}
+//}
 
 // Command receive cycle
 func CommandCycle(YD *YDisk) {
   var inp string
   for {
     //fmt.Println("Commands: start, stop, sync, status, output, exit")
+    inp = ""
     fmt.Scanln(&inp)
     switch inp {
       case "start":
@@ -379,7 +399,7 @@ func main() {
   // pass paths via command line arguments
   YD := NewYDisk(os.Args[1], os.Args[2])
   //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
-  lg.Println("Current status:", YD.Status())
+  //lg.Println("Current status:", YD.Status())
 
   // TO_DO:
   // 1. Decide what to do with status updates:

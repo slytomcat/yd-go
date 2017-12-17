@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see http://www.gnu.org/licenses
 """
 
-from os import remove, makedirs, getpid, geteuid, getenv
+from os import remove, makedirs, getpid, geteuid, getenv, getcwd
 #from pyinotify import ProcessEvent, WatchManager, Notifier, IN_MODIFY
 from gi import require_version
 require_version('Gtk', '3.0')
@@ -34,7 +34,7 @@ require_version('GdkPixbuf', '2.0')
 from gi.repository.GdkPixbuf import Pixbuf
 
 require_version('GLib', '2.0')
-from gi.repository.GLib import timeout_add, source_remove, io_add_watch, IOCondition, IOChannel
+from gi.repository.GLib import timeout_add, source_remove, io_add_watch, IOCondition, PRIORITY_DEFAULT
 
 from subprocess import Popen, PIPE, DEVNULL, check_output #call, CalledProcessError
 from threading import Thread
@@ -422,10 +422,6 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
   ID       - the daemon identity string (empty in single daemon configuration)
   '''
 
-  # Default daemon status values
-  _dvals = {'status': 'unknown', 'progress': '', 'laststatus': 'unknown', 'total': '...',
-            'used': '...', 'free': '...', 'trash': '...', 'error':'', 'path':'', 'lastitems': []}
-
   class _DConfig(Config):               # Redefined class for daemon config
 
     def save(self):  # Update daemon config file
@@ -476,21 +472,29 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
                pathExists(self.config.get('dir', '')) and
                pathExists(self.config.get('auth', ''))):
       if self._errorDialog('NOCONFIG') != 0:
-        if ID != '':
-          self.config['dir'] = ''
-          # Exit from loop in multi-instance configuration
-          break
-        else:
-          sysExit('Daemon is not configured')
-
+        sysExit('Daemon is not configured')
+    # Prepare environment for wrapper process communication
     # Declare call-back for read from stdout
     def stdout_reader(pipe, _):
+      def statusConvert(status):
+        return ('busy' if status == 'index' else
+                # Rename long error status
+                'no_net' if status == 'no internet access' else
+                # pass 'busy', 'idle', 'none' 'paused' and 'unknown' statuses 'as is'
+                status if status in ['busy', 'idle', 'none', 'paused', 'unknown'] else
+                # Status 'error' covers 'error', 'failed to connect to daemon process' and other.
+                'error')
       data = pipe.readline()
       if data != "":
         data = json_loads(data)
         # process data
-        if data.get("Stat", "") != "":
+        if len(data) > 1: #data.get("Stat", "") != "":
           logger.debug("Update: " + str(data))
+          # Convert status data to the internal representation
+          data['Stat'] = statusConvert(data['Stat'])
+          data['Prev'] = statusConvert(data['Prev'])
+          if data['Total'] == "":
+            data['Total'], data['Used'], data['Free'], data['Trash'] = "...", "...", "...", "..."
           self.change(data)
         else:
           out = data.get("Output", "")
@@ -506,23 +510,25 @@ class YDDaemon(object):         # Yandex.Disk daemon interface
       if data != "":
         logger.debug(data[:-1])
         return True
-      # return None if io.stam closed (returns empty string in readline() call)
+      # return None if io.steam closed (returns empty string in readline() call)
 
     if args.level == 10:
       errpipe = PIPE    # Pass through the wrapper messages to logger in DEBUG logging mode
     else:
       errpipe = DEVNULL # In other logging modes - pass stderr of wrapper to /dev/null
-    proc = Popen(["/home/stc/DEV/GO/src/YD.go/yd", cfgFile, self.config['dir']],
+
+    # TO_DO change path to wrapper
+    proc = Popen([cwd+"/yd", cfgFile, self.config['dir']],
                  bufsize=1, universal_newlines=True, stdin=PIPE, stdout=PIPE, stderr=errpipe)
 
     self.stdin = proc.stdin  # store stdin for sending commands to wrapper
     self.closepoll = proc.poll  # store wrapper finishing poll func
 
     # Register new io.stesm wathcher for stdout
-    io_add_watch(proc.stdout, 0, IOCondition.IN, stdout_reader)
+    io_add_watch(proc.stdout, PRIORITY_DEFAULT, IOCondition.IN, stdout_reader)
     if errpipe == PIPE :
       # Pass through the wrapper messages to logger in DEBUG logging mode
-      io_add_watch(proc.stderr, 0, IOCondition.IN, stderr_reader)
+      io_add_watch(proc.stderr, PRIORITY_DEFAULT, IOCondition.IN, stderr_reader)
 
     if self.config.get('startonstartofindicator', True):
       self.start()                       # Start daemon if it is required
@@ -629,14 +635,15 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
       if vals['Stat'] == 'busy':        # Just entered into 'busy'
         self.notify.send(_('Synchronization started'))
       elif vals['Stat'] == 'idle':      # Just entered into 'idle'
-        if vals['Prev'] == 'busy':  # ...from 'busy' status
+        if vals['Prev'] == 'busy':      # ...from 'busy' status
           self.notify.send(_('Synchronization has been completed'))
       elif vals['Stat'] == 'paused':    # Just entered into 'paused'
-        if vals['Prev'] != 'none':  # ...not from 'unknown' status
+        if vals['Prev'] != 'unknown':   # ...not from 'unknown' status
           self.notify.send(_('Synchronization has been paused'))
       elif vals['Stat'] == 'none':      # Just entered into 'none' from some another status
+        if vals['Prev'] != 'unknown':
           self.notify.send(_('Yandex.Disk daemon has been stopped'))
-      else:                               # status is 'error' or 'no-net'
+      else:                             # status is 'error' or 'no-net'
         self.notify.send(_('Synchronization ERROR'))
 
   def setIconTheme(self, theme):    # Determine paths to icons according to current theme
@@ -690,6 +697,7 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
       self.free = Gtk.MenuItem();       self.free.set_sensitive(False)
       self.append(self.free)
       self.last = Gtk.MenuItem(_('Last synchronized items'))
+      self.last.set_sensitive(False)
       self.lastItems = Gtk.Menu()               # Sub-menu: list of last synchronized files/folders
       self.last.set_submenu(self.lastItems)     # Add submenu (empty at the start)
       self.append(self.last)
@@ -838,7 +846,7 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
     def openOutput(self, out):
       global logo
       self.status.set_sensitive(False)                         # Disable menu item
-      logger.debug('menu Output: ' + out)
+      #logger.debug('menu Output: ' + out)
       statusWindow = Gtk.Dialog(_('Yandex.Disk daemon output message'))
       statusWindow.set_icon(logo)
       statusWindow.set_border_width(6)
@@ -1269,6 +1277,7 @@ if __name__ == '__main__':
   tmpDir = getenv("TMPDIR")
   if tmpDir is None:
     tmpDir = '/tmp'
+  cwd = getcwd()
   # Define .desktop files locations for indicator auto-start facility
   autoStartSrc = '/usr/share/applications/Yandex.Disk-indicator.desktop'
   autoStartDst = pathJoin(userHome, '.config/autostart/Yandex.Disk-indicator.desktop')
