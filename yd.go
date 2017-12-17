@@ -16,32 +16,6 @@ import (
 /* Initialize logger */
 var lg *log.Logger = log.New(os.Stderr, "", log.Lshortfile) // | log.Lmicroseconds)
 
-/* Tool function that returns shorten version (up to l symbols) of original string  */
-//func ShortName(f string, l int) string {
-  //v := []rune(f)
-  //if len(v) > l {
-    //n := (l - 3) / 2
-    //k := n
-    //if n+k+3 < l {
-      //k += 1
-    //}
-    //return string(v[:n]) + "..." + string(v[len(v)-k:])
-  //} else {
-    //return f
-  //}
-//}
-
-/* string representation of []string slice */
-//func list(Last []string) string {
-  //l := []string{}
-  //for _, s := range(Last) {
-    //if s != "" {
-      //l = append(l, s)
-    //}
-  //}
-  //return strings.Join(l, ",")
-//}
-
 /* Daemon Status values */
 type YDvals struct {
   Stat string      // current Status
@@ -104,21 +78,21 @@ func (val *YDvals) update(out string) bool {
   }
   for k, v := range keys {
     switch k {
-      case "Synchronization" :
+      case "Synchronization":
         setChange(&val.Stat, v, &changed)
-      case "Sync" :
+      case "Sync":
         setChange(&val.Prog, v, &changed)
-      case "Total" :
+      case "Total":
         setChange(&val.Total, v, &changed)
-      case "Used" :
+      case "Used":
         setChange(&val.Used, v, &changed)
-      case "Available" :
+      case "Available":
         setChange(&val.Free, v, &changed)
-      case "Trash" :
+      case "Trash":
         setChange(&val.Trash, v, &changed)
-      case "Error" :
+      case "Error":
         setChange(&val.Err, v, &changed)
-      case "Path" :
+      case "Path":
         setChange(&val.ErrP, v, &changed)
     }
   }
@@ -227,9 +201,6 @@ func newWatcher(yd YDisk) watcher {
           //lg.Println("Watcher event:", event)
           tick.Reset(time.Millisecond * 500)
           n = 0
-        case err := <-watch.Errors:
-          lg.Println("Watcher error:", err)
-          return
         case <-tick.C:
           if busy_status {
             n = 0  // keep 2s interval in busy mode
@@ -238,6 +209,9 @@ func newWatcher(yd YDisk) watcher {
             n++ // continuously increase timer period: 2s, 4s, 8s.
             tick.Reset(time.Duration(n * 2) * time.Second)
           }
+        case err := <-watch.Errors:
+          lg.Println("Watcher error:", err)
+          return
         case <-w.stop:
           return
       }
@@ -354,13 +328,6 @@ func (yd *YDisk) Close() {
   yd.stat.status <- false
 }
 
-//func notify(msg string) {
-  //err := exec.Command("notify-send", msg).Run()
-  //if err != nil {
-    //lg.Fatal(err)
-  //}
-//}
-
 // Command receive cycle
 func CommandCycle(YD *YDisk) {
   var inp string
@@ -388,24 +355,20 @@ func CommandCycle(YD *YDisk) {
 }
 
 func main() {
+  // Requerements:
+  // 1. yandex-disk have to be installed and properly configured
+  // 2. path to config and synchronized path from yandex-disk config have to be provided in arguments
   if len(os.Args) < 3 {
     lg.Fatal("Error: Path to yandex-disc config-file and path to synchronized folder",
              "must be provided via first and second command line arguments")
   }
-  // TO_DO:
-  // 1. need to check that yandex-disk is installed and properly configured
-  // 2. get synchronized path from yandex-disk config
-  // or
-  // pass paths via command line arguments
   YD := NewYDisk(os.Args[1], os.Args[2])
   //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
   //lg.Println("Current status:", YD.Status())
 
-  // TO_DO:
-  // 1. Decide what to do with status updates:
-  //  - how to show them to user = via external program
-  //  - if show facility is in the other program - how to pass
-  //  updates to that process (pipe?/socket?) = stdout - updates, stdin - commands, stderr - log
+  // stdin -> Commads
+  // Status updates -> stdout
+  // Log messages -> stderr
 
   // Start the change display routine
   exit := make(chan bool)
@@ -423,24 +386,14 @@ func main() {
     }
   }()
 
-  // TO_DO:
-  // 1. Check that yandex-disk should be started on startup
-  // 2. Call YD.Start() only it is requered
-  //  or
-  // Leave the solution on external program
+  // External program/operator have to decide what to do with daemon and pass command.
+  // Wrapper itself doesn't auto-start or stop daemo on its start/exit
 
   CommandCycle(&YD)
-
-  // TO_DO:
-  // 1. Check that yandex-disk should be stopped on exit
-  // 2. Call YD.Stop() only it is requered
-  //  or
-  // Leave the solution on external program
 
   lg.Println("Exit Status:", YD.Status())
   exit <- true
   YD.Close()
   time.Sleep(time.Millisecond * 50)
   lg.Println("All done. Bye!")
-
 }

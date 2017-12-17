@@ -140,41 +140,41 @@ class CVal(object):             # Multivalue helper
   def __str__(self):              # String representation of CVal
     return str(self.val)
 
-  def __getitem__(self, index):   # Access to cVal items by index
-    if isinstance(self.val, list):
-      return self.val[index]          # It raises IndexError when index is out of range(len(cVal))
-    elif self.val is None:
-      raise IndexError                # None value cannot be received by any index
-    elif index in [0, -1]:            # cVal is scalar and index is 0 (first) or -1 (last)?
-      return self.val
-    else:
-      raise IndexError
+  #def __getitem__(self, index):   # Access to cVal items by index
+    #if isinstance(self.val, list):
+      #return self.val[index]          # It raises IndexError when index is out of range(len(cVal))
+    #elif self.val is None:
+      #raise IndexError                # None value cannot be received by any index
+    #elif index in [0, -1]:            # cVal is scalar and index is 0 (first) or -1 (last)?
+      #return self.val
+    #else:
+      #raise IndexError
 
-  def __setitem__(self, index, value):
-    if isinstance(self.val, list):
-      self.val[index] = value
-    elif self.val is None:
-      raise IndexError                # None value cannot be set by any index
-    elif index in [0, -1]:            # cVal is scalar and index is 0 (first) or -1 (last)?
-      self.val = value
-    else:
-      raise IndexError
+  #def __setitem__(self, index, value):
+    #if isinstance(self.val, list):
+      #self.val[index] = value
+    #elif self.val is None:
+      #raise IndexError                # None value cannot be set by any index
+    #elif index in [0, -1]:            # cVal is scalar and index is 0 (first) or -1 (last)?
+      #self.val = value
+    #else:
+      #raise IndexError
 
-  def __len__(self):              # Length of cVal
-    if isinstance(self.val, list):
-      return len(self.val)
-    return 0 if self.val is None else 1
+  #def __len__(self):              # Length of cVal
+    #if isinstance(self.val, list):
+      #return len(self.val)
+    #return 0 if self.val is None else 1
 
-  def __contains__(self, item):   # 'in' opertor function
-    if isinstance(self.val, list):
-      return item in self.val
-    elif self.val is None:
-      return item is None
-    else:
-      return self.val == item
+  #def __contains__(self, item):   # 'in' opertor function
+    #if isinstance(self.val, list):
+      #return item in self.val
+    #elif self.val is None:
+      #return item is None
+    #else:
+      #return self.val == item
 
-  def __bool__(self):
-    return self.val is not None
+  #def __bool__(self):
+    #return self.val is not None
 
 class Config(dict):             # Configuration
 
@@ -638,10 +638,10 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
         if vals['Prev'] == 'busy':      # ...from 'busy' status
           self.notify.send(_('Synchronization has been completed'))
       elif vals['Stat'] == 'paused':    # Just entered into 'paused'
-        if vals['Prev'] != 'unknown':   # ...not from 'unknown' status
+        if vals['Prev'] not in ['none', 'unknown']:   # ...not from 'none'/'unknown' status
           self.notify.send(_('Synchronization has been paused'))
       elif vals['Stat'] == 'none':      # Just entered into 'none' from some another status
-        if vals['Prev'] != 'unknown':
+        if vals['Prev'] != 'unknown':   # ... not from 'unknown'
           self.notify.send(_('Yandex.Disk daemon has been stopped'))
       else:                             # status is 'error' or 'no-net'
         self.notify.send(_('Synchronization ERROR'))
@@ -770,8 +770,8 @@ class Indicator(YDDaemon):      # Yandex.Disk appIndicator
           widget.show()
         # Switch off last items menu sensitivity if no items in list
         self.last.set_sensitive(len(vals['Last']) != 0)
-        logger.debug("Sub-menu 'Last synchronized' has been updated " + str(vals['Last']))
-      # Update 'static' elements of menu
+        logger.debug("Sub-menu 'Last synchronized' has " + str(len(vals['Last'])) + " items")
+      # Update semi-static elements of menu
       if 'none' in (vals['Stat'], vals['Prev']) or vals['Prev'] == 'unknown':
         started = vals['Stat'] != 'none'
         self.status.set_sensitive(started)
