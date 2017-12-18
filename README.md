@@ -5,4 +5,5 @@ It's just my experiments with golang programming technologies. So, don't blame m
 
 I've made it as it is rather well-known task for me (I've made the same wrap-up in YD-tools project in Python language).
 
-There is still open question - how to show tracked status changes to user. The current program just output it into log and send notificatoin via notify-send.
+At the moment GUI for go-wrapper is organaized in modified yandex-disk-indicator.py code from https://github.com/slytomcat/yandex-disk-indicator
+Python code responsible for all GUI staff ans uses go-wrapper instead of original yandex-disk utility.
