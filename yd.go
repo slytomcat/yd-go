@@ -13,11 +13,11 @@ import (
 )
 
 /* Initialize default logger */
-var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile) // | log.Lmicroseconds)
+var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds) // | log.Lmicroseconds)
 
 /* Daemon Status values */
 type yDvals struct {
-  Stat string      // current Status
+  Stat string      // Current Status
   Prev string      // Previous Status
   Total string     // Total space available
   Used string      // Used space
@@ -123,11 +123,11 @@ func (val *yDvals) update(out string) bool {
 /* Status control component */
 type yDstatus struct {
   Update chan string   // input channel for update values with data from the daemon output string
-  Change chan yDvals   // output channel for detected changes
+  Change chan yDvals   // output channel for detected changes or daemon output
   exit chan bool       // input channel for exit request
 }
 
-/* This control component implemented as State-full go-routine with 4 communication channels */
+/* This control component implemented as State-full go-routine with 3 communication channels */
 func newyDstatus() yDstatus {
   st := yDstatus {
     make(chan string),
@@ -135,6 +135,7 @@ func newyDstatus() yDstatus {
     make(chan bool),
   }
   go func() {
+    Logger.Println("Status component started")
     yds := newyDvals()
     for {
       select {
@@ -198,13 +199,14 @@ type YDisk struct {
   watch watcher   // Watcher object
   exit chan bool  // Stop signal for Event handler routine
   Commands chan string // Input channel for commands
-  Updates chan string  // Output channel for status updates
+  //Updates chan string  // Output channel for status updates
 }
 
-func NewYDisk(conf string, path string) YDisk {
+func NewYDisk(conf string, path string, cbf func(string)) YDisk {
   // Requerements:
   // 1. yandex-disk have to be installed and properly configured
   // 2. path to config and synchronized path from yandex-disk config have to be provided in arguments
+  // 3. Call-back function cbf must be provided to receive updates/output json packets
   yd := YDisk{
     conf,
     path,
@@ -212,7 +214,7 @@ func NewYDisk(conf string, path string) YDisk {
     newwatcher(),
     make(chan bool),
     make(chan string),
-    make(chan string),
+    //make(chan string),
   }
   yd.watch.activate(yd.path)  // Try to activate wathing at the beggining
 
@@ -256,6 +258,7 @@ func NewYDisk(conf string, path string) YDisk {
 
   // Activate command handler and output formatter
   go func() {
+    Logger.Println("Command handler started")
     var msj []byte
     for {
       select {
@@ -267,7 +270,7 @@ func NewYDisk(conf string, path string) YDisk {
               yd.stop()
             case "output":
               msj, _ = json.Marshal(yd.getOutput(true))
-              yd.Updates <- "{\"Output\": " + string(msj) + "}"
+              cbf("{\"Output\": " + string(msj) + "}")
             //case "sync":
             //  yd.sync()
             case "exit":
@@ -277,13 +280,19 @@ func NewYDisk(conf string, path string) YDisk {
           }
         case yds := <- yd.stat.Change:
           msj, _ = json.Marshal(yds)
-          yd.Updates <- string(msj)
+          cbf(string(msj))
       }
     }
   }()
 
   Logger.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
   return yd
+}
+
+func (yd *YDisk) Close() {
+  yd.exit <- true
+  yd.watch.close()
+  yd.stat.exit <- false
 }
 
 func (yd YDisk) getOutput(userLang bool) (string) {
@@ -325,39 +334,20 @@ func (yd *YDisk) stop() {
   Logger.Println("Daemon already stopped")
 }
 
-func (yd *YDisk) Close() {
-  yd.exit <- true
-  yd.watch.close()
-  yd.stat.exit <- false
-}
-
 func main() {
   if len(os.Args) < 3 {
     Logger.Fatal("Error: Path to yandex-disc config-file and path to synchronized folder",
              "must be provided via first and second command line arguments")
   }
-  YD := NewYDisk(os.Args[1], os.Args[2])
-  //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
 
-  // stdin -> Commads
+  // stdin <- Commads
   // Status updates -> stdout
   // Log messages -> stderr
   // External program/operator have to decide what to do with daemon and pass command.
   // Wrapper itself doesn't auto-start or stop daemo on its start/exit
 
-  // Start the change display routine
-  exit := make(chan bool)
-  go func() {
-    for {
-      select{
-        case out:= <- YD.Updates:
-          fmt.Println(out)
-        case <- exit:
-          Logger.Println("Output display routine finished")
-          return
-      }
-    }
-  }()
+  YD := NewYDisk(os.Args[1], os.Args[2], func(s string) {fmt.Println(s)})
+  //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
 
   // stdin reader cycle
   var inp string
@@ -368,10 +358,7 @@ func main() {
     YD.Commands <- inp
   }
 
-  exit <- true
-
   Logger.Println("Exit requested.")
-  time.Sleep(time.Millisecond * 50)
+  time.Sleep(time.Millisecond * 10)
   Logger.Println("All done. Bye!")
-
- }
+}
