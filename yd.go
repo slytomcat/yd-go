@@ -8,16 +8,15 @@ import (
   "os/exec"
   "regexp"
   "strings"
-  "sync/atomic"
   "os"
   "encoding/json"
 )
 
-/* Initialize logger */
-var lg *log.Logger = log.New(os.Stderr, "", log.Lshortfile) // | log.Lmicroseconds)
+/* Initialize default logger */
+var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile) // | log.Lmicroseconds)
 
 /* Daemon Status values */
-type YDvals struct {
+type yDvals struct {
   Stat string      // current Status
   Prev string      // Previous Status
   Total string     // Total space available
@@ -31,8 +30,8 @@ type YDvals struct {
   Prog string      // Syncronization progress (when in busy status)
 }
 
-func newYDvals() YDvals {
-  return YDvals{
+func newyDvals() yDvals {
+  return yDvals{
         "unknown",
         "unknown",
         "", "", "", "", // Total, Used, Free, Trash
@@ -52,7 +51,7 @@ func setChange (v *string, val string, ch *bool) {
 
 /* Update Daemon status values from the daemon output string
  * Returns true if change detected in any value, otherways returns false */
-func (val *YDvals) update(out string) bool {
+func (val *yDvals) update(out string) bool {
   val.Prev = val.Stat  // store previous status but don't track changes of val.Prev
   changed := false     // track changes for values
   if out == "" {
@@ -122,39 +121,32 @@ func (val *YDvals) update(out string) bool {
 }
 
 /* Status control component */
-type YDstat struct {
-  update chan string   // input channel for update values with data from the daemon output string
-  change chan YDvals   // output channel for detected changes
-  status chan bool     // input channel for status request
-  replay chan string   // output channel for replay on status request
+type yDstatus struct {
+  Update chan string   // input channel for update values with data from the daemon output string
+  Change chan yDvals   // output channel for detected changes
+  exit chan bool       // input channel for exit request
 }
 
 /* This control component implemented as State-full go-routine with 4 communication channels */
-func newYDstatus() YDstat {
-  st := YDstat {
+func newyDstatus() yDstatus {
+  st := yDstatus {
     make(chan string),
-    make(chan YDvals, 1), // Output should be buffered
+    make(chan yDvals, 1), // Output should be buffered
     make(chan bool),
-    make(chan string, 1), // Output should be buffered
   }
   go func() {
-    yds := newYDvals()
+    yds := newyDvals()
     for {
       select {
-        case upd := <- st.update:
+        case upd := <- st.Update:
           if yds.update(upd) {
-            lg.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
+            Logger.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
                        "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
-            st.change <- yds
+            st.Change <- yds
           }
-        case stat := <- st.status:
-          switch stat {
-            case true:       // true : status request
-              st.replay <- yds.Stat
-            case false:      // false : exit
-              lg.Println("Status component routine finished")
-              return
-          }
+        case <- st.exit:
+          Logger.Println("Status component routine finished")
+          return
       }
     }
   }()
@@ -163,103 +155,134 @@ func newYDstatus() YDstat {
 
 type watcher struct {
   watch *fsnotify.Watcher
-  stop chan bool  // Stop signal channel file watcher routine
-  active uint32   // Watcher status (0 - not started) !!! Use atomic functions to access it!
-  path bool       // Flag that means that wather path was succesfully added
+  path bool        // Flag that means that wather path was succesfully added
+  Events chan fsnotify.Event
+  Errors chan error
 }
 
-func newWatcher(yd YDisk) watcher {
+func newwatcher() watcher {
   watch, err := fsnotify.NewWatcher()
   if err != nil {
-    lg.Fatal(err)
+    Logger.Fatal(err)
   }
   w := watcher{
       watch,
-      make(chan bool, 1),
-      0,
       false,
+      watch.Events,
+      watch.Errors,
     }
-
-  tick := time.NewTimer(time.Second)
-  n := 0
-  //atomic.StoreUint32(&w.active, 1)
-  w.active = 1
-  lg.Println("File watcher started")
-
-  go func() {
-    defer func() {
-      tick.Stop()
-      watch.Close()
-      atomic.StoreUint32(&w.active, 0)
-      lg.Println("File watcher routine finished")
-    }()
-    busy_status := false
-    out := ""
-    for {
-      select {
-        case <-watch.Events: //event := <-watcher.Events:
-          //lg.Println("Watcher event:", event)
-          tick.Reset(time.Millisecond * 500)
-          n = 0
-        case <-tick.C:
-          if busy_status {
-            n = 0  // keep 2s interval in busy mode
-          }
-          if n < 4 {
-            n++ // continuously increase timer period: 2s, 4s, 8s.
-            tick.Reset(time.Duration(n * 2) * time.Second)
-          }
-        case err := <-watch.Errors:
-          lg.Println("Watcher error:", err)
-          return
-        case <-w.stop:
-          return
-      }
-      out = yd.getOutput(false)
-      busy_status = strings.HasPrefix(out, "Sync progress")
-      yd.stat.update <- out
-    }
-  }()
   return w
 }
 
-func (w *watcher) Activate(path string) {
-  if w.Status() && !w.path {
-    err := w.watch.Add(path)
+func (w *watcher) activate(path string) {
+  if !w.path {
+    err := w.watch.Add(path + "/.sync/cli.log") // TO_DO: make path via library function
     if err != nil {
-      lg.Println("Watch path error:", err)
+      Logger.Println("Watch path error:", err)
       return
     }
-    lg.Println("Watch path added")
+    Logger.Println("Watch path added")
     w.path = true
   }
 }
 
-func (w *watcher) Close() {
-  w.stop<-true
-}
-
-func (w *watcher) Status() bool {
-  return atomic.LoadUint32(&w.active) != 0
+func (w *watcher) close() {
+  // TO_DO_Maybe: path need to removed before close watcher?
+  w.watch.Close()
 }
 
 type YDisk struct {
   conf string     // Path to yandex-disc configuration file
   path string     // Path to synchronized folder (should be obtained from y-d conf. file)
-  stat YDstat     // Status object
+  stat yDstatus   // Status object
   watch watcher   // Watcher object
+  exit chan bool  // Stop signal for Event handler routine
+  Commands chan string // Input channel for commands
+  Updates chan string  // Output channel for status updates
 }
 
 func NewYDisk(conf string, path string) YDisk {
-  lg.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
+  // Requerements:
+  // 1. yandex-disk have to be installed and properly configured
+  // 2. path to config and synchronized path from yandex-disk config have to be provided in arguments
   yd := YDisk{
     conf,
     path,
-    newYDstatus(),
-    watcher{},
+    newyDstatus(),
+    newwatcher(),
+    make(chan bool),
+    make(chan string),
+    make(chan string),
   }
-  yd.watch = newWatcher(yd)
-  yd.watch.Activate(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
+  yd.watch.activate(yd.path)  // Try to activate wathing at the beggining
+
+  tick := time.NewTimer(time.Millisecond * 500)
+  interval := 2
+  Logger.Println("Event handler started")
+
+  go func() {
+    defer func() {
+      tick.Stop()
+      Logger.Println("Event handler routine finished")
+    }()
+    busy_status := false
+    out := ""
+    for {
+      select {
+        case <-yd.watch.Events: //event := <-yd.watch.watch.Events:
+          //Logger.Println("Watcher event:", event)
+          tick.Reset(time.Millisecond * 500)
+          interval = 2
+        case <-tick.C:
+          //Logger.Println("Timer interval:", interval)
+          if busy_status {
+            interval = 2  // keep 2s interval in busy mode
+          }
+          if interval < 10 {
+            tick.Reset(time.Duration(interval) * time.Second)
+            interval<<=1 // continuously increase timer interval: 2s, 4s, 8s.
+          }
+        case err := <-yd.watch.Errors:
+          Logger.Println("Watcher error:", err)
+          return
+        case <-yd.exit:
+          return
+      }
+      out = yd.getOutput(false)
+      busy_status = strings.HasPrefix(out, "Sync progress")
+      yd.stat.Update <- out
+    }
+  }()
+
+  // Activate command handler and output formatter
+  go func() {
+    var msj []byte
+    for {
+      select {
+        case cmd := <- yd.Commands:
+          switch cmd {
+            case "start":
+              yd.start()
+            case "stop":
+              yd.stop()
+            case "output":
+              msj, _ = json.Marshal(yd.getOutput(true))
+              yd.Updates <- "{\"Output\": " + string(msj) + "}"
+            //case "sync":
+            //  yd.sync()
+            case "exit":
+              yd.Close()
+              Logger.Println("Command handler routine finished")
+              return
+          }
+        case yds := <- yd.stat.Change:
+          msj, _ = json.Marshal(yds)
+          yd.Updates <- string(msj)
+      }
+    }
+  }()
+
+  Logger.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
   return yd
 }
 
@@ -268,132 +291,87 @@ func (yd YDisk) getOutput(userLang bool) (string) {
   if !userLang {
     cmd = append([]string{"env", "-i", "LANG='en_US.UTF8'"}, cmd...)
   }
-  //lg.Println("cmd=", cmd)
+  //Logger.Println("cmd=", cmd)
   out, err := exec.Command(cmd[0], cmd[1:]...).Output()
-  //lg.Println("Status=%s", string(out))
+  //Logger.Println("Status=%s", string(out))
   if err != nil {
     return ""
   }
   return string(out)
 }
 
-func (yd YDisk) Output() string {
-  return yd.getOutput(true)
-}
-
-func (yd *YDisk) Start() {
+func (yd *YDisk) start() {
   if yd.getOutput(true) == "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
     if err != nil {
-      lg.Println(err)
+      Logger.Println(err)
     }
-    lg.Println("Daemon start:", string(out))
+    Logger.Println("Daemon start:", string(out))
   } else {
-    lg.Println("Daemon already Started")
+    Logger.Println("Daemon already Started")
   }
-  yd.watch.Activate(yd.path + "/.sync/cli.log") // TO_DO: make path via library function
+  yd.watch.activate(yd.path)   // try to activate watching afret daemon start
 }
 
-func (yd *YDisk) Stop() {
+func (yd *YDisk) stop() {
   if yd.getOutput(true) != "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
     if err != nil {
-      lg.Println(err)
+      Logger.Println(err)
     }
-    lg.Println("Daemon stop:", string(out))
+    Logger.Println("Daemon stop:", string(out))
     return
   }
-  lg.Println("Daemon already stopped")
-}
-
-func (yd *YDisk) Sync() {
-  if yd.getOutput(true) != "" {
-    out, err := exec.Command("yandex-disk", "-c", yd.conf, "sync").Output()
-    if err != nil {
-      lg.Fatal(err)
-    }
-    lg.Println("Sync:", string(out))
-    return
-  }
-  lg.Println("Sync can't be inicialized")
-}
-
-func (yd *YDisk) Status() string {
-  yd.stat.status <- true
-  return <- yd.stat.replay
+  Logger.Println("Daemon already stopped")
 }
 
 func (yd *YDisk) Close() {
-  yd.watch.Close()
-  yd.stat.status <- false
-}
-
-// Command receive cycle
-func CommandCycle(YD *YDisk) {
-  var inp string
-  for {
-    //fmt.Println("Commands: start, stop, sync, status, output, exit")
-    inp = ""
-    fmt.Scanln(&inp)
-    switch inp {
-      case "start":
-        YD.Start()
-      case "stop":
-        YD.Stop()
-      case "sync":
-        YD.Sync()
-      case "status":
-        fmt.Printf("{\"Status\": \"%s\"}\n", YD.Status())
-      case "output":
-        msj, _ := json.Marshal(YD.Output())
-        fmt.Printf("{\"Output\": %s}\n", string(msj))
-      case "exit":
-        lg.Println("Exit requested")
-        return
-    }
-  }
+  yd.exit <- true
+  yd.watch.close()
+  yd.stat.exit <- false
 }
 
 func main() {
-  // Requerements:
-  // 1. yandex-disk have to be installed and properly configured
-  // 2. path to config and synchronized path from yandex-disk config have to be provided in arguments
   if len(os.Args) < 3 {
-    lg.Fatal("Error: Path to yandex-disc config-file and path to synchronized folder",
+    Logger.Fatal("Error: Path to yandex-disc config-file and path to synchronized folder",
              "must be provided via first and second command line arguments")
   }
   YD := NewYDisk(os.Args[1], os.Args[2])
   //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
-  //lg.Println("Current status:", YD.Status())
 
   // stdin -> Commads
   // Status updates -> stdout
   // Log messages -> stderr
+  // External program/operator have to decide what to do with daemon and pass command.
+  // Wrapper itself doesn't auto-start or stop daemo on its start/exit
 
   // Start the change display routine
   exit := make(chan bool)
   go func() {
     for {
       select{
-        case yds := <- YD.stat.change:
-          msj, _ := json.Marshal(yds)
-          //notify(string(msj))
-          fmt.Println(string(msj))
+        case out:= <- YD.Updates:
+          fmt.Println(out)
         case <- exit:
-          lg.Println("Status display routine finished")
+          Logger.Println("Output display routine finished")
           return
       }
     }
   }()
 
-  // External program/operator have to decide what to do with daemon and pass command.
-  // Wrapper itself doesn't auto-start or stop daemo on its start/exit
+  // stdin reader cycle
+  var inp string
+  for inp != "exit" {
+    //fmt.Println("Commands: start, stop, output, exit")
+    inp = ""
+    fmt.Scanln(&inp)
+    YD.Commands <- inp
+  }
 
-  CommandCycle(&YD)
-
-  lg.Println("Exit Status:", YD.Status())
   exit <- true
-  YD.Close()
+
+  Logger.Println("Exit requested.")
   time.Sleep(time.Millisecond * 50)
-  lg.Println("All done. Bye!")
-}
+  Logger.Println("All done. Bye!")
+
+ }

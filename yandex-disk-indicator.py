@@ -100,19 +100,19 @@ class CVal(object):             # Multivalue helper
       self.val = [self.val, item]   # Convert scalar value to list of items.
     return self.val
 
-  def remove(self, item):
-    if isinstance(self.val, list):
-      self.val.remove(item)
-      if len(self.val) == 1:
-        self.val = self.val[0]
-    elif self.val is None:
-      raise ValueError
-    else:
-      if self.val == item:
-        self.val = None
-      else:
-        raise ValueError
-    return self.val
+  #def remove(self, item):
+    #if isinstance(self.val, list):
+      #self.val.remove(item)
+      #if len(self.val) == 1:
+        #self.val = self.val[0]
+    #elif self.val is None:
+      #raise ValueError
+    #else:
+      #if self.val == item:
+        #self.val = None
+      #else:
+        #raise ValueError
+    #return self.val
 
   def __iter__(self):             # cVal iterator object initialization
     if isinstance(self.val, list):  # Is CVal a list?
