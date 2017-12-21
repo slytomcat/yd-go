@@ -10,10 +10,14 @@ import (
   "strings"
   "os"
   "encoding/json"
+  "sync"
 )
 
 /* Initialize default logger */
 var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds) // | log.Lmicroseconds)
+
+//
+var AllDone sync.WaitGroup
 
 /* Daemon Status values */
 type yDvals struct {
@@ -75,25 +79,17 @@ func (val *yDvals) update(out string) bool {
     }
     keys[s[1]] = s[2]
   }
-  for k, v := range keys {
-    switch k {
-      case "Synchronization":
-        setChange(&val.Stat, v, &changed)
-      case "Sync":
-        setChange(&val.Prog, v, &changed)
-      case "Total":
-        setChange(&val.Total, v, &changed)
-      case "Used":
-        setChange(&val.Used, v, &changed)
-      case "Available":
-        setChange(&val.Free, v, &changed)
-      case "Trash":
-        setChange(&val.Trash, v, &changed)
-      case "Error":
-        setChange(&val.Err, v, &changed)
-      case "Path":
-        setChange(&val.ErrP, v, &changed)
-    }
+  // map representation of switch_case clause
+  for k, v := range map[string]*string{"Synchronization":&val.Stat,
+                                       "Total":&val.Total,
+                                       "Used":&val.Used,
+                                       "Available":&val.Free,
+                                       "Trash":&val.Trash,
+                                       "Error":&val.Err,
+                                       "Path":&val.ErrP,
+                                       "Sync":&val.Prog,
+                                      } {
+    setChange(v, keys[k], &changed)
   }
 
   // Parse the "Last synchronized items" section (list of paths and files)
@@ -124,7 +120,6 @@ func (val *yDvals) update(out string) bool {
 type yDstatus struct {
   Update chan string   // input channel for update values with data from the daemon output string
   Change chan yDvals   // output channel for detected changes or daemon output
-  exit chan bool       // input channel for exit request
 }
 
 /* This control component implemented as State-full go-routine with 3 communication channels */
@@ -132,22 +127,23 @@ func newyDstatus() yDstatus {
   st := yDstatus {
     make(chan string),
     make(chan yDvals, 1), // Output should be buffered
-    make(chan bool),
   }
   go func() {
     Logger.Println("Status component started")
+    AllDone.Add(1)
+    defer AllDone.Done()
     yds := newyDvals()
     for {
-      select {
-        case upd := <- st.Update:
-          if yds.update(upd) {
-            Logger.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
-                       "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
-            st.Change <- yds
-          }
-        case <- st.exit:
-          Logger.Println("Status component routine finished")
-          return
+      upd, ok := <- st.Update
+      if ok {
+        if yds.update(upd) {
+          Logger.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
+                     "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
+          st.Change <- yds
+        }
+      } else {
+        Logger.Println("Status component routine finished")
+        return
       }
     }
   }()
@@ -216,23 +212,24 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
     make(chan string),
     //make(chan string),
   }
-  yd.watch.activate(yd.path)  // Try to activate wathing at the beggining
-
-  tick := time.NewTimer(time.Millisecond * 500)
-  interval := 2
-  Logger.Println("Event handler started")
+  yd.watch.activate(yd.path)  // Try to activate wathing at the beggining. It can fail
 
   go func() {
+    Logger.Println("Event handler started")
+    AllDone.Add(1)
+    tick := time.NewTimer(time.Millisecond * 500)
+    interval := 2
     defer func() {
       tick.Stop()
       Logger.Println("Event handler routine finished")
+      AllDone.Done()
     }()
     busy_status := false
     out := ""
     for {
       select {
-        case <-yd.watch.Events: //event := <-yd.watch.watch.Events:
-          //Logger.Println("Watcher event:", event)
+        case event := <-yd.watch.Events:
+          Logger.Println("Watcher event:", event)
           tick.Reset(time.Millisecond * 500)
           interval = 2
         case <-tick.C:
@@ -259,6 +256,8 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
   // Activate command handler and output formatter
   go func() {
     Logger.Println("Command handler started")
+    AllDone.Add(1)
+    defer AllDone.Done()
     var msj []byte
     for {
       select {
@@ -274,7 +273,6 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
             //case "sync":
             //  yd.sync()
             case "exit":
-              yd.Close()
               Logger.Println("Command handler routine finished")
               return
           }
@@ -292,7 +290,9 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
 func (yd *YDisk) Close() {
   yd.exit <- true
   yd.watch.close()
-  yd.stat.exit <- false
+  close(yd.stat.Update)
+  AllDone.Wait()
+  Logger.Println("All done. Bye!")
 }
 
 func (yd YDisk) getOutput(userLang bool) (string) {
@@ -300,9 +300,7 @@ func (yd YDisk) getOutput(userLang bool) (string) {
   if !userLang {
     cmd = append([]string{"env", "-i", "LANG='en_US.UTF8'"}, cmd...)
   }
-  //Logger.Println("cmd=", cmd)
   out, err := exec.Command(cmd[0], cmd[1:]...).Output()
-  //Logger.Println("Status=%s", string(out))
   if err != nil {
     return ""
   }
@@ -319,7 +317,7 @@ func (yd *YDisk) start() {
   } else {
     Logger.Println("Daemon already Started")
   }
-  yd.watch.activate(yd.path)   // try to activate watching afret daemon start
+  yd.watch.activate(yd.path)   // try to activate watching afret daemon start. It shouldn't fail
 }
 
 func (yd *YDisk) stop() {
@@ -350,15 +348,14 @@ func main() {
   //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
 
   // stdin reader cycle
-  var inp string
+  var inp string = ""
   for inp != "exit" {
     //fmt.Println("Commands: start, stop, output, exit")
     inp = ""
     fmt.Scanln(&inp)
     YD.Commands <- inp
   }
-
   Logger.Println("Exit requested.")
-  time.Sleep(time.Millisecond * 10)
-  Logger.Println("All done. Bye!")
+  YD.Close()
+
 }
