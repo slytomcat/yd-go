@@ -141,7 +141,7 @@ func newyDstatus() yDstatus {
                      "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
           st.Change <- yds
         }
-      } else {
+      } else {  // Channel closed - exit
         Logger.Println("Status component routine finished")
         return
       }
@@ -189,13 +189,12 @@ func (w *watcher) close() {
 }
 
 type YDisk struct {
-  conf string     // Path to yandex-disc configuration file
-  path string     // Path to synchronized folder (should be obtained from y-d conf. file)
-  stat yDstatus   // Status object
-  watch watcher   // Watcher object
-  exit chan bool  // Stop signal for Event handler routine
-  Commands chan string // Input channel for commands
-  //Updates chan string  // Output channel for status updates
+  conf string           // Path to yandex-disc configuration file
+  path string           // Path to synchronized folder (should be obtained from y-d conf. file)
+  stat yDstatus         // Status object
+  watch watcher         // Watcher object
+  exit chan bool        // Stop signal for Event handler routine
+  Commands chan string  // Input channel for commands
 }
 
 func NewYDisk(conf string, path string, cbf func(string)) YDisk {
@@ -210,7 +209,6 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
     newwatcher(),
     make(chan bool),
     make(chan string),
-    //make(chan string),
   }
   yd.watch.activate(yd.path)  // Try to activate wathing at the beggining. It can fail
 
@@ -228,8 +226,8 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
     out := ""
     for {
       select {
-        case event := <-yd.watch.Events:
-          Logger.Println("Watcher event:", event)
+        case <-yd.watch.Events:  //event := <-yd.watch.Events:
+          //Logger.Println("Watcher event:", event)
           tick.Reset(time.Millisecond * 500)
           interval = 2
         case <-tick.C:
@@ -270,8 +268,6 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
             case "output":
               msj, _ = json.Marshal(yd.getOutput(true))
               cbf("{\"Output\": " + string(msj) + "}")
-            //case "sync":
-            //  yd.sync()
             case "exit":
               Logger.Println("Command handler routine finished")
               return
@@ -283,7 +279,7 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
     }
   }()
 
-  Logger.Println("New YDisk created.\n  Conf:", conf, "\n  Path:", path)
+  Logger.Println("New YDisk created and initianized.\n  Conf:", conf, "\n  Path:", path)
   return yd
 }
 
