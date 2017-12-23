@@ -8,7 +8,6 @@ import (
   "regexp"
   "strings"
   "os"
-  "encoding/json"
   "sync"
 )
 
@@ -19,7 +18,7 @@ var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds
 var AllDone sync.WaitGroup
 
 /* Daemon Status values */
-type yDvals struct {
+type YDvals struct {
   Stat string      // Current Status
   Prev string      // Previous Status
   Total string     // Total space available
@@ -33,8 +32,8 @@ type yDvals struct {
   Prog string      // Syncronization progress (when in busy status)
 }
 
-func newyDvals() yDvals {
-  return yDvals{
+func newyDvals() YDvals {
+  return YDvals{
         "unknown",
         "unknown",
         "", "", "", "", // Total, Used, Free, Trash
@@ -54,7 +53,7 @@ func setChange (v *string, val string, ch *bool) {
 
 /* Update Daemon status values from the daemon output string
  * Returns true if change detected in any value, otherways returns false */
-func (val *yDvals) update(out string) bool {
+func (val *YDvals) update(out string) bool {
   val.Prev = val.Stat  // store previous status but don't track changes of val.Prev
   changed := false     // track changes for values
   if out == "" {
@@ -118,14 +117,14 @@ func (val *yDvals) update(out string) bool {
 /* Status control component */
 type yDstatus struct {
   Update chan string   // input channel for update values with data from the daemon output string
-  Change chan yDvals   // output channel for detected changes or daemon output
+  Change chan YDvals   // output channel for detected changes or daemon output
 }
 
 /* This control component implemented as State-full go-routine with 3 communication channels */
 func newyDstatus() yDstatus {
   st := yDstatus {
     make(chan string),
-    make(chan yDvals, 1), // Output should be buffered
+    make(chan YDvals, 1), // Output should be buffered
   }
   go func() {
     Logger.Println("Status component started")
@@ -141,6 +140,7 @@ func newyDstatus() yDstatus {
           st.Change <- yds
         }
       } else {  // Channel closed - exit
+        close(st.Change)
         Logger.Println("Status component routine finished")
         return
       }
@@ -194,20 +194,23 @@ type YDisk struct {
   watch watcher         // Watcher object
   exit chan bool        // Stop signal for Event handler routine
   Commands chan string  // Input channel for commands
+  Updates chan YDvals   // Transfered from status componenr Updates channel
 }
 
-func NewYDisk(conf string, path string, cbf func(string)) YDisk {
+func NewYDisk(conf string, path string) YDisk {
   // Requerements:
   // 1. yandex-disk have to be installed and properly configured
   // 2. path to config and synchronized path from yandex-disk config have to be provided in arguments
   // 3. Call-back function cbf must be provided to receive updates/output json packets
+  stat := newyDstatus()
   yd := YDisk{
     conf,
     path,
-    newyDstatus(),
+    stat,
     newwatcher(),
     make(chan bool),
     make(chan string),
+    stat.Change,
   }
   yd.watch.activate(yd.path)  // Try to activate wathing at the beggining. It can fail
 
@@ -250,34 +253,6 @@ func NewYDisk(conf string, path string, cbf func(string)) YDisk {
     }
   }()
 
-  // Activate command handler and output formatter
-  go func() {
-    Logger.Println("Command handler started")
-    AllDone.Add(1)
-    defer AllDone.Done()
-    var msj []byte
-    for {
-      select {
-        case cmd := <- yd.Commands:
-          switch cmd {
-            case "start":
-              yd.start()
-            case "stop":
-              yd.stop()
-            case "output":
-              msj, _ = json.Marshal(yd.getOutput(true))
-              cbf("{\"Output\": " + string(msj) + "}")
-            case "exit":
-              Logger.Println("Command handler routine finished")
-              return
-          }
-        case yds := <- yd.stat.Change:
-          msj, _ = json.Marshal(yds)
-          cbf(string(msj))
-      }
-    }
-  }()
-
   Logger.Println("New YDisk created and initianized.\n  Conf:", conf, "\n  Path:", path)
   return yd
 }
@@ -302,7 +277,11 @@ func (yd YDisk) getOutput(userLang bool) (string) {
   return string(out)
 }
 
-func (yd *YDisk) start() {
+func (yd *YDisk) Output() string{
+  return yd.getOutput(true)
+}
+
+func (yd *YDisk) Start() {
   if yd.getOutput(true) == "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
     if err != nil {
@@ -312,10 +291,10 @@ func (yd *YDisk) start() {
   } else {
     Logger.Println("Daemon already Started")
   }
-  yd.watch.activate(yd.path)   // try to activate watching afret daemon start. It shouldn't fail
+  yd.watch.activate(yd.path)   // try to activate watching after daemon start. It shouldn't fail
 }
 
-func (yd *YDisk) stop() {
+func (yd *YDisk) Stop() {
   if yd.getOutput(true) != "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
     if err != nil {
