@@ -1,4 +1,35 @@
 package YDisk
+/* This package provides API for yandex-disk daemon.
+ * A new daemon connection is created with call of:
+ *  NewYDisk (conf, path string) YDisk
+ * Parameters:
+ *  conf - path to yandex-disk configuration file (by default it is: ~/.config/yandex-disk/config.cfg)
+ *  path - path to user folder that is syncronized by daemon (default path: ~/Yandex.Disk)
+ * Returns new YDisk structure with the following items:
+ *  Updates chan YDvals - output chanes that provides all detected changes in daemon status within
+ *                        the structure YDvals (see description of YDvals structure)
+ * The daemon connection has folloving methods:
+ *  Start()          - strts the daemon with the specified configuration
+ *  Stop()           - stops the daemon with the specified configuration
+ *  Output() string  - returns the daemon status message (in the current user Language)
+ *  Close()          - closes the daemon connection (stops all service routines and file wathcer)
+ *
+ * YDvals structure has following items:
+ *  Stat string      - Current Status
+ *  Prev string      - Previous Status
+ *  Total string     - Total space available
+ *  Used string      - Used space
+ *  Free string      - Free space
+ *  Trash string     - Trash size
+ *  Last []string    - Last-updated files/folders list (10 or less items)
+ *  ChLast bool      - Indicator that Last was changed
+ *  Err string       - Error status message
+ *  ErrP string      - Error path
+ *  Prog string      - Synchronization progress (when in busy status)
+ *
+ * Debbugging messages can be obtained wia Logger that must be *log.Logger type. By default it
+ * prints the messages to os.Stderr.
+ * */
 
 import (
   "log"
@@ -25,17 +56,17 @@ type YDvals struct {
   Used string      // Used space
   Free string      // Free space
   Trash string     // Trash size
-  Last []string    // Last-updated files/folders
+  Last []string    // Last-updated files/folders list (10 or less items)
   ChLast bool      // Indicator that Last was changed
-  Err string       // Error status messaage
+  Err string       // Error status message
   ErrP string      // Error path
-  Prog string      // Syncronization progress (when in busy status)
+  Prog string      // Synchronization progress (when in busy status)
 }
 
 func newyDvals() YDvals {
   return YDvals{
-        "unknown",
-        "unknown",
+        "unknown",      // Current Status
+        "unknown",      // Previous Status
         "", "", "", "", // Total, Used, Free, Trash
         []string{},     // Last
         false,          // ChLast
@@ -52,7 +83,7 @@ func setChange (v *string, val string, ch *bool) {
 }
 
 /* Update Daemon status values from the daemon output string
- * Returns true if change detected in any value, otherways returns false */
+ * Returns true if change detected in any value, otherwise returns false */
 func (val *YDvals) update(out string) bool {
   val.Prev = val.Stat  // store previous status but don't track changes of val.Prev
   changed := false     // track changes for values
@@ -73,7 +104,7 @@ func (val *YDvals) update(out string) bool {
   // Take only first word in the phrase before ":"
   for _, s := range regexp.MustCompile(`\s*([^ ]+).*: (.*)`).FindAllStringSubmatch(split[0], -1) {
     if s[2][0] == byte('\'') {
-      s[2] = s[2][1:len(s[2])-1]   // remove ' in the beggining and at end
+      s[2] = s[2][1:len(s[2])-1]   // remove ' in the begging and at end
     }
     keys[s[1]] = s[2]
   }
@@ -151,7 +182,7 @@ func newyDstatus() yDstatus {
 
 type watcher struct {
   watch *fsnotify.Watcher
-  path bool        // Flag that means that wather path was succesfully added
+  path bool        // Flag that means that whatching path was successfully added
   Events chan fsnotify.Event
   Errors chan error
 }
@@ -193,15 +224,14 @@ type YDisk struct {
   stat yDstatus         // Status object
   watch watcher         // Watcher object
   exit chan bool        // Stop signal for Event handler routine
-  Commands chan string  // Input channel for commands
-  Updates chan YDvals   // Transfered from status componenr Updates channel
+  Updates chan YDvals   // Transfered from status component Updates channel
 }
 
-func NewYDisk(conf string, path string) YDisk {
-  // Requerements:
+func NewYDisk(conf, path string) YDisk {
+  // Requirements:
   // 1. yandex-disk have to be installed and properly configured
-  // 2. path to config and synchronized path from yandex-disk config have to be provided in arguments
-  // 3. Call-back function cbf must be provided to receive updates/output json packets
+  // 2. path to configuration and synchronized paths from yandex-disk config-file have to be
+  //    provided in arguments
   stat := newyDstatus()
   yd := YDisk{
     conf,
@@ -209,7 +239,6 @@ func NewYDisk(conf string, path string) YDisk {
     stat,
     newwatcher(),
     make(chan bool),
-    make(chan string),
     stat.Change,
   }
   yd.watch.activate(yd.path)  // Try to activate wathing at the beggining. It can fail

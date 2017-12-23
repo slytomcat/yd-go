@@ -22,14 +22,14 @@ func main() {
   // Status updates -> stdout
   // Log messages -> stderr
   // External program/operator have to decide what to do with daemon and pass command.
-  // Wrapper itself doesn't auto-start or stop daemo on its start/exit
+  // Wrapper itself doesn't auto-start or stop daemon on its start/exit
 
   YD := YDisk.NewYDisk(os.Args[1], os.Args[2])
   //YD := NewYDisk("/home/stc/.config/yandex-disk/config.cfg", "/home/stc/Yandex.Disk")
 
   //
   go func() {
-    Logger.Println("Staus updates formater started")
+    Logger.Println("Status updates formatter started")
     var msj []byte
     for {
       yds, ok := <- YD.Updates
@@ -37,7 +37,7 @@ func main() {
         msj, _ = json.Marshal(yds)
         fmt.Println(string(msj))
       } else {
-        Logger.Println("Staus updates formater exited.")
+        Logger.Println("Status updates formatter exited.")
         return
       }
 
