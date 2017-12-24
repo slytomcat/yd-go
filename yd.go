@@ -75,10 +75,9 @@ func onReady() {
   }()
 
   //  strat go-routine to display status changes in icon/menu
-  //iconsSet := [][]byte{IconBusy1, IconBusy2, IconBusy3, IconBusy4, IconBusy5}
-
   go func() {
     Logger.Println("Status updater started")
+    //iconsSet := [][]byte{IconBusy1, IconBusy2, IconBusy3, IconBusy4, IconBusy5}
     //animationStop := make(chan bool, 1)
     //iconAnimation := func() {
       //tick := time.NewTicker(333 * time.Millisecond)
