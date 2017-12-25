@@ -4,6 +4,7 @@ import (
   //"log"
   "os"
   "os/user"
+  "os/exec"
   "io"
   "path/filepath"
   "time"
@@ -17,7 +18,7 @@ import (
 
 )
 
-/* Initialize default logger */
+/* Initialize logger facility */
 //var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds) // | log.Lmicroseconds)
 
 func notExists(path string) bool {
@@ -37,6 +38,13 @@ func expandHome(path string) (string) {
     Logger.Fatal("Can't get current user profile:", err)
   }
   return filepath.Join(usr.HomeDir, path[1:])
+}
+
+func xdgOpen(uri string) {
+  err := exec.Command("xdg-open", uri).Run()
+  if err != nil {
+    Logger.Println(err)
+  }
 }
 
 func checkDaemon(conf string) string {
@@ -113,7 +121,7 @@ func onReady() {
   if notExists(AppConfigHome) {
     err := os.MkdirAll(AppConfigHome, 0766)
     if err != nil {
-      Logger.Fatal("Can't create aplication config path:", err)
+      Logger.Fatal("Can't create application config path:", err)
     }
   }
   // Check tha app config file exists
@@ -138,6 +146,9 @@ func onReady() {
   mSize1.Disable()
   mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "")
   mSize2.Disable()
+  systray.AddSeparator()
+  mPath := systray.AddMenuItem("Open path: " + FolderPath, "")
+  mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
   systray.AddSeparator()
   mStart := systray.AddMenuItem("Start", "")
   mStart.Disable()
@@ -166,6 +177,10 @@ func onReady() {
         YD.Start()
       case <-mStop.ClickedCh:
         YD.Stop()
+      case <-mPath.ClickedCh:
+        xdgOpen(FolderPath)
+      case <-mSite.ClickedCh:
+        xdgOpen("https://disk.yandex.com")
       case <-mQuit.ClickedCh:
         Logger.Println("Exit requested.")
         if AppConf.StopDaemon {

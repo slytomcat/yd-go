@@ -42,7 +42,7 @@ import (
   "sync"
 )
 
-/* Initialize default logger */
+/* Logger must be initialized in main package*/
 var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds) // | log.Lmicroseconds)
 
 //
