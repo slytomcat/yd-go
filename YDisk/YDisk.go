@@ -27,7 +27,7 @@ package YDisk
  *  ErrP string      - Error path
  *  Prog string      - Synchronization progress (when in busy status)
  *
- * Debbugging messages can be obtained wia Logger that must be *log.Logger type. By default it
+ * Debbugging messages can be obtained wia log that must be *log.log type. By default it
  * prints the messages to os.Stderr.
  * */
 
@@ -38,14 +38,9 @@ import (
   "os/exec"
   "regexp"
   "strings"
-  "os"
   "sync"
 )
 
-/* Logger must be initialized in main package*/
-var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds) // | log.Lmicroseconds)
-
-//
 var AllDone sync.WaitGroup
 
 /* Daemon Status values */
@@ -158,7 +153,7 @@ func newyDstatus() yDstatus {
     make(chan YDvals, 1), // Output should be buffered
   }
   go func() {
-    Logger.Println("Status component started")
+    log.Println("Status component started")
     AllDone.Add(1)
     defer AllDone.Done()
     yds := newyDvals()
@@ -166,13 +161,13 @@ func newyDstatus() yDstatus {
       upd, ok := <- st.Update
       if ok {
         if yds.update(upd) {
-          Logger.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
+          log.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
                      "Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
           st.Change <- yds
         }
       } else {  // Channel closed - exit
         close(st.Change)
-        Logger.Println("Status component routine finished")
+        log.Println("Status component routine finished")
         return
       }
     }
@@ -190,7 +185,7 @@ type watcher struct {
 func newwatcher() watcher {
   watch, err := fsnotify.NewWatcher()
   if err != nil {
-    Logger.Fatal(err)
+    log.Fatal(err)
   }
   w := watcher{
       watch,
@@ -205,10 +200,10 @@ func (w *watcher) activate(path string) {
   if !w.path {
     err := w.watch.Add(path + "/.sync/cli.log") // TO_DO: make path via library function
     if err != nil {
-      Logger.Println("Watch path error:", err)
+      log.Println("Watch path error:", err)
       return
     }
-    Logger.Println("Watch path added")
+    log.Println("Watch path added")
     w.path = true
   }
 }
@@ -244,13 +239,13 @@ func NewYDisk(conf, path string) YDisk {
   yd.watch.activate(yd.path)  // Try to activate wathing at the beggining. It can fail
 
   go func() {
-    Logger.Println("Event handler started")
+    log.Println("Event handler started")
     AllDone.Add(1)
     tick := time.NewTimer(time.Millisecond * 500)
     interval := 2
     defer func() {
       tick.Stop()
-      Logger.Println("Event handler routine finished")
+      log.Println("Event handler routine finished")
       AllDone.Done()
     }()
     busy_status := false
@@ -258,11 +253,11 @@ func NewYDisk(conf, path string) YDisk {
     for {
       select {
         case <-yd.watch.Events:  //event := <-yd.watch.Events:
-          //Logger.Println("Watcher event:", event)
+          //log.Println("Watcher event:", event)
           tick.Reset(time.Millisecond * 500)
           interval = 2
         case <-tick.C:
-          //Logger.Println("Timer interval:", interval)
+          //log.Println("Timer interval:", interval)
           if busy_status {
             interval = 2  // keep 2s interval in busy mode
           }
@@ -271,7 +266,7 @@ func NewYDisk(conf, path string) YDisk {
             interval<<=1 // continuously increase timer interval: 2s, 4s, 8s.
           }
         case err := <-yd.watch.Errors:
-          Logger.Println("Watcher error:", err)
+          log.Println("Watcher error:", err)
           return
         case <-yd.exit:
           return
@@ -282,7 +277,7 @@ func NewYDisk(conf, path string) YDisk {
     }
   }()
 
-  Logger.Println("New YDisk created and initianized.\n  Conf:", conf, "\n  Path:", path)
+  log.Println("New YDisk created and initianized.\n  Conf:", conf, "\n  Path:", path)
   return yd
 }
 
@@ -291,7 +286,7 @@ func (yd *YDisk) Close() {
   yd.watch.close()
   close(yd.stat.Update)
   AllDone.Wait()
-  Logger.Println("All done. Bye!")
+  log.Println("All done. Bye!")
 }
 
 func (yd YDisk) getOutput(userLang bool) (string) {
@@ -314,11 +309,11 @@ func (yd *YDisk) Start() {
   if yd.getOutput(true) == "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
     if err != nil {
-      Logger.Println(err)
+      log.Println(err)
     }
-    Logger.Println("Daemon start:", string(out))
+    log.Println("Daemon start:", string(out))
   } else {
-    Logger.Println("Daemon already Started")
+    log.Println("Daemon already Started")
   }
   yd.watch.activate(yd.path)   // try to activate watching after daemon start. It shouldn't fail
 }
@@ -327,10 +322,10 @@ func (yd *YDisk) Stop() {
   if yd.getOutput(true) != "" {
     out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
     if err != nil {
-      Logger.Println(err)
+      log.Println(err)
     }
-    Logger.Println("Daemon stop:", string(out))
+    log.Println("Daemon stop:", string(out))
     return
   }
-  Logger.Println("Daemon already stopped")
+  log.Println("Daemon already stopped")
 }

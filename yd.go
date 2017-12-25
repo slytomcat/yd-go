@@ -1,7 +1,7 @@
 package main
 
 import (
-  //"log"
+  "log"
   "os"
   "os/user"
   "os/exec"
@@ -10,16 +10,12 @@ import (
   "time"
   "strings"
   "fmt"
-  "encoding/json"
 
   . "github.com/slytomcat/YD.go/YDisk"
   . "github.com/slytomcat/YD.go/icons"
+  . "github.com/slytomcat/confJSON"
   "github.com/slytomcat/systray"
-
 )
-
-/* Initialize logger facility */
-//var Logger *log.Logger = log.New(os.Stderr, "", log.Lshortfile|log.Lmicroseconds) // | log.Lmicroseconds)
 
 func notExists(path string) bool {
   _, err := os.Stat(path)
@@ -35,7 +31,7 @@ func expandHome(path string) (string) {
   }
   usr, err := user.Current()
   if err != nil {
-    Logger.Fatal("Can't get current user profile:", err)
+    log.Fatal("Can't get current user profile:", err)
   }
   return filepath.Join(usr.HomeDir, path[1:])
 }
@@ -43,18 +39,18 @@ func expandHome(path string) (string) {
 func xdgOpen(uri string) {
   err := exec.Command("xdg-open", uri).Run()
   if err != nil {
-    Logger.Println(err)
+    log.Println(err)
   }
 }
 
 func checkDaemon(conf string) string {
   // Check that yandex-disk daemon is installed (exit if not)
   if notExists("/usr/bin/yandex-disk") {
-    Logger.Fatal("Yandex.Disk CLI utility is not installed. Install it first.")
+    log.Fatal("Yandex.Disk CLI utility is not installed. Install it first.")
   }
   f, err := os.Open(conf)
   if err != nil {
-    Logger.Fatal("Daemon configuration file opening error:", err)
+    log.Fatal("Daemon configuration file opening error:", err)
   }
   defer f.Close()
   reader := io.Reader(f)
@@ -75,67 +71,41 @@ func checkDaemon(conf string) string {
     n, _ = fmt.Fscanln(reader, &line)
   }
   if notExists(dir) || notExists(auth) {
-    Logger.Fatal("Daemon is not configured.")
+    log.Fatal("Daemon is not configured.")
   }
   return dir
 }
 
-type appCfg struct {
-  Conf string // path to daemon config file
-  Theme string // icons theme name
-  StartDaemon bool // flag that shows should be the daemon started on app start
-  StopDaemon bool // flag that shows should be the daemon stopped on app closure
-}
-
-func (cfg *appCfg) load(filePath string) {
-  f, err := os.Open(filePath)
-  if err != nil {
-    Logger.Fatal("Configurations' file can't be read:", err)
-  }
-  defer f.Close()
-  json.NewDecoder(f).Decode(&cfg)
-}
-
-func (cfg appCfg) save(filePath string) {
-  f, err := os.Create(filePath)
-  if err != nil {
-    Logger.Fatal("Can't access to configuration file:", err)
-  }
-  defer f.Close()
-  buf, _ := json.Marshal(cfg)
-  f.Write(buf)
-
-}
-
 func onReady() {
   // Prepare the application configuration
-  // Make default config structure
-  AppConf := appCfg{
-      expandHome("~/.config/yandex-disk/config.cfg"),
-      "dark",
-      true,
-      false,
+  // Make default app configuration values
+  AppCfg := map[string]interface{} {
+      "Conf": expandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
+      "Theme": "dark", // icons theme name
+      "StartDaemon": true, // flag that shows should be the daemon started on app start
+      "StopDaemon": false, // flag that shows should be the daemon stopped on app closure
     }
   // Check that app config file path exists
   AppConfigHome := expandHome("~/.config/yd.go")
   if notExists(AppConfigHome) {
     err := os.MkdirAll(AppConfigHome, 0766)
     if err != nil {
-      Logger.Fatal("Can't create application config path:", err)
+      log.Fatal("Can't create application config path:", err)
     }
   }
   // Check tha app config file exists
   AppConfigFile := filepath.Join(AppConfigHome, "default.cfg")
   if notExists(AppConfigFile) {
     //Create and save new config file with default values
-    AppConf.save(AppConfigFile)
+    Save(AppConfigFile, AppCfg)
   } else {
     // Read app config file
-    AppConf.load(AppConfigFile)
+    Load(AppConfigFile, &AppCfg)
   }
-  FolderPath := checkDaemon(AppConf.Conf)
+  FolderPath := checkDaemon(AppCfg["Conf"].(string))
   // Initialize icon theme
-  SetTheme(AppConf.Theme)
+  AppHome := "/home/stc/DEV/GO/src/github.com/slytomcat/YD.go"
+  SetTheme(AppHome, AppCfg["Theme"].(string))
   // Initialize systray icon
   systray.SetIcon(IconPause)
   systray.SetTitle("")
@@ -161,14 +131,12 @@ func onReady() {
    * 1. About ???
    * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
    * 3. LastSynchronized submenu ??? need support from systray.C module side
-   * 4. Open local folder
-   * 5. Open yandex.disk in browser
    * */
   //  create new YDisk interface
-  YD := NewYDisk(AppConf.Conf, FolderPath)
+  YD := NewYDisk(AppCfg["Conf"].(string), FolderPath)
   // make go-routine for menu treatment
   go func(){
-    if AppConf.StartDaemon {
+    if AppCfg["StartDaemon"].(bool) {
       YD.Start()
     }
     for {
@@ -182,8 +150,8 @@ func onReady() {
       case <-mSite.ClickedCh:
         xdgOpen("https://disk.yandex.com")
       case <-mQuit.ClickedCh:
-        Logger.Println("Exit requested.")
-        if AppConf.StopDaemon {
+        log.Println("Exit requested.")
+        if AppCfg["StopDaemon"].(bool) {
           YD.Stop()
         }
         YD.Close()
@@ -195,7 +163,7 @@ func onReady() {
 
   //  strat go-routine to display status changes in icon/menu
   go func() {
-    Logger.Println("Status updater started")
+    log.Println("Status updater started")
     currentStatus := ""
     currentIcon := 0
     tick := time.NewTimer(333 * time.Millisecond)
@@ -231,7 +199,7 @@ func onReady() {
               mStop.Enable()
             }
           } else {
-            Logger.Println("Status updater exited.")
+            log.Println("Status updater exited.")
             return
           }
         case <-tick.C:
@@ -250,5 +218,10 @@ func onReady() {
 func onExit() {}
 
 func main() {
+  /* Initialize logging facility */
+  log.SetOutput(os.Stderr)
+  log.SetPrefix("")
+  log.SetFlags(log.Lshortfile|log.Lmicroseconds)
+
   systray.Run(onReady, onExit)
 }
