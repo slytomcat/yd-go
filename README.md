@@ -24,14 +24,20 @@ Application has its configuration file in ~/.config/yd.go/default.cfg file. File
  
 ## Build 
 For building this prject the additional packages are requered. You can install them (in Debial based Linux distributions):
-  sudo apt-get install libgtk-3-dev libappindicator3-dev
+
+    sudo apt-get install libgtk-3-dev libappindicator3-dev
+
 Then you can buld with 
-  go build yd.go
+
+    go build yd.go
   
 ## Installation
 Run install.bash script with root previlegies for installation.
-  sudo ./install.bash
+
+    sudo ./install.bash
 
 ## Usage
-  yd
+
+    yd
+
 Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd utility.
