@@ -9,12 +9,14 @@ var (
   IconError string
   IconIdle string
   IconPause string
+  IconNotify string
 )
 
 func SetTheme(appHome, theme string) {
 
   themePath := path.Join(appHome, "icons", theme)
 
+  IconNotify = path.Join(appHome, "icons", "yd-128.png")
 
   IconBusy = [5]string {
       path.Join(themePath, "busy1.png"),

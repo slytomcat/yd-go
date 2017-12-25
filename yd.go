@@ -43,6 +43,10 @@ func xdgOpen(uri string) {
   }
 }
 
+func notifySend(icon, title, body string) {
+  exec.Command("notify-send", "-i", icon, title, body).Run()
+}
+
 func checkDaemon(conf string) string {
   // Check that yandex-disk daemon is installed (exit if not)
   if notExists("/usr/bin/yandex-disk") {
@@ -82,6 +86,7 @@ func onReady() {
   AppCfg := map[string]interface{} {
       "Conf": expandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
       "Theme": "dark", // icons theme name
+      "Notifications": true, // Display desktop notification
       "StartDaemon": true, // flag that shows should be the daemon started on app start
       "StopDaemon": false, // flag that shows should be the daemon stopped on app closure
     }
@@ -110,20 +115,15 @@ func onReady() {
   systray.SetIcon(IconPause)
   systray.SetTitle("")
   // Initialize systray menu
-  mStatus := systray.AddMenuItem("Status: unknown", "")
-  mStatus.Disable()
-  mSize1 := systray.AddMenuItem("Used: .../...", "")
-  mSize1.Disable()
-  mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "")
-  mSize2.Disable()
+  mStatus := systray.AddMenuItem("Status: unknown", "");   mStatus.Disable()
+  mSize1 := systray.AddMenuItem("Used: .../...", "");   mSize1.Disable()
+  mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "");   mSize2.Disable()
   systray.AddSeparator()
   mPath := systray.AddMenuItem("Open path: " + FolderPath, "")
   mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
   systray.AddSeparator()
-  mStart := systray.AddMenuItem("Start", "")
-  mStart.Disable()
-  mStop := systray.AddMenuItem("Stop", "")
-  mStop.Disable()
+  mStart := systray.AddMenuItem("Start", "");   mStart.Disable()
+  mStop := systray.AddMenuItem("Stop", "");   mStop.Disable()
   systray.AddSeparator()
   mQuit := systray.AddMenuItem("Quit", "")
   /*TO_DO:
@@ -197,6 +197,22 @@ func onReady() {
             if yds.Stat != "none" {
               mStart.Disable()
               mStop.Enable()
+            }
+            // Handle notifications
+            if AppCfg["Notifications"].(bool) && yds.Stat != yds.Prev {
+              if ((yds.Stat == "busy" || yds.Stat == "index") &&
+                  (yds.Prev == "idle" || yds.Prev == "pause" || yds.Prev == "none") ){
+                notifySend(IconNotify, "Yandex.Disk", "Syncronization started")
+              }
+              if yds.Stat == "idle" && (yds.Prev == "busy" || yds.Prev == "index") {
+                notifySend(IconNotify, "Yandex.Disk", "Syncronization finished")
+              }
+              if yds.Stat == "none" && yds.Prev != "unknown"{
+                notifySend(IconNotify, "Yandex.Disk", "Daemon stopped")
+              }
+              if yds.Prev == "none" {
+                notifySend(IconNotify, "Yandex.Disk", "Daemon started")
+              }
             }
           } else {
             log.Println("Status updater exited.")
