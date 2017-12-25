@@ -109,7 +109,8 @@ func onReady() {
   }
   FolderPath := checkDaemon(AppCfg["Conf"].(string))
   // Initialize icon theme
-  AppHome := "/home/stc/DEV/GO/src/github.com/slytomcat/YD.go"
+  //AppHome := "/home/stc/DEV/GO/src/github.com/slytomcat/YD.go"
+  AppHome := "/usr/share/yd.go"
   SetTheme(AppHome, AppCfg["Theme"].(string))
   // Initialize systray icon
   systray.SetIcon(IconPause)
