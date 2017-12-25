@@ -1,5 +1,5 @@
 # YD.go
-## Go experimental wrap for Yandex-disk CLI daemon (linux)
+## Go wrapper for Yandex-disk CLI daemon (linux)
 
 It's my first project on golang.
 
@@ -22,5 +22,11 @@ Application has its configuration file in ~/.config/yd.go/default.cfg file. File
   - "StartDaemon" - Flag that shows should be the daemon started on app start (default true)
   - "StopDaemon" - Flag that shows should be the daemon stopped on app closure
  
- 
-
+## Build 
+For building this prject the additional packages are requered. You can install them (in Debial based Linux distributions):
+  sudo apt-get install libgtk-3-dev libappindicator3-dev
+Then you can buld with 
+  go build yd.go
+  
+## Installation
+Run install.bash script for installation.
