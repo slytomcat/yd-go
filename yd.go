@@ -3,11 +3,13 @@ package main
 import (
   //"log"
   "os"
+  "os/user"
   "io"
-  "path"
+  "path/filepath"
   "time"
   "strings"
   "fmt"
+  "encoding/json"
 
   . "github.com/slytomcat/YD.go/YDisk"
   . "github.com/slytomcat/YD.go/icons"
@@ -24,6 +26,17 @@ func notExists(path string) bool {
     return os.IsNotExist(err)
   }
   return false
+}
+
+func expandHome(path string) (string) {
+  if len(path) == 0 || path[0] != '~' {
+    return path
+  }
+  usr, err := user.Current()
+  if err != nil {
+    Logger.Fatal("Can't get current user profile:", err)
+  }
+  return filepath.Join(usr.HomeDir, path[1:])
 }
 
 func checkDaemon(conf string) string {
@@ -59,44 +72,62 @@ func checkDaemon(conf string) string {
   return dir
 }
 
-func main() {
-  systray.Run(onReady, onExit)
+type appCfg struct {
+  Conf string // path to daemon config file
+  Theme string // icons theme name
+  StartDaemon bool // flag that shows should be the daemon started on app start
+  StopDaemon bool // flag that shows should be the daemon stopped on app closure
+}
+
+func (cfg *appCfg) load(filePath string) {
+  f, err := os.Open(filePath)
+  if err != nil {
+    Logger.Fatal("Configurations' file can't be read:", err)
+  }
+  defer f.Close()
+  json.NewDecoder(f).Decode(&cfg)
+}
+
+func (cfg appCfg) save(filePath string) {
+  f, err := os.Create(filePath)
+  if err != nil {
+    Logger.Fatal("Can't access to configuration file:", err)
+  }
+  defer f.Close()
+  buf, _ := json.Marshal(cfg)
+  f.Write(buf)
+
 }
 
 func onReady() {
-
-  AppConfigHome := path.Join(os.Getenv("HOME"),".config/yd.go")
+  // Prepare the application configuration
+  // Make default config structure
+  AppConf := appCfg{
+      expandHome("~/.config/yandex-disk/config.cfg"),
+      "dark",
+      true,
+      false,
+    }
+  // Check that app config file path exists
+  AppConfigHome := expandHome("~/.config/yd.go")
   if notExists(AppConfigHome) {
     err := os.MkdirAll(AppConfigHome, 0766)
     if err != nil {
-      Logger.Fatal("Can't create aplication config path.")
+      Logger.Fatal("Can't create aplication config path:", err)
     }
   }
-  AppConfigFile := path.Join(AppConfigHome, "default.cfg")
+  // Check tha app config file exists
+  AppConfigFile := filepath.Join(AppConfigHome, "default.cfg")
   if notExists(AppConfigFile) {
-    //TO_DO: create and save new config file with default values)
+    //Create and save new config file with default values
+    AppConf.save(AppConfigFile)
+  } else {
+    // Read app config file
+    AppConf.load(AppConfigFile)
   }
-  // TO_DO: read app config file
-  Conf := "/home/stc/.config/yandex-disk/config.cfg"
-  Theme := "dark"
-  StartDaemon := true
-  StopDaemon := false
-
-  Path := checkDaemon(Conf)
-  /* TO_DO:
-   * 1. Read/create_and_save app configuration file (~/.config/yd.go/default.cfg) for:
-   *  path to daemon config (default config="/home/stc/.config/yandex-disk/config.cfg")
-   *  icons theme (default theme="dark")
-   *  autostart indicator (default autostart="yes")
-   *  start daemon on start (default startdaemon="yes")
-   *  stop daemon on exit (default stopdaemon="no")
-   * 2. Read daemon config for:
-   *  path to synchronized folder
-   *  path to auth file
-   * 3. Check that daemon is configured (check auth and conf paths existance, exit if not)
-   * */
+  FolderPath := checkDaemon(AppConf.Conf)
   // Initialize icon theme
-  SetTheme(Theme)    // theme should be read from app config
+  SetTheme(AppConf.Theme)
   // Initialize systray icon
   systray.SetIcon(IconPause)
   systray.SetTitle("")
@@ -123,10 +154,10 @@ func onReady() {
    * 5. Open yandex.disk in browser
    * */
   //  create new YDisk interface
-  YD := NewYDisk(Conf, Path)
+  YD := NewYDisk(AppConf.Conf, FolderPath)
   // make go-routine for menu treatment
   go func(){
-    if StartDaemon {
+    if AppConf.StartDaemon {
       YD.Start()
     }
     for {
@@ -137,7 +168,7 @@ func onReady() {
         YD.Stop()
       case <-mQuit.ClickedCh:
         Logger.Println("Exit requested.")
-        if StopDaemon {
+        if AppConf.StopDaemon {
           YD.Stop()
         }
         YD.Close()
@@ -202,3 +233,7 @@ func onReady() {
 }
 
 func onExit() {}
+
+func main() {
+  systray.Run(onReady, onExit)
+}
