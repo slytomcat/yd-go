@@ -194,10 +194,7 @@ func onReady() {
 						mStart.Enable()
 					case "paused":
 						systray.SetIcon(IconPause)
-					case "busy":
-						systray.SetIcon(IconBusy[currentIcon])
-						tick.Reset(333 * time.Millisecond)
-					case "index":
+					case "busy", "index":
 						systray.SetIcon(IconBusy[currentIcon])
 						tick.Reset(333 * time.Millisecond)
 					default:
