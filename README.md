@@ -15,18 +15,29 @@ The system try icon has menu that allows:
   - to open local syncronized path
   - to open cloud-disk in browser
 
-Application has its configuration file in ~/.config/yd.go/default.cfg file. File is in JSON format and contain following keys:
+Application has its configuration file in ~/.config/yd.go/default.cfg file. File is in JSON format and contain following options:
   - "Conf" - path to daemon config file (default "~/.config/yandex-disk/config.cfg"
-  - "Theme" - icons theme name (default "dark")
+  - "Theme" - icons theme name (default "dark", may be set to "dark" or "light")
   - "Notifications" - Display or not the desktop notifications (default true)
   - "StartDaemon" - Flag that shows should be the daemon started on app start (default true)
   - "StopDaemon" - Flag that shows should be the daemon stopped on app closure
  
 ## Build 
 For building this prject the additional packages are requered. You can install them (in Debial based Linux distributions):
-  sudo apt-get install libgtk-3-dev libappindicator3-dev
+
+    sudo apt-get install libgtk-3-dev libappindicator3-dev
+
 Then you can buld with 
-  go build yd.go
+
+    go build yd.go
   
 ## Installation
-Run install.bash script for installation.
+Run install.bash script with root previlegies for installation.
+
+    sudo ./install.bash
+
+## Usage
+
+    yd
+
+Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd utility.
