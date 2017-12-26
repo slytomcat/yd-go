@@ -206,6 +206,12 @@ func onReady() {
 					}
 					// Handle notifications
 					if AppCfg["Notifications"].(bool) && yds.Stat != yds.Prev {
+						if yds.Stat == "none" && yds.Prev != "unknown" {
+							notifySend(IconNotify, "Yandex.Disk", "Daemon stopped")
+						}
+						if yds.Prev == "none" {
+							notifySend(IconNotify, "Yandex.Disk", "Daemon started")
+						}
 						if (yds.Stat == "busy" || yds.Stat == "index") &&
 							(yds.Prev != "busy" && yds.Prev != "index") {
 							notifySend(IconNotify, "Yandex.Disk", "Syncronization started")
@@ -213,12 +219,6 @@ func onReady() {
 						if (yds.Stat == "idle" || yds.Stat == "error") &&
 							(yds.Prev == "busy" || yds.Prev == "index") {
 							notifySend(IconNotify, "Yandex.Disk", "Syncronization finished")
-						}
-						if yds.Stat == "none" && yds.Prev != "unknown" {
-							notifySend(IconNotify, "Yandex.Disk", "Daemon stopped")
-						}
-						if yds.Prev == "none" {
-							notifySend(IconNotify, "Yandex.Disk", "Daemon started")
 						}
 					}
 				}
