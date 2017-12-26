@@ -7,3 +7,4 @@ cp icons/yd* /usr/share/yd.go/icons
 cp icons/dark/* /usr/share/yd.go/icons/dark/
 cp icons/light/* /usr/share/yd.go/icons/light/
 cp README.md /usr/share/yd.go/
+
