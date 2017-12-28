@@ -5,15 +5,15 @@ package YDisk
  *  NewYDisk (conf, path string) YDisk
  * Parameters:
  *  conf - path to yandex-disk configuration file (by default it is: ~/.config/yandex-disk/config.cfg)
- *  path - path to user folder that is syncronized by daemon (default path: ~/Yandex.Disk)
+ *  path - path to user folder that is synchronized by daemon (default path: ~/Yandex.Disk)
  * Returns new YDisk structure with the following items:
- *  Updates chan YDvals - output chanes that provides all detected changes in daemon status within
+ *  Changes chan YDvals - output channel that provides all detected changes in daemon status within
  *                        the structure YDvals (see description of YDvals structure)
- * The daemon connection has folloving methods:
+ * The daemon connection has following methods:
  *  Start()          - strts the daemon with the specified configuration
  *  Stop()           - stops the daemon with the specified configuration
  *  Output() string  - returns the daemon status message (in the current user Language)
- *  Close()          - closes the daemon connection (stops all service routines and file wathcer)
+ *  Close()          - closes the daemon connection (stops all service routines and file watcher)
  *
  * YDvals structure has following items:
  *  Stat string      - Current Status
@@ -28,7 +28,7 @@ package YDisk
  *  ErrP string      - Error path
  *  Prog string      - Synchronization progress (when in busy status)
  *
- * Debbugging messages can be obtained wia log that must be *log.log type. By default it
+ * Debugging messages can be obtained via log that must be *log.log type. By default it
  * prints the messages to os.Stderr.
  * */
 
@@ -40,6 +40,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"path/filepath"
 )
 
 var AllDone sync.WaitGroup
@@ -64,9 +65,9 @@ func newyDvals() YDvals {
 		"unknown",      // Current Status
 		"unknown",      // Previous Status
 		"", "", "", "", // Total, Used, Free, Trash
-		[]string{}, // Last
-		false,      // ChLast
-		"", "", "", // Err, ErrP, Prog
+		[]string{}, 		// Last
+		false,      		// ChLast
+		"", "", "", 		// Err, ErrP, Prog
 	}
 }
 
@@ -143,8 +144,8 @@ func (val *YDvals) update(out string) bool {
 
 /* Status control component */
 type yDstatus struct {
-	Update chan string // input channel for update values with data from the daemon output string
-	Change chan YDvals // output channel for detected changes or daemon output
+	updates chan string // input channel for update values with data from the daemon output string
+	Changes chan YDvals // output channel for detected changes or daemon output
 }
 
 /* This control component implemented as State-full go-routine with 3 communication channels */
@@ -159,15 +160,15 @@ func newyDstatus() yDstatus {
 		defer AllDone.Done()
 		yds := newyDvals()
 		for {
-			upd, ok := <-st.Update
+			upd, ok := <-st.updates
 			if ok {
 				if yds.update(upd) {
 					log.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
 						"Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
-					st.Change <- yds
+					st.Changes <- yds
 				}
-			} else { // Channel closed - exit
-				close(st.Change)
+			} else { // st.updates channel closed - exit
+				close(st.Changes)
 				log.Println("Status component routine finished")
 				return
 			}
@@ -178,7 +179,7 @@ func newyDstatus() yDstatus {
 
 type watcher struct {
 	watch  *fsnotify.Watcher
-	path   bool // Flag that means that whatching path was successfully added
+	path   bool // Flag that means that watching path was successfully added
 	Events chan fsnotify.Event
 	Errors chan error
 }
@@ -188,18 +189,17 @@ func newwatcher() watcher {
 	if err != nil {
 		log.Fatal(err)
 	}
-	w := watcher{
+	return watcher{
 		watch,
 		false,
 		watch.Events,
 		watch.Errors,
 	}
-	return w
 }
 
 func (w *watcher) activate(path string) {
 	if !w.path {
-		err := w.watch.Add(path + "/.sync/cli.log") // TO_DO: make path via library function
+		err := w.watch.Add(filepath.Join(path, ".sync/cli.log"))
 		if err != nil {
 			log.Println("Watch path error:", err)
 			return
@@ -220,13 +220,13 @@ type YDisk struct {
 	stat    yDstatus    // Status object
 	watch   watcher     // Watcher object
 	exit    chan bool   // Stop signal for Event handler routine
-	Updates chan YDvals // Transfered from status component Updates channel
+	Changes chan YDvals // Transfered from status component Updates channel
 }
 
 func NewYDisk(conf, path string) YDisk {
 	// Requirements:
 	// 1. yandex-disk have to be installed and properly configured
-	// 2. path to configuration and synchronized paths from yandex-disk config-file have to be
+	// 2. path to configuration and synchronized paths from yandex-disk conf-file have to be
 	//    provided in arguments
 	stat := newyDstatus()
 	yd := YDisk{
@@ -235,9 +235,9 @@ func NewYDisk(conf, path string) YDisk {
 		stat,
 		newwatcher(),
 		make(chan bool),
-		stat.Change,
+		stat.Changes,
 	}
-	yd.watch.activate(yd.path) // Try to activate wathing at the beggining. It can fail
+	yd.watch.activate(yd.path) // Try to activate watching at the beginning. It can fail
 
 	go func() {
 		log.Println("Event handler started")
@@ -274,7 +274,7 @@ func NewYDisk(conf, path string) YDisk {
 			}
 			out = yd.getOutput(false)
 			busy_status = strings.HasPrefix(out, "Sync progress")
-			yd.stat.Update <- out
+			yd.stat.updates <- out
 		}
 	}()
 
@@ -285,7 +285,7 @@ func NewYDisk(conf, path string) YDisk {
 func (yd *YDisk) Close() {
 	yd.exit <- true
 	yd.watch.close()
-	close(yd.stat.Update)
+	close(yd.stat.updates)
 	AllDone.Wait()
 	log.Println("All done. Bye!")
 }
@@ -302,10 +302,12 @@ func (yd YDisk) getOutput(userLang bool) string {
 	return string(out)
 }
 
+// Request function
 func (yd *YDisk) Output() string {
 	return yd.getOutput(true)
 }
 
+// Commands
 func (yd *YDisk) Start() {
 	if yd.getOutput(true) == "" {
 		out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()

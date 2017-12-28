@@ -140,8 +140,8 @@ func onReady() {
 	YD := NewYDisk(AppCfg["Conf"].(string), FolderPath)
 	// make go-routine for menu treatment
 	go func() {
-		log.Println("Munu handler started")
-		defer log.Println("Munu handler started")
+		log.Println("Menu handler started")
+		defer log.Println("Menu handler stopped")
 		if AppCfg["StartDaemon"].(bool) {
 			YD.Start()
 		}
@@ -177,7 +177,7 @@ func onReady() {
 		defer tick.Stop()
 		for {
 			select {
-			case yds, ok := <-YD.Updates:
+			case yds, ok := <-YD.Changes:
 				if !ok {
 					return
 				} else {
