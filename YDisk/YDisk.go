@@ -278,7 +278,7 @@ func NewYDisk(conf, path string) YDisk {
 		}
 	}()
 
-	log.Println("New YDisk created and initianized.\n  Conf:", conf, "\n  Path:", path)
+	log.Println("New YDisk created and initialized.\n  Conf:", conf, "\n  Path:", path)
 	return yd
 }
 

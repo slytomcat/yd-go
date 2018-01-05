@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/slytomcat/YD.go/YDisk"
-	. "github.com/slytomcat/YD.go/icons"
-	. "github.com/slytomcat/confJSON"
+	"github.com/slytomcat/YD.go/YDisk"
+	"github.com/slytomcat/YD.go/icons"
+	conf "github.com/slytomcat/confJSON"
 	"github.com/slytomcat/systray"
 )
 
@@ -37,14 +37,19 @@ func expandHome(path string) string {
 }
 
 func xdgOpen(uri string) {
-	err := exec.Command("xdg-open", uri).Run()
+	log.Println(uri)
+	err := exec.Command("xdg-open", uri).Start()
+	log.Println(uri)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
 func notifySend(icon, title, body string) {
-	exec.Command("notify-send", "-i", icon, title, body).Run()
+	err := exec.Command("notify-send", "-i", icon, title, body).Start()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func checkDaemon(conf string) string {
@@ -61,8 +66,11 @@ func checkDaemon(conf string) string {
 	line := ""
 	dir := ""
 	auth := ""
-	for n, _ := fmt.Fscanln(reader, &line); n > 0; {
-		//fmt.Println(line)
+	for {
+		n, _ := fmt.Fscanln(reader, &line)
+		if n == 0 {
+			break
+		}
 		if strings.HasPrefix(line, "dir") {
 			dir = line[5 : len(line)-1]
 		}
@@ -72,10 +80,9 @@ func checkDaemon(conf string) string {
 		if dir != "" && auth != "" {
 			break
 		}
-		n, _ = fmt.Fscanln(reader, &line)
 	}
 	if notExists(dir) || notExists(auth) {
-		log.Fatal("Daemon is not configured.")
+		log.Fatal("Daemon is not configured. Run:\nyandex-disk setup")
 	}
 	return dir
 }
@@ -90,28 +97,29 @@ func onReady() {
 		"StartDaemon":   true,                                           // start daemon on app start
 		"StopDaemon":    false,                                          // stop daemon on app closure
 	}
-	// Check that app config file path exists
+	// Check that app configuration file path exists
 	AppConfigHome := expandHome("~/.config/yd.go")
 	if notExists(AppConfigHome) {
 		err := os.MkdirAll(AppConfigHome, 0766)
 		if err != nil {
-			log.Fatal("Can't create application config path:", err)
+			log.Fatal("Can't create application configuration path:", err)
 		}
 	}
-	// Check tha app config file exists
+	// Check tha app configuration file exists
 	AppConfigFile := filepath.Join(AppConfigHome, "default.cfg")
 	if notExists(AppConfigFile) {
-		//Create and save new config file with default values
-		Save(AppConfigFile, AppCfg)
+		//Create and save new configuration file with default values
+		conf.Save(AppConfigFile, AppCfg)
 	} else {
-		// Read app config file
-		Load(AppConfigFile, &AppCfg)
+		// Read app configuration file
+		conf.Load(AppConfigFile, &AppCfg)
 	}
+	// Check that daemon installed and configured
 	FolderPath := checkDaemon(AppCfg["Conf"].(string))
 	// Initialize icon theme
-	SetTheme("/usr/share/yd.go", AppCfg["Theme"].(string))
+	icons.SetTheme("/usr/share/yd.go", AppCfg["Theme"].(string))
 	// Initialize systray icon
-	systray.SetIcon(IconPause)
+	systray.SetIcon(icons.IconPause)
 	systray.SetTitle("")
 	// Initialize systray menu
 	mStatus := systray.AddMenuItem("Status: unknown", "")
@@ -124,10 +132,7 @@ func onReady() {
 	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
 	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
-	mStart := systray.AddMenuItem("Start", "")
-	mStart.Disable()
-	mStop := systray.AddMenuItem("Stop", "")
-	mStop.Disable()
+	mStartStop := systray.AddMenuItem("", "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
 	/*TO_DO:
@@ -136,103 +141,109 @@ func onReady() {
 	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
 	 * 3. LastSynchronized submenu ??? need support from systray.C module side
 	 * */
-	//  create new YDisk interface
-	YD := NewYDisk(AppCfg["Conf"].(string), FolderPath)
-	// make go-routine for menu treatment
+	//  Create new YDisk interface
+	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
+
 	go func() {
 		log.Println("Menu handler started")
-		defer log.Println("Menu handler stopped")
-		if AppCfg["StartDaemon"].(bool) {
-			YD.Start()
-		}
+		defer log.Println("Menu handler exited.")
+		// defer request for exit from systray main loop (gtk.main())
+		defer systray.Quit()
 		for {
 			select {
-			case <-mStart.ClickedCh:
-				YD.Start()
-			case <-mStop.ClickedCh:
-				YD.Stop()
+			case <-mStartStop.ClickedCh:
+				switch mStartStop.GetTitle() {
+				case "Start":
+					YD.Start()
+				case "Stop":
+					YD.Stop()
+				}
 			case <-mPath.ClickedCh:
 				xdgOpen(FolderPath)
 			case <-mSite.ClickedCh:
 				xdgOpen("https://disk.yandex.com")
 			case <-mQuit.ClickedCh:
 				log.Println("Exit requested.")
+				// Stop daemon if it is configured
 				if AppCfg["StopDaemon"].(bool) {
 					YD.Stop()
 				}
-				YD.Close()
-				systray.Quit()
+				YD.Close() // it closes Changes channel
 				return
 			}
 		}
 	}()
 
-	//  start go-routine to display status changes in icon/menu
 	go func() {
-		log.Println("Status updater started")
-		defer log.Println("Status updater exited.")
-		currentStatus := ""
+		log.Println("Changes handler started")
+		defer log.Println("Changes handler exited.")
+		// Prepare the staff for icon animation
 		currentIcon := 0
 		tick := time.NewTimer(333 * time.Millisecond)
 		defer tick.Stop()
+		// Start daemon if it is configured
+		if AppCfg["StartDaemon"].(bool) {
+			YD.Start()
+		}
+		currentStatus := ""
 		for {
 			select {
-			case yds, ok := <-YD.Changes:
-				if !ok {
+			case yds, ok := <-YD.Changes: // YD changed status event
+				if !ok { // as Changes channel closed - exit
 					return
-				} else {
-					currentStatus = yds.Stat
-					mStatus.SetTitle("Status: " + yds.Stat + " " + yds.Prog)
-					mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
-					mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
-					switch yds.Stat {
-					case "idle":
-						systray.SetIcon(IconIdle)
-					case "none":
-						systray.SetIcon(IconPause)
-						mStop.Disable()
-						mStart.Enable()
-					case "paused":
-						systray.SetIcon(IconPause)
-					case "busy", "index":
-						systray.SetIcon(IconBusy[currentIcon])
-						tick.Reset(333 * time.Millisecond)
-					default:
-						systray.SetIcon(IconError)
-					}
-					if yds.Stat != "none" {
-						mStart.Disable()
-						mStop.Enable()
+				}
+				currentStatus = yds.Stat
+				mStatus.SetTitle("Status: " + yds.Stat + " " + yds.Prog)
+				mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
+				mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
+				switch yds.Stat {
+				case "idle":
+					systray.SetIcon(icons.IconIdle)
+				case "none":
+					systray.SetIcon(icons.IconPause)
+				case "paused":
+					systray.SetIcon(icons.IconPause)
+				case "busy", "index":
+					systray.SetIcon(icons.IconBusy[currentIcon])
+					tick.Reset(333 * time.Millisecond)
+				default:
+					systray.SetIcon(icons.IconError)
+				}
+				if yds.Stat != yds.Prev { // status changed
+					// handle Start/Stop menu title
+					if yds.Stat == "none" {
+						mStartStop.SetTitle("Start")
+					} else if mStartStop.GetTitle() != "Stop" {
+						mStartStop.SetTitle("Stop")
 					}
 					// Handle notifications
-					if AppCfg["Notifications"].(bool) && yds.Stat != yds.Prev {
+					if AppCfg["Notifications"].(bool) {
 						if yds.Stat == "none" && yds.Prev != "unknown" {
-							notifySend(IconNotify, "Yandex.Disk", "Daemon stopped")
+							notifySend(icons.IconNotify, "Yandex.Disk", "Daemon stopped")
 						}
 						if yds.Prev == "none" {
-							notifySend(IconNotify, "Yandex.Disk", "Daemon started")
+							notifySend(icons.IconNotify, "Yandex.Disk", "Daemon started")
 						}
 						if (yds.Stat == "busy" || yds.Stat == "index") &&
 							(yds.Prev != "busy" && yds.Prev != "index") {
-							notifySend(IconNotify, "Yandex.Disk", "Syncronization started")
+							notifySend(icons.IconNotify, "Yandex.Disk", "Synchronization started")
 						}
 						if (yds.Stat == "idle" || yds.Stat == "error") &&
 							(yds.Prev == "busy" || yds.Prev == "index") {
-							notifySend(IconNotify, "Yandex.Disk", "Syncronization finished")
+							notifySend(icons.IconNotify, "Yandex.Disk", "Synchronization finished")
 						}
 					}
 				}
-			case <-tick.C:
+			case <-tick.C: //  timer event
 				currentIcon++
 				currentIcon %= 5
 				if currentStatus == "busy" || currentStatus == "index" {
-					systray.SetIcon(IconBusy[currentIcon])
+					systray.SetIcon(icons.IconBusy[currentIcon])
 					tick.Reset(333 * time.Millisecond)
 				}
 			}
 		}
 	}()
-
 }
 
 func onExit() {}
