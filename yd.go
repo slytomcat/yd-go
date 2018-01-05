@@ -13,7 +13,7 @@ import (
 
 	"github.com/slytomcat/YD.go/YDisk"
 	"github.com/slytomcat/YD.go/icons"
-	conf "github.com/slytomcat/confJSON"
+	"github.com/slytomcat/confJSON"
 	"github.com/slytomcat/systray"
 )
 
@@ -103,14 +103,14 @@ func onReady() {
 			log.Fatal("Can't create application configuration path:", err)
 		}
 	}
-	// Check tha app configuration file exists
+	// Check that app configuration file exists
 	AppConfigFile := filepath.Join(AppConfigHome, "default.cfg")
 	if notExists(AppConfigFile) {
 		//Create and save new configuration file with default values
-		conf.Save(AppConfigFile, AppCfg)
+		confJSON.Save(AppConfigFile, AppCfg)
 	} else {
 		// Read app configuration file
-		conf.Load(AppConfigFile, &AppCfg)
+		confJSON.Load(AppConfigFile, &AppCfg)
 	}
 	// Check that daemon installed and configured
 	FolderPath := checkDaemon(AppCfg["Conf"].(string))
