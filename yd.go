@@ -37,9 +37,7 @@ func expandHome(path string) string {
 }
 
 func xdgOpen(uri string) {
-	log.Println(uri)
 	err := exec.Command("xdg-open", uri).Start()
-	log.Println(uri)
 	if err != nil {
 		log.Println(err)
 	}
