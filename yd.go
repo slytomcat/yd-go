@@ -130,7 +130,7 @@ func onReady() {
 	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
 	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
-	mStartStop := systray.AddMenuItem("", "")
+	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
 	/*TO_DO:
@@ -155,7 +155,7 @@ func onReady() {
 					YD.Start()
 				case "Stop":
 					YD.Stop()
-				}
+				} // do nothing in other cases
 			case <-mPath.ClickedCh:
 				xdgOpen(FolderPath)
 			case <-mSite.ClickedCh:
@@ -197,13 +197,11 @@ func onReady() {
 				switch yds.Stat {
 				case "idle":
 					systray.SetIcon(icons.IconIdle)
-				case "none":
-					systray.SetIcon(icons.IconPause)
-				case "paused":
-					systray.SetIcon(icons.IconPause)
 				case "busy", "index":
 					systray.SetIcon(icons.IconBusy[currentIcon])
 					tick.Reset(333 * time.Millisecond)
+				case "none", "paused":
+					systray.SetIcon(icons.IconPause)
 				default:
 					systray.SetIcon(icons.IconError)
 				}
@@ -216,18 +214,16 @@ func onReady() {
 					}
 					// Handle notifications
 					if AppCfg["Notifications"].(bool) {
-						if yds.Stat == "none" && yds.Prev != "unknown" {
+						switch {
+						case yds.Stat == "none" && yds.Prev != "unknown":
 							notifySend(icons.IconNotify, "Yandex.Disk", "Daemon stopped")
-						}
-						if yds.Prev == "none" {
+						case yds.Prev == "none":
 							notifySend(icons.IconNotify, "Yandex.Disk", "Daemon started")
-						}
-						if (yds.Stat == "busy" || yds.Stat == "index") &&
-							(yds.Prev != "busy" && yds.Prev != "index") {
+						case (yds.Stat == "busy" || yds.Stat == "index") &&
+							(yds.Prev != "busy" && yds.Prev != "index"):
 							notifySend(icons.IconNotify, "Yandex.Disk", "Synchronization started")
-						}
-						if (yds.Stat == "idle" || yds.Stat == "error") &&
-							(yds.Prev == "busy" || yds.Prev == "index") {
+						case (yds.Stat == "idle" || yds.Stat == "error") &&
+							(yds.Prev == "busy" || yds.Prev == "index"):
 							notifySend(icons.IconNotify, "Yandex.Disk", "Synchronization finished")
 						}
 					}
