@@ -21,7 +21,10 @@ Application has its configuration file in ~/.config/yd.go/default.cfg file. File
   - "Notifications" - Display or not the desktop notifications (default true)
   - "StartDaemon" - Flag that shows should be the daemon started on app start (default true)
   - "StopDaemon" - Flag that shows should be the daemon stopped on app closure
- 
+
+## Get
+Download source from master branch and unzip it to temporary folder (it can be removed after buiding and installation).
+
 ## Build 
 For building this prject the additional packages are requered. You can install them (in Debial based Linux distributions):
 
