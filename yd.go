@@ -142,26 +142,27 @@ func onReady() {
 	mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "")
 	mSize2.Disable()
 	systray.AddSeparator()
-	// use ZERO WIDTH SPACE to avoid maching with filename
-	mLast := systray.AddMenuItem("Last synchronized"+"\u200B", "")
+	// use ZERO WIDTH SPACE to avoid matching with filenames
+	mLast := systray.AddMenuItem("\u200B\u2060Last synchronized", "")
 	mLast.Disable()
 	systray.AddSeparator()
 	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
 	systray.AddSeparator()
+	mOutput := systray.AddMenuItem("Show daemon output", "")
 	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
 	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
 	/*TO_DO:
 	 * Additional menu items:
-	 * 1. About ???
+	 * 1. About ??? -> short text within the notification
 	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
-	 * 3. Show daemon output -> window/notify??
 	 * */
 	// Create new YDisk interface
 	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
 	// Dictionary for last synchronized title (as shorten path) and path (as is)
 	var Last map[string]string
+	// it have to be protected as it si updated and read from 2 different goroutines
 	var LastLock sync.RWMutex
 	go func() {
 		log.Println("Menu handler started")
@@ -178,11 +179,13 @@ func onReady() {
 					YD.Stop()
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
-				if title != "Last synchronized"+"\u200B" {
+				if !strings.HasPrefix(title, "\u200B\u2060") {
 					LastLock.RLock()
 					xdgOpen(filepath.Join(FolderPath, Last[title]))
 					LastLock.RUnlock()
 				}
+			case <-mOutput.ClickedCh:
+				notifySend(icons.IconNotify, "Yandex.Disk daemon output", YD.Output())
 			case <-mPath.ClickedCh:
 				xdgOpen(FolderPath)
 			case <-mSite.ClickedCh:
