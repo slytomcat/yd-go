@@ -11,6 +11,7 @@ Desktop notifications inform user when daemon started/stopped or synchronization
 
 The system try icon has menu that allows:
   - to see the current daemon status and cloud-disk properties (Used/Total/Free/Trash)
+  - to see (in submenu) and open (in default program) last synchronized files 
   - to start/stop daemon
   - to open local syncronized path
   - to open cloud-disk in browser
