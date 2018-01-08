@@ -141,7 +141,8 @@ func onReady() {
 	mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "")
 	mSize2.Disable()
 	systray.AddSeparator()
-	mLast := systray.AddMenuItem("Last synchronized", "")
+	// use ZERO WIDTH SPACE to avoid maching with filename
+	mLast := systray.AddMenuItem("Last synchronized"+"\u200B", "")
 	mLast.Disable()
 	systray.AddSeparator()
 	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
@@ -154,7 +155,7 @@ func onReady() {
 	 * Additional menu items:
 	 * 1. About ???
 	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
-	 * 3. LastSynchronized submenu ??? need support from systray.C module side
+	 * 3. Show daemon output -> window/notify??
 	 * */
 	//  Create new YDisk interface
 	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
@@ -174,7 +175,7 @@ func onReady() {
 					YD.Stop()
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
-				if title != "Last synchronized" {
+				if title != "Last synchronized"+"\u200B" {
 					xdgOpen(filepath.Join(FolderPath, Last[title]))
 				}
 			case <-mPath.ClickedCh:
@@ -212,10 +213,12 @@ func onReady() {
 					return
 				}
 				currentStatus = yds.Stat
-				mStatus.SetTitle("Status: " + yds.Stat + " " + yds.Prog)
+
+				mStatus.SetTitle("Status: " + yds.Stat + " " + yds.Prog +
+					yds.Err + " " + shortName(yds.ErrP, 30))
 				mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
 				mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
-				// handle last
+				// handle last synchronized
 				if yds.ChLast {
 					mLast.RemoveSubmenu()
 					Last = make(map[string]string, 10)

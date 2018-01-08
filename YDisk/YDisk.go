@@ -62,12 +62,12 @@ type YDvals struct {
 
 func newyDvals() YDvals {
 	return YDvals{
-		"unknown",      // Current Status
-		"unknown",      // Previous Status
-		"", "", "", "", // Total, Used, Free, Trash
-		[]string{}, 		// Last
-		false,      		// ChLast
-		"", "", "", 		// Err, ErrP, Prog
+		"unknown",			// Current Status
+		"unknown",			// Previous Status
+		"", "", "", "",	// Total, Used, Free, Trash
+		[]string{},			// Last
+		false,					// ChLast
+		"", "", "",			// Err, ErrP, Prog
 	}
 }
 
@@ -84,6 +84,7 @@ func setChange(v *string, val string, ch *bool) {
 func (val *YDvals) update(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values
+	errChanged := false // track changes for error
 	if out == "" {
 		setChange(&val.Stat, "none", &changed)
 		if changed {
@@ -115,9 +116,8 @@ func (val *YDvals) update(out string) bool {
 		"Path":      &val.ErrP,
 		"Sync":      &val.Prog,
 	} {
-		setChange(v, keys[k], &changed)
+    setChange(v, keys[k], &changed)
 	}
-
 	// Parse the "Last synchronized items" section (list of paths and files)
 	val.ChLast = false // track last list changes separately
 	if len(split) > 1 {
@@ -139,7 +139,7 @@ func (val *YDvals) update(out string) bool {
 			val.ChLast = true
 		}
 	}
-	return changed || val.ChLast
+	return changed || val.ChLast || errChanged
 }
 
 /* Status control component */
