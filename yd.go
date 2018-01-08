@@ -152,6 +152,9 @@ func onReady() {
 	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
 	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
+	mHelp := systray.AddMenuItem("Help", "")
+	mAbout := systray.AddMenuItem("About", "")
+	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
 	/*TO_DO:
 	 * Additional menu items:
@@ -190,6 +193,18 @@ func onReady() {
 				xdgOpen(FolderPath)
 			case <-mSite.ClickedCh:
 				xdgOpen("https://disk.yandex.com")
+			case <-mHelp.ClickedCh:
+				xdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
+			case <-mAbout.ClickedCh:
+				notifySend(icons.IconNotify, " ",
+					`YD.go is the panel indicator of Yandex.Disk daemon status.
+
+			Version: Betta 0.1
+
+Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
+
+			License: GPL v.3
+`)
 			case <-mQuit.ClickedCh:
 				log.Println("Exit requested.")
 				// Stop daemon if it is configured
