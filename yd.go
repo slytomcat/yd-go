@@ -50,6 +50,20 @@ func notifySend(icon, title, body string) {
 	}
 }
 
+func shortName(f string, l int) string {
+	v := []rune(f)
+	if len(v) > l {
+		n := (l - 3) / 2
+		k := n
+		if n+k+3 < l {
+			k += 1
+		}
+		return string(v[:n]) + "..." + string(v[len(v)-k:])
+	} else {
+		return f
+	}
+}
+
 func checkDaemon(conf string) string {
 	// Check that yandex-disk daemon is installed (exit if not)
 	if notExists("/usr/bin/yandex-disk") {
@@ -127,10 +141,13 @@ func onReady() {
 	mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "")
 	mSize2.Disable()
 	systray.AddSeparator()
-	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
-	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
+	mLast := systray.AddMenuItem("Last synchronized", "")
+	mLast.Disable()
 	systray.AddSeparator()
 	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
+	systray.AddSeparator()
+	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
+	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
 	/*TO_DO:
@@ -141,7 +158,7 @@ func onReady() {
 	 * */
 	//  Create new YDisk interface
 	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
-
+	var Last map[string]string
 	go func() {
 		log.Println("Menu handler started")
 		defer log.Println("Menu handler exited.")
@@ -149,13 +166,17 @@ func onReady() {
 		defer systray.Quit()
 		for {
 			select {
-			case <-mStartStop.ClickedCh:
-				switch mStartStop.GetTitle() {
+			case title := <-mStartStop.ClickedCh:
+				switch title {
 				case "Start":
 					YD.Start()
 				case "Stop":
 					YD.Stop()
 				} // do nothing in other cases
+			case title := <-mLast.ClickedCh:
+				if title != "Last synchronized" {
+					xdgOpen(filepath.Join(FolderPath, Last[title]))
+				}
 			case <-mPath.ClickedCh:
 				xdgOpen(FolderPath)
 			case <-mSite.ClickedCh:
@@ -194,6 +215,23 @@ func onReady() {
 				mStatus.SetTitle("Status: " + yds.Stat + " " + yds.Prog)
 				mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
 				mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
+				// handle last
+				if yds.ChLast {
+					mLast.RemoveSubmenu()
+					Last = make(map[string]string, 10)
+					last := []systray.SubmenuItem{}
+					for _, p := range yds.Last {
+						short := shortName(p, 40)
+						Last[short] = p
+						last = append(last, systray.SubmenuItem{short, !notExists(p)})
+					}
+					if len(last) > 0 {
+						mLast.AddSubmenu(last)
+						mLast.Enable()
+					} else {
+						mLast.Disable()
+					}
+				}
 				switch yds.Stat {
 				case "idle":
 					systray.SetIcon(icons.IconIdle)
