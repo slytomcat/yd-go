@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slytomcat/YD.go/YDisk"
@@ -157,9 +158,11 @@ func onReady() {
 	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
 	 * 3. Show daemon output -> window/notify??
 	 * */
-	//  Create new YDisk interface
+	// Create new YDisk interface
 	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
+	// Dictionary for last synchronized title (as shorten path) and path (as is)
 	var Last map[string]string
+	var LastLock sync.RWMutex
 	go func() {
 		log.Println("Menu handler started")
 		defer log.Println("Menu handler exited.")
@@ -176,7 +179,9 @@ func onReady() {
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
 				if title != "Last synchronized"+"\u200B" {
+					LastLock.RLock()
 					xdgOpen(filepath.Join(FolderPath, Last[title]))
+					LastLock.RUnlock()
 				}
 			case <-mPath.ClickedCh:
 				xdgOpen(FolderPath)
@@ -218,35 +223,39 @@ func onReady() {
 					yds.Err + " " + shortName(yds.ErrP, 30))
 				mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
 				mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
-				// handle last synchronized
+				// handle last synchronized submenu
 				if yds.ChLast {
 					mLast.RemoveSubmenu()
+					LastLock.Lock()
 					Last = make(map[string]string, 10)
-					last := []systray.SubmenuItem{}
-					for _, p := range yds.Last {
-						short := shortName(p, 40)
-						Last[short] = p
-						last = append(last, systray.SubmenuItem{short, !notExists(p)})
-					}
-					if len(last) > 0 {
-						mLast.AddSubmenu(last)
+					LastLock.Unlock()
+					if len(yds.Last) > 0 {
+						for _, p := range yds.Last {
+							short := shortName(p, 40)
+							mLast.AddSubmenuItem(short, !notExists(p))
+							LastLock.Lock()
+							Last[short] = p
+							LastLock.Unlock()
+						}
 						mLast.Enable()
 					} else {
 						mLast.Disable()
 					}
 				}
-				switch yds.Stat {
-				case "idle":
-					systray.SetIcon(icons.IconIdle)
-				case "busy", "index":
-					systray.SetIcon(icons.IconBusy[currentIcon])
-					tick.Reset(333 * time.Millisecond)
-				case "none", "paused":
-					systray.SetIcon(icons.IconPause)
-				default:
-					systray.SetIcon(icons.IconError)
-				}
+				//
 				if yds.Stat != yds.Prev { // status changed
+					// change indicator icon
+					switch yds.Stat {
+					case "idle":
+						systray.SetIcon(icons.IconIdle)
+					case "busy", "index":
+						systray.SetIcon(icons.IconBusy[currentIcon])
+						tick.Reset(333 * time.Millisecond)
+					case "none", "paused":
+						systray.SetIcon(icons.IconPause)
+					default:
+						systray.SetIcon(icons.IconError)
+					}
 					// handle Start/Stop menu title
 					if yds.Stat == "none" {
 						mStartStop.SetTitle("Start")
