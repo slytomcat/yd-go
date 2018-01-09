@@ -34,7 +34,6 @@ package ydisk
  * */
 
 import (
-	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -43,6 +42,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/slytomcat/llog"
 )
 
 var AllDone sync.WaitGroup
@@ -157,7 +157,7 @@ func newyDstatus() yDstatus {
 		make(chan YDvals, 1), // Output should be buffered
 	}
 	go func() {
-		log.Println("Status component started")
+		llog.Debug("Status component started")
 		AllDone.Add(1)
 		defer AllDone.Done()
 		yds := newyDvals()
@@ -165,13 +165,13 @@ func newyDstatus() yDstatus {
 			upd, ok := <-st.updates
 			if ok {
 				if yds.update(upd) {
-					log.Println("Change: P=", yds.Prev, "S=", yds.Stat,
+					llog.Debug("Change: P=", yds.Prev, "S=", yds.Stat,
 						"T=", yds.Total, "L=", len(yds.Last), "E=", yds.Err)
 					st.Changes <- yds
 				}
 			} else { // st.updates channel closed - exit
 				close(st.Changes)
-				log.Println("Status component routine finished")
+				llog.Debug("Status component routine finished")
 				return
 			}
 		}
@@ -189,7 +189,7 @@ type watcher struct {
 func newwatcher() watcher {
 	watch, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		llog.Critical(err)
 	}
 	return watcher{
 		watch,
@@ -203,10 +203,10 @@ func (w *watcher) activate(path string) {
 	if !w.path {
 		err := w.watch.Add(filepath.Join(path, ".sync/cli.log"))
 		if err != nil {
-			log.Println("Watch path error:", err)
+			llog.Debug("Watch path error:", err)
 			return
 		}
-		log.Println("Watch path added")
+		llog.Debug("Watch path added")
 		w.path = true
 	}
 }
@@ -243,13 +243,13 @@ func NewYDisk(conf, path string) YDisk {
 	yd.watch.activate(yd.path) // Try to activate watching at the beginning. It can fail
 
 	go func() {
-		log.Println("Event handler started")
+		llog.Debug("Event handler started")
 		AllDone.Add(1)
 		tick := time.NewTimer(time.Millisecond * 500)
 		interval := 2
 		defer func() {
 			tick.Stop()
-			log.Println("Event handler routine finished")
+			llog.Debug("Event handler routine finished")
 			AllDone.Done()
 		}()
 		busy_status := false
@@ -257,11 +257,11 @@ func NewYDisk(conf, path string) YDisk {
 		for {
 			select {
 			case <-yd.watch.Events: //event := <-yd.watch.Events:
-				//log.Println("Watcher event:", event)
+				//llog.Debug("Watcher event:", event)
 				tick.Reset(time.Millisecond * 500)
 				interval = 2
 			case <-tick.C:
-				//log.Println("Timer interval:", interval)
+				//llog.Debug("Timer interval:", interval)
 				if busy_status {
 					interval = 2 // keep 2s interval in busy mode
 				}
@@ -270,7 +270,7 @@ func NewYDisk(conf, path string) YDisk {
 					interval <<= 1 // continuously increase timer interval: 2s, 4s, 8s.
 				}
 			case err := <-yd.watch.Errors:
-				log.Println("Watcher error:", err)
+				llog.Debug("Watcher error:", err)
 				return
 			case <-yd.exit:
 				return
@@ -281,7 +281,7 @@ func NewYDisk(conf, path string) YDisk {
 		}
 	}()
 
-	log.Println("New YDisk created and initialized.\n  Conf:", conf, "\n  Path:", path)
+	llog.Debug("New YDisk created and initialized.\n  Conf:", conf, "\n  Path:", path)
 	return yd
 }
 
@@ -290,7 +290,7 @@ func (yd *YDisk) Close() {
 	yd.watch.close()
 	close(yd.stat.updates)
 	AllDone.Wait()
-	log.Println("All done. Bye!")
+	llog.Debug("All done. Bye!")
 }
 
 func (yd YDisk) getOutput(userLang bool) string {
@@ -315,11 +315,11 @@ func (yd *YDisk) Start() {
 	if yd.getOutput(true) == "" {
 		out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
 		if err != nil {
-			log.Println(err)
+			llog.Error(err)
 		}
-		log.Println("Daemon start:", string(out))
+		llog.Debug("Daemon start:", string(out))
 	} else {
-		log.Println("Daemon already Started")
+		llog.Debug("Daemon already Started")
 	}
 	yd.watch.activate(yd.path) // try to activate watching after daemon start. It shouldn't fail
 }
@@ -328,10 +328,10 @@ func (yd *YDisk) Stop() {
 	if yd.getOutput(true) != "" {
 		out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
 		if err != nil {
-			log.Println(err)
+			llog.Error(err)
 		}
-		log.Println("Daemon stop:", string(out))
+		llog.Debug("Daemon stop:", string(out))
 		return
 	}
-	log.Println("Daemon already stopped")
+	llog.Debug("Daemon already stopped")
 }

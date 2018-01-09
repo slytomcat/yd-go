@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
+
+	"github.com/slytomcat/llog"
 )
 
 func notExists(path string) bool {
@@ -25,7 +26,7 @@ func expandHome(path string) string {
 	}
 	usr, err := user.Current()
 	if err != nil {
-		log.Fatal("Can't get current user profile:", err)
+		llog.Critical("Can't get current user profile:", err)
 	}
 	return filepath.Join(usr.HomeDir, path[1:])
 }
@@ -33,14 +34,14 @@ func expandHome(path string) string {
 func xdgOpen(uri string) {
 	err := exec.Command("xdg-open", uri).Start()
 	if err != nil {
-		log.Println(err)
+		llog.Debug(err)
 	}
 }
 
 func notifySend(icon, title, body string) {
 	err := exec.Command("notify-send", "-i", icon, title, body).Start()
 	if err != nil {
-		log.Println(err)
+		llog.Debug(err)
 	}
 }
 
@@ -72,12 +73,11 @@ func init() {
 	}
 	flag.Parse()
 	/* Initialize logging facility */
+	log.SetOutput(os.Stderr)
+	log.SetPrefix("")
+	log.SetFlags(log.Lmicroseconds) //log.Lshortfile |
+	log.Println("Debugging enabled")
 	if debug {
-		log.SetOutput(os.Stderr)
-		log.SetPrefix("")
-		log.SetFlags(log.Lshortfile | log.Lmicroseconds)
-		log.Println("Debugging enabled")
-	} else {
-		log.SetOutput(ioutil.Discard)
+		llog.CurrntLevel = llog.DEBUG
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slytomcat/confJSON"
+	"github.com/slytomcat/llog"
 	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/ydisk"
@@ -38,7 +39,7 @@ func onReady() {
 	}
 	// Path to app configuration file path always comes from command-line flag
 	AppConfigFile = expandHome(AppConfigFile)
-	log.Println("Configuration:", AppConfigFile)
+	llog.Debug("Configuration:", AppConfigFile)
 	// Check that app configuration file exists
 	if notExists(AppConfigFile) {
 		//Create and save new configuration file with default values
@@ -87,8 +88,8 @@ func onReady() {
 		go YD.Start()
 	}
 	go func() {
-		log.Println("Menu handler started")
-		defer log.Println("Menu handler exited.")
+		llog.Debug("Menu handler started")
+		defer llog.Debug("Menu handler exited.")
 		// defer request for exit from systray main loop (gtk.main())
 		defer systray.Quit()
 		for {
@@ -125,7 +126,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
       License: GPL v.3
 `)
 			case <-mQuit.ClickedCh:
-				log.Println("Exit requested.")
+				llog.Debug("Exit requested.")
 				// Stop daemon if it is configured
 				if AppCfg["StopDaemon"].(bool) {
 					YD.Stop()
@@ -137,8 +138,8 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 	}()
 
 	go func() {
-		log.Println("Changes handler started")
-		defer log.Println("Changes handler exited.")
+		llog.Debug("Changes handler started")
+		defer llog.Debug("Changes handler exited.")
 		// Prepare the staff for icon animation
 		currentIcon := 0
 		tick := time.NewTimer(333 * time.Millisecond)
@@ -211,7 +212,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 						}
 					}
 				}
-				log.Println("Change handled")
+				llog.Debug("Change handled")
 			case <-tick.C: //  timer event
 				currentIcon++
 				currentIcon %= 5
