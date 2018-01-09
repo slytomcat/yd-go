@@ -66,9 +66,9 @@ func newyDvals() YDvals {
 		"unknown",      // Current Status
 		"unknown",      // Previous Status
 		"", "", "", "", // Total, Used, Free, Trash
-		[]string{},			// Last
-		false,					// ChLast
-		"", "", "",			// Err, ErrP, Prog
+		[]string{}, // Last
+		false,      // ChLast
+		"", "", "", // Err, ErrP, Prog
 	}
 }
 

@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/slytomcat/yd-go/ydisk"
-	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/confJSON"
 	"github.com/slytomcat/systray"
+	"github.com/slytomcat/yd-go/icons"
+	"github.com/slytomcat/yd-go/ydisk"
 )
 
 func main() {
@@ -84,12 +84,16 @@ func onReady() {
 	 * 1. About ??? -> short text within the notification
 	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
 	 * */
-	// Create new YDisk interface
+	// Create new ydisk interface
 	YD := ydisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
 	// Dictionary for last synchronized title (as shorten path) and path (as is)
 	var Last map[string]string
 	// it have to be protected as it is updated and read from 2 different goroutines
 	var LastLock sync.RWMutex
+	// Start daemon if it is configured
+	if AppCfg["StartDaemon"].(bool) {
+		go YD.Start()
+	}
 	go func() {
 		log.Println("Menu handler started")
 		defer log.Println("Menu handler exited.")
@@ -147,10 +151,6 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 		currentIcon := 0
 		tick := time.NewTimer(333 * time.Millisecond)
 		defer tick.Stop()
-		// Start daemon if it is configured
-		if AppCfg["StartDaemon"].(bool) {
-			go YD.Start()
-		}
 		currentStatus := ""
 		for {
 			select {
