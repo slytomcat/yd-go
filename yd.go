@@ -51,7 +51,7 @@ func onReady() {
 		confJSON.Load(AppConfigFile, &AppCfg)
 	}
 	// Check that daemon installed and configured
-	FolderPath := checkDaemon(AppCfg["Conf"].(string))
+	FolderPath := ydisk.CheckDaemon(AppCfg["Conf"].(string))
 	// Initialize icon theme
 	icons.SetTheme("/usr/share/yd-go", AppCfg["Theme"].(string))
 	// Initialize systray icon
@@ -79,11 +79,6 @@ func onReady() {
 	mAbout := systray.AddMenuItem("About", "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
-	/*TO_DO:
-	 * Additional menu items:
-	 * 1. About ??? -> short text within the notification
-	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
-	 * */
 	// Create new ydisk interface
 	YD := ydisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
 	// Dictionary for last synchronized title (as shorten path) and path (as is)
