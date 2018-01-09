@@ -10,7 +10,7 @@ package YDisk
  *  Changes chan YDvals - output channel that provides all detected changes in daemon status within
  *                        the structure YDvals (see description of YDvals structure)
  * The daemon connection has following methods:
- *  Start()          - strts the daemon with the specified configuration
+ *  Start()          - starts the daemon with the specified configuration
  *  Stop()           - stops the daemon with the specified configuration
  *  Output() string  - returns the daemon status message (in the current user Language)
  *  Close()          - closes the daemon connection (stops all service routines and file watcher)
@@ -33,14 +33,15 @@ package YDisk
  * */
 
 import (
-	"github.com/fsnotify/fsnotify"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
-	"path/filepath"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 var AllDone sync.WaitGroup
@@ -62,9 +63,9 @@ type YDvals struct {
 
 func newyDvals() YDvals {
 	return YDvals{
-		"unknown",			// Current Status
-		"unknown",			// Previous Status
-		"", "", "", "",	// Total, Used, Free, Trash
+		"unknown",      // Current Status
+		"unknown",      // Previous Status
+		"", "", "", "", // Total, Used, Free, Trash
 		[]string{},			// Last
 		false,					// ChLast
 		"", "", "",			// Err, ErrP, Prog
@@ -116,7 +117,7 @@ func (val *YDvals) update(out string) bool {
 		"Path":      &val.ErrP,
 		"Sync":      &val.Prog,
 	} {
-    setChange(v, keys[k], &changed)
+		setChange(v, keys[k], &changed)
 	}
 	// Parse the "Last synchronized items" section (list of paths and files)
 	val.ChLast = false // track last list changes separately
@@ -163,8 +164,8 @@ func newyDstatus() yDstatus {
 			upd, ok := <-st.updates
 			if ok {
 				if yds.update(upd) {
-					log.Println("Change: Prev=", yds.Prev, "Stat=", yds.Stat,
-						"Total=", yds.Total, "Len(Last)=", len(yds.Last), "Err=", yds.Err)
+					log.Println("Change: P=", yds.Prev, "S=", yds.Stat,
+						"T=", yds.Total, "L=", len(yds.Last), "E=", yds.Err)
 					st.Changes <- yds
 				}
 			} else { // st.updates channel closed - exit

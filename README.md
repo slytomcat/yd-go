@@ -31,9 +31,9 @@ For building this prject the additional packages are requered. You can install t
 
     sudo apt-get install libgtk-3-dev libappindicator3-dev
 
-Then you can buld with 
+Then you can buld (from sourse path) with 
 
-    go build yd.go
+    go build
   
 ## Installation
 Run install.bash script with root previlegies for installation.
@@ -41,7 +41,12 @@ Run install.bash script with root previlegies for installation.
     sudo ./install.bash
 
 ## Usage
+		yd [-debug] [-config=<Path to inticator config>]
 
-    yd
+	-config string
+		Path to the indicator configuration file (default "~/.config/yd.go/default.cfg")
+	-debug
+		Alow debugging messages to be sent to stderr
+
 
 Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd utility.

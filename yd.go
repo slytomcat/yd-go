@@ -1,12 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -18,86 +14,8 @@ import (
 	"github.com/slytomcat/systray"
 )
 
-func notExists(path string) bool {
-	_, err := os.Stat(path)
-	if err != nil {
-		return os.IsNotExist(err)
-	}
-	return false
-}
-
-func expandHome(path string) string {
-	if len(path) == 0 || path[0] != '~' {
-		return path
-	}
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal("Can't get current user profile:", err)
-	}
-	return filepath.Join(usr.HomeDir, path[1:])
-}
-
-func xdgOpen(uri string) {
-	err := exec.Command("xdg-open", uri).Start()
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func notifySend(icon, title, body string) {
-	err := exec.Command("notify-send", "-i", icon, title, body).Start()
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func shortName(f string, l int) string {
-	v := []rune(f)
-	if len(v) > l {
-		n := (l - 3) / 2
-		k := n
-		if n+k+3 < l {
-			k += 1
-		}
-		return string(v[:n]) + "..." + string(v[len(v)-k:])
-	} else {
-		return f
-	}
-}
-
-func checkDaemon(conf string) string {
-	// Check that yandex-disk daemon is installed (exit if not)
-	if notExists("/usr/bin/yandex-disk") {
-		log.Fatal("Yandex.Disk CLI utility is not installed. Install it first.")
-	}
-	f, err := os.Open(conf)
-	if err != nil {
-		log.Fatal("Daemon configuration file opening error:", err)
-	}
-	defer f.Close()
-	reader := io.Reader(f)
-	line := ""
-	dir := ""
-	auth := ""
-	for {
-		n, _ := fmt.Fscanln(reader, &line)
-		if n == 0 {
-			break
-		}
-		if strings.HasPrefix(line, "dir") {
-			dir = line[5 : len(line)-1]
-		}
-		if strings.HasPrefix(line, "auth") {
-			auth = line[6 : len(line)-1]
-		}
-		if dir != "" && auth != "" {
-			break
-		}
-	}
-	if notExists(dir) || notExists(auth) {
-		log.Fatal("Daemon is not configured. Run:\nyandex-disk setup")
-	}
-	return dir
+func main() {
+	systray.Run(onReady, onExit)
 }
 
 func onReady() {
@@ -118,8 +36,13 @@ func onReady() {
 			log.Fatal("Can't create application configuration path:", err)
 		}
 	}
+	if len(AppConfigFile) == 0 {
+		AppConfigFile = filepath.Join(AppConfigHome, "default.cfg")
+	} else {
+		AppConfigFile = expandHome(AppConfigFile)
+	}
+	log.Println("Configuration:", AppConfigFile)
 	// Check that app configuration file exists
-	AppConfigFile := filepath.Join(AppConfigHome, "default.cfg")
 	if notExists(AppConfigFile) {
 		//Create and save new configuration file with default values
 		confJSON.Save(AppConfigFile, AppCfg)
@@ -142,14 +65,14 @@ func onReady() {
 	mSize2 := systray.AddMenuItem("Free: ... Trash: ...", "")
 	mSize2.Disable()
 	systray.AddSeparator()
-	// use ZERO WIDTH SPACE to avoid matching with filenames
+	// use 2 ZERO WIDTH SPACES to avoid matching with filenames
 	mLast := systray.AddMenuItem("\u200B\u2060Last synchronized", "")
 	mLast.Disable()
 	systray.AddSeparator()
 	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
 	systray.AddSeparator()
 	mOutput := systray.AddMenuItem("Show daemon output", "")
-	mPath := systray.AddMenuItem("Open path: "+FolderPath, "")
+	mPath := systray.AddMenuItem("Open: "+FolderPath, "")
 	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
 	mHelp := systray.AddMenuItem("Help", "")
@@ -165,7 +88,7 @@ func onReady() {
 	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
 	// Dictionary for last synchronized title (as shorten path) and path (as is)
 	var Last map[string]string
-	// it have to be protected as it si updated and read from 2 different goroutines
+	// it have to be protected as it is updated and read from 2 different goroutines
 	var LastLock sync.RWMutex
 	go func() {
 		log.Println("Menu handler started")
@@ -177,9 +100,9 @@ func onReady() {
 			case title := <-mStartStop.ClickedCh:
 				switch title {
 				case "Start":
-					YD.Start()
+					go YD.Start()
 				case "Stop":
-					YD.Stop()
+					go YD.Stop()
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
 				if !strings.HasPrefix(title, "\u200B\u2060") {
@@ -226,7 +149,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 		defer tick.Stop()
 		// Start daemon if it is configured
 		if AppCfg["StartDaemon"].(bool) {
-			YD.Start()
+			go YD.Start()
 		}
 		currentStatus := ""
 		for {
@@ -280,7 +203,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 					} else if mStartStop.GetTitle() != "Stop" {
 						mStartStop.SetTitle("Stop")
 					}
-					// Handle notifications
+					// handle notifications
 					if AppCfg["Notifications"].(bool) {
 						switch {
 						case yds.Stat == "none" && yds.Prev != "unknown":
@@ -296,6 +219,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 						}
 					}
 				}
+				log.Println("Change handled")
 			case <-tick.C: //  timer event
 				currentIcon++
 				currentIcon %= 5
@@ -309,12 +233,3 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 }
 
 func onExit() {}
-
-func main() {
-	/* Initialize logging facility */
-	log.SetOutput(os.Stderr)
-	log.SetPrefix("")
-	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
-
-	systray.Run(onReady, onExit)
-}
