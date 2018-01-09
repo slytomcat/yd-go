@@ -28,15 +28,16 @@ func onReady() {
 		"StartDaemon":   true,                                           // start daemon on app start
 		"StopDaemon":    false,                                          // stop daemon on app closure
 	}
-	// Check that app configuration file path exists
-	AppConfigHome := expandHome("~/.config/yd-go")
-	if notExists(AppConfigHome) {
-		err := os.MkdirAll(AppConfigHome, 0766)
-		if err != nil {
-			log.Fatal("Can't create application configuration path:", err)
-		}
-	}
+	// Check that app configuration file path is not passed via command-line flag
 	if len(AppConfigFile) == 0 {
+		// Check that app configuration file path exists
+		AppConfigHome := expandHome("~/.config/yd-go")
+		if notExists(AppConfigHome) {
+			err := os.MkdirAll(AppConfigHome, 0766)
+			if err != nil {
+				log.Fatal("Can't create application configuration path:", err)
+			}
+		}
 		AppConfigFile = filepath.Join(AppConfigHome, "default.cfg")
 	} else {
 		AppConfigFile = expandHome(AppConfigFile)
