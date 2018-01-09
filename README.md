@@ -16,7 +16,7 @@ The system try icon has menu that allows:
   - to open local syncronized path
   - to open cloud-disk in browser
 
-Application has its configuration file in ~/.config/yd.go/default.cfg file. File is in JSON format and contain following options:
+Application has its configuration file in ~/.config/yd-go/default.cfg file. File is in JSON format and contain following options:
   - "Conf" - path to daemon config file (default "~/.config/yandex-disk/config.cfg"
   - "Theme" - icons theme name (default "dark", may be set to "dark" or "light")
   - "Notifications" - Display or not the desktop notifications (default true)
@@ -41,7 +41,7 @@ Run install.bash script with root previlegies for installation.
     sudo ./install.bash
 
 ## Usage
-		yd-go [-debug] [-config=<Path to inticator config>]
+		yd-go [-debug] [-config=<Path to indicator config>]
 
 	-config string
 		Path to the indicator configuration file (default "~/.config/yd.go/default.cfg")

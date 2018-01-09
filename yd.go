@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/slytomcat/YD.go/YDisk"
-	"github.com/slytomcat/YD.go/icons"
+	"github.com/slytomcat/yd-go/ydisk"
+	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/confJSON"
 	"github.com/slytomcat/systray"
 )
@@ -29,7 +29,7 @@ func onReady() {
 		"StopDaemon":    false,                                          // stop daemon on app closure
 	}
 	// Check that app configuration file path exists
-	AppConfigHome := expandHome("~/.config/yd.go")
+	AppConfigHome := expandHome("~/.config/yd-go")
 	if notExists(AppConfigHome) {
 		err := os.MkdirAll(AppConfigHome, 0766)
 		if err != nil {
@@ -53,7 +53,7 @@ func onReady() {
 	// Check that daemon installed and configured
 	FolderPath := checkDaemon(AppCfg["Conf"].(string))
 	// Initialize icon theme
-	icons.SetTheme("/usr/share/yd.go", AppCfg["Theme"].(string))
+	icons.SetTheme("/usr/share/yd-go", AppCfg["Theme"].(string))
 	// Initialize systray icon
 	systray.SetIcon(icons.IconPause)
 	systray.SetTitle("")
@@ -85,7 +85,7 @@ func onReady() {
 	 * 2. Help -> redirect to github wiki page "FAQ and how to report issue"
 	 * */
 	// Create new YDisk interface
-	YD := YDisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
+	YD := ydisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
 	// Dictionary for last synchronized title (as shorten path) and path (as is)
 	var Last map[string]string
 	// it have to be protected as it is updated and read from 2 different goroutines
@@ -120,7 +120,7 @@ func onReady() {
 				xdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
 			case <-mAbout.ClickedCh:
 				notifySend(icons.IconNotify, " ",
-					`YD.go is the panel indicator of Yandex.Disk daemon status.
+					`yd-go is the panel indicator of Yandex.Disk daemon.
 
 			Version: Betta 0.1
 

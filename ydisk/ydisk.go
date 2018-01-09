@@ -1,4 +1,4 @@
-package YDisk
+package ydisk
 
 /* This package provides API for yandex-disk daemon.
  * A new daemon connection is created with call of:
