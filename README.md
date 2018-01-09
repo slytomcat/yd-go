@@ -41,7 +41,7 @@ Run install.bash script with root previlegies for installation.
     sudo ./install.bash
 
 ## Usage
-		yd-go [-debug] [-config=<Path to inticator config>]
+		yd-go [-debug] [-config=<Path to indicator config>]
 
 	-config string
 		Path to the indicator configuration file (default "~/.config/yd.go/default.cfg")
