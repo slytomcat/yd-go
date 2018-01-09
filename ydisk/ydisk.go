@@ -29,8 +29,7 @@ package ydisk
  *  ErrP string      - Error path
  *  Prog string      - Synchronization progress (when in busy status)
  *
- * Debugging messages can be obtained via log that must be *log.log type. By default it
- * prints the messages to os.Stderr.
+ * Debugging organized via llog lib.
  * */
 
 import (
