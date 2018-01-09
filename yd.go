@@ -28,20 +28,16 @@ func onReady() {
 		"StartDaemon":   true,                                           // start daemon on app start
 		"StopDaemon":    false,                                          // stop daemon on app closure
 	}
-	// Check that app configuration file path is not passed via command-line flag
-	if len(AppConfigFile) == 0 {
-		// Check that app configuration file path exists
-		AppConfigHome := expandHome("~/.config/yd-go")
-		if notExists(AppConfigHome) {
-			err := os.MkdirAll(AppConfigHome, 0766)
-			if err != nil {
-				log.Fatal("Can't create application configuration path:", err)
-			}
+	// Check that app configuration file path exists
+	AppConfigHome := expandHome("~/.config/yd-go")
+	if notExists(AppConfigHome) {
+		err := os.MkdirAll(AppConfigHome, 0766)
+		if err != nil {
+			log.Fatal("Can't create application configuration path:", err)
 		}
-		AppConfigFile = filepath.Join(AppConfigHome, "default.cfg")
-	} else {
-		AppConfigFile = expandHome(AppConfigFile)
 	}
+	// Path to app configuration file path always comes from command-line flag
+	AppConfigFile = expandHome(AppConfigFile)
 	log.Println("Configuration:", AppConfigFile)
 	// Check that app configuration file exists
 	if notExists(AppConfigFile) {
@@ -67,7 +63,7 @@ func onReady() {
 	mSize2.Disable()
 	systray.AddSeparator()
 	// use 2 ZERO WIDTH SPACES to avoid matching with filenames
-	mLast := systray.AddMenuItem("\u200B\u2060Last synchronized", "")
+	mLast := systray.AddMenuItem("\u200B\u2060"+"Last synchronized", "")
 	mLast.Disable()
 	systray.AddSeparator()
 	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
@@ -98,10 +94,10 @@ func onReady() {
 		for {
 			select {
 			case title := <-mStartStop.ClickedCh:
-				switch title {
-				case "Start":
+				switch []rune(title)[0] {
+				case '\u200B': // start
 					go YD.Start()
-				case "Stop":
+				case '\u2060': // stop
 					go YD.Stop()
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
@@ -122,11 +118,11 @@ func onReady() {
 				notifySend(icons.IconNotify, " ",
 					`yd-go is the panel indicator of Yandex.Disk daemon.
 
-			Version: Betta 0.1
+      Version: Betta 0.2
 
 Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 
-			License: GPL v.3
+      License: GPL v.3
 `)
 			case <-mQuit.ClickedCh:
 				log.Println("Exit requested.")
@@ -195,9 +191,9 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 					}
 					// handle Start/Stop menu title
 					if yds.Stat == "none" {
-						mStartStop.SetTitle("Start")
+						mStartStop.SetTitle("\u200B" + "Start")
 					} else if mStartStop.GetTitle() != "Stop" {
-						mStartStop.SetTitle("Stop")
+						mStartStop.SetTitle("\u2060" + "Stop")
 					}
 					// handle notifications
 					if AppCfg["Notifications"].(bool) {

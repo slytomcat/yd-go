@@ -13,7 +13,8 @@ package ydisk
  *  Start()          - starts the daemon with the specified configuration
  *  Stop()           - stops the daemon with the specified configuration
  *  Output() string  - returns the daemon status message (in the current user Language)
- *  Close()          - closes the daemon connection (stops all service routines and file watcher)
+ *  Close()          - closes the daemon connection (stops all service routines and file watcher,
+ *                     close Changes channel)
  *
  * YDvals structure has following items:
  *  Stat string      - Current Status
@@ -229,6 +230,7 @@ func NewYDisk(conf, path string) YDisk {
 	// 1. yandex-disk have to be installed and properly configured
 	// 2. path to configuration and synchronized paths from yandex-disk conf-file have to be
 	//    provided in arguments
+	// all checks are done in CheckDaemon(see check.go)
 	stat := newyDstatus()
 	yd := YDisk{
 		conf,
