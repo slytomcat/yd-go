@@ -1,9 +1,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/user"
@@ -58,26 +55,5 @@ func shortName(f string, l int) string {
 		return string(v[:n]) + "..." + string(v[len(v)-k:])
 	} else {
 		return f
-	}
-}
-
-var AppConfigFile string
-
-func init() {
-	var debug bool
-	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
-	flag.StringVar(&AppConfigFile, "config", "~/.config/yd-go/default.cfg", "Path to the indicator configuration file")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage:\n\n\t\tyd-go [-debug] [-config=<Path to indicator config>]\n\n")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	/* Initialize logging facility */
-	log.SetOutput(os.Stderr)
-	log.SetPrefix("")
-	log.SetFlags(log.Lmicroseconds) //log.Lshortfile |
-	log.Println("Debugging enabled")
-	if debug {
-		llog.CurrntLevel = llog.DEBUG
 	}
 }
