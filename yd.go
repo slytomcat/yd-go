@@ -34,7 +34,7 @@ func init() {
 	log.SetFlags(log.Lmicroseconds) //log.Lshortfile |
 	log.Println("Debugging enabled")
 	if debug {
-		llog.CurrntLevel = llog.DEBUG
+		llog.SetLevel(llog.DEBUG)
 	}
 }
 
