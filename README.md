@@ -1,4 +1,4 @@
-# YD.go
+# yd-go
 ## Go wrapper for Yandex-disk CLI daemon (linux)
 
 It's my first project on golang.
@@ -41,7 +41,7 @@ Run install.bash script with root previlegies for installation.
     sudo ./install.bash
 
 ## Usage
-		yd [-debug] [-config=<Path to inticator config>]
+		yd-go [-debug] [-config=<Path to inticator config>]
 
 	-config string
 		Path to the indicator configuration file (default "~/.config/yd.go/default.cfg")
