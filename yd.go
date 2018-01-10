@@ -29,17 +29,15 @@ func init() {
 	}
 	flag.Parse()
 	/* Initialize logging facility */
-	log.SetOutput(os.Stderr)
-	log.SetPrefix("")
-	log.SetFlags(log.Lmicroseconds) //log.Lshortfile |
-	log.Println("Debugging enabled")
+	llog.Init(os.Stderr, "", log.Lmicroseconds, llog.WARNING) //log.Lshortfile |
 	if debug {
 		llog.SetLevel(llog.DEBUG)
+		llog.Info("Debugging enabled")
 	}
 }
 
 func main() {
-	systray.Run(onReady, onExit)
+	systray.Run(onReady, nil)
 }
 
 func onReady() {
@@ -247,5 +245,3 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 		}
 	}()
 }
-
-func onExit() {}
