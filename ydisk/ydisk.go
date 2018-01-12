@@ -190,11 +190,11 @@ func NewYDisk(conf string) YDisk {
 			case <-yd.exit:
 				return
 			case <-watch.Events: //event := <-watch.Events:
-				llog.Debug("Watcher event:") //, event)
+				//llog.Debug("Watcher event:") //, event)
 				tick.Reset(time.Second)
 				interval = 2
 			case <-tick.C:
-				llog.Debug("Timer interval:", interval)
+				//llog.Debug("Timer interval:", interval)
 				if yds.Stat == "busy" || yds.Stat == "index" {
 					interval = 2 // keep 2s interval in busy mode
 				}
@@ -208,7 +208,7 @@ func NewYDisk(conf string) YDisk {
 					"S", len(yds.Total) > 0, "L", len(yds.Last), "E", len(yds.Err) > 0)
 				yd.Changes <- yds
 			}
-			llog.Debug("Event processed")
+			//llog.Debug("Event processed")
 		}
 	}()
 
