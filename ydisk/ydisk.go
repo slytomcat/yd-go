@@ -43,10 +43,10 @@ func newyDvals() YDvals {
 }
 
 /* Tool function that controls the change of value in variable */
-func setChange(v *string, val string, ch *bool) {
+func setChanged(v *string, val string, c *bool) {
 	if *v != val {
 		*v = val
-		*ch = true
+		*c = true
 	}
 }
 
@@ -55,9 +55,8 @@ func setChange(v *string, val string, ch *bool) {
 func (val *YDvals) update(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values
-	errChanged := false // track changes for error
 	if out == "" {
-		setChange(&val.Stat, "none", &changed)
+		setChanged(&val.Stat, "none", &changed)
 		if changed {
 			val.Total, val.Used, val.Trash, val.Free = "", "", "", ""
 			val.Prog, val.Err, val.ErrP, val.ChLast = "", "", "", true
@@ -65,7 +64,7 @@ func (val *YDvals) update(out string) bool {
 		}
 		return changed
 	}
-	split := strings.Split(string(out), "Last synchronized items:")
+	split := strings.Split(out, "Last synchronized items:")
 	// Need to remove "Path to " as another "Path:" exists in case of access error
 	split[0] = strings.Replace(split[0], "Path to ", "", 1)
 	// Initialize map with keys that can be missed
@@ -87,7 +86,7 @@ func (val *YDvals) update(out string) bool {
 		"Path":      &val.ErrP,
 		"Sync":      &val.Prog,
 	} {
-		setChange(v, keys[k], &changed)
+		setChanged(v, keys[k], &changed)
 	}
 	// Parse the "Last synchronized items" section (list of paths and files)
 	val.ChLast = false // track last list changes separately
@@ -101,7 +100,7 @@ func (val *YDvals) update(out string) bool {
 			}
 		} else {
 			for i, p := range f {
-				setChange(&val.Last[i], p[1], &val.ChLast)
+				setChanged(&val.Last[i], p[1], &val.ChLast)
 			}
 		}
 	} else { // len(split) = 1 - there is no section with last sync. paths
@@ -110,7 +109,7 @@ func (val *YDvals) update(out string) bool {
 			val.ChLast = true
 		}
 	}
-	return changed || val.ChLast || errChanged
+	return changed || val.ChLast
 }
 
 /* Status control component */
@@ -132,7 +131,7 @@ func newyDstatus() yDstatus {
 			upd, ok := <-st.updates
 			if !ok { // st.updates channel closed - exit
 				close(st.Changes)
-				llog.Debug("Status component routine finished")
+				llog.Debug("Status component exited")
 				return
 			}
 			if yds.update(upd) {
@@ -213,7 +212,7 @@ func NewYDisk(conf string) YDisk {
 		interval := 2
 		defer func() {
 			tick.Stop()
-			llog.Debug("Event handler routine finished")
+			llog.Debug("Event handler exited")
 		}()
 		busy_status := false
 		out := ""
@@ -280,7 +279,7 @@ func (yd *YDisk) Start() {
 		if err != nil {
 			llog.Error(err)
 		}
-		llog.Debug("Daemon start:", string(bytes.TrimRight(out, " \n")))
+		llog.Debugf("Daemon start: %s", bytes.TrimRight(out, " \n"))
 	} else {
 		llog.Debug("Daemon already Started")
 	}
@@ -294,7 +293,7 @@ func (yd *YDisk) Stop() {
 		if err != nil {
 			llog.Error(err)
 		}
-		llog.Debug("Daemon stop:", string(bytes.TrimRight(out, " \n")))
+		llog.Debugf("Daemon stop: %s", bytes.TrimRight(out, " \n"))
 		return
 	}
 	llog.Debug("Daemon already stopped")
