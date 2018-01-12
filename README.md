@@ -38,7 +38,7 @@ For building this prject the additional packages are requered:
 
     `go get -d`
     
-Then you can buld (from sourse path) with 
+Then you can buld the projec with 
 
     go build
 
@@ -57,4 +57,4 @@ Run install.bash script with root previlegies for installation.
 		Alow debugging messages to be sent to stderr
 
 
-Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd utility.
+Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd-go utility.
