@@ -175,7 +175,7 @@ func onReady() {
 					yds.Err + " " + shortName(yds.ErrP, 30))
 				mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
 				mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
-				if yds.ChLast {  // last synchronized list changed
+				if yds.ChLast { // last synchronized list changed
 					mLast.RemoveSubmenu()
 					last.reset()
 					if len(yds.Last) > 0 {
