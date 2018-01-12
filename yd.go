@@ -175,8 +175,7 @@ func onReady() {
 					yds.Err + " " + shortName(yds.ErrP, 30))
 				mSize1.SetTitle("Used: " + yds.Used + "/" + yds.Total)
 				mSize2.SetTitle("Free: " + yds.Free + " Trash: " + yds.Trash)
-				// handle last synchronized submenu
-				if yds.ChLast {
+				if yds.ChLast {  // last synchronized list changed
 					mLast.RemoveSubmenu()
 					last.reset()
 					if len(yds.Last) > 0 {
@@ -189,8 +188,8 @@ func onReady() {
 					} else {
 						mLast.Disable()
 					}
+					llog.Debug("Last synchronized updated L", last.len())
 				}
-				//
 				if yds.Stat != yds.Prev { // status changed
 					// change indicator icon
 					switch yds.Stat {

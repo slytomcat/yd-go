@@ -82,3 +82,9 @@ func (l LastT) get(key string) string {
 	defer l.l.RUnlock()
 	return l.m[key]
 }
+
+func (l LastT) len() int {
+	l.l.RLock()
+	defer l.l.RUnlock()
+	return len(l.m)
+}
