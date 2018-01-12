@@ -24,21 +24,29 @@ Application has its configuration file in ~/.config/yd-go/default.cfg file. File
   - "StopDaemon" - Flag that shows should be the daemon stopped on app closure
 
 ## Get
-Download source from master branch and unzip it to temporary folder (it can be removed after buiding and installation).
+Download source from master branch and unzip it to the go source folder ($GOHATH/src) (it can be removed after buiding and installation).
+Change current directoru to the progect folder 
+    cd $GOHATH/src/yd-go/
 
 ## Build 
-For building this prject the additional packages are requered. You can install them (in Debial based Linux distributions):
+For building this prject the additional packages are requered:
+- packages for GTK & AppIndicator C code compilation: libgtk-3-dev libappindicator3-dev. You can install them (in Debial based Linux distributions):
 
-    sudo apt-get install libgtk-3-dev libappindicator3-dev
+    `sudo apt-get install libgtk-3-dev libappindicator3-dev`
 
-Then you can buld (from sourse path) with 
+2. Go packages that is used in the progect. They can be installed by:
+
+    `go get -d`
+    
+Then you can buld the projec with 
 
     go build
-  
+
 ## Installation
 Run install.bash script with root previlegies for installation.
 
     sudo ./install.bash
+
 
 ## Usage
 		yd-go [-debug] [-config=<Path to indicator config>]
@@ -49,4 +57,4 @@ Run install.bash script with root previlegies for installation.
 		Alow debugging messages to be sent to stderr
 
 
-Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd utility.
+Note that yandex-disk CLI utility must be installed and connection to cloud disk mast be configured for usage the yd-go utility.
