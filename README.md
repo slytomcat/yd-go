@@ -29,14 +29,14 @@ Change current directoru to the progect folder
     cd $GOHATH/src/yd-go/
 
 ## Build 
-For building this prject the additional packages are requered. 
-1. packages for GTK & AppIndicator C code compilation: libgtk-3-dev libappindicator3-dev. You can install them (in Debial based Linux distributions):
+For building this prject the additional packages are requered:
+- packages for GTK & AppIndicator C code compilation: libgtk-3-dev libappindicator3-dev. You can install them (in Debial based Linux distributions):
 
-    sudo apt-get install libgtk-3-dev libappindicator3-dev
+    `sudo apt-get install libgtk-3-dev libappindicator3-dev`
 
 2. Go packages that is used in the progect. They can be installed by:
 
-    go get -d
+    `go get -d`
     
 Then you can buld (from sourse path) with 
 
