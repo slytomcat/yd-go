@@ -173,14 +173,14 @@ func NewYDisk(conf string) YDisk {
 		func() { watch.activate(path) },
 	}
 	// start event handler in separate goroutine
-	go eventHandler(yd, watch)
+	go yd.eventHandler(watch)
 	yd.activate() // Try to activate watching at the beginning. It may fail
 	llog.Debug("New YDisk created and initialized.\n  Conf:", conf, "\n  Path:", path)
 	return yd
 }
 
 // eventHandler works in separate goroutine untill YDisk.exit channel receives a bool value (any).
-func eventHandler(yd *YDisk, watch watcher) {
+func (yd *YDisk) eventHandler(watch watcher) {
 	llog.Debug("Event handler started")
 	yds := newYDvals()
 	tick := time.NewTimer(time.Millisecond * 100)
