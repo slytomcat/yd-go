@@ -1,5 +1,5 @@
 # yd-go
-## Go wrapper for Yandex-disk CLI daemon (linux)
+## Panel indicator for Yandex-disk CLI daemon (linux)
 
 It's my first project on golang.
 

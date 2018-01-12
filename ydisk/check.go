@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+
 	"github.com/slytomcat/llog"
 )
 
@@ -16,12 +17,12 @@ func notExists(path string) bool {
 	return false
 }
 
-// CheckDaemon checks that yandex-disk daemon is installed.
-// It reads the provided daemon configuration file and checks existance of synchronized folder
-// and authtorisation file ('passwd' file). If one of them is not exists then checkDaemon exits
+// checkDaemon checks that yandex-disk daemon is installed.
+// It reads the provided daemon configuration file and checks existence of synchronized folder
+// and authorization file ('passwd' file). If one of them is not exists then checkDaemon exits
 // from programm.
 // It returns the user catalog that is synchronized by daemon in case of success check.
-func CheckDaemon(conf string) string {
+func checkDaemon(conf string) string {
 	if notExists("/usr/bin/yandex-disk") {
 		llog.Critical("Yandex.Disk CLI utility is not installed. Install it first.")
 	}

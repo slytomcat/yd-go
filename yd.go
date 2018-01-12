@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/slytomcat/confJSON"
@@ -16,6 +15,15 @@ import (
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/ydisk"
 )
+
+const about = `yd-go is the panel indicator for Yandex.Disk daemon.
+
+      Version: Betta 0.2
+
+Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
+
+      License: GPL v.3
+`
 
 var AppConfigFile string
 
@@ -29,15 +37,19 @@ func init() {
 	}
 	flag.Parse()
 	/* Initialize logging facility */
-	llog.Init(os.Stderr, "", log.Lmicroseconds, llog.WARNING) //log.Lshortfile |
+	llog.SetOutput(os.Stderr)
+	llog.SetPrefix("")
+	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	if debug {
 		llog.SetLevel(llog.DEBUG)
 		llog.Info("Debugging enabled")
+	} else {
+		llog.SetLevel(-1)
 	}
 }
 
 func main() {
-	systray.Run(onReady, nil)
+	systray.Run(onReady, onExit)
 }
 
 func onReady() {
@@ -69,10 +81,14 @@ func onReady() {
 		// Read app configuration file
 		confJSON.Load(AppConfigFile, &AppCfg)
 	}
-	// Check that daemon installed and configured
-	FolderPath := ydisk.CheckDaemon(AppCfg["Conf"].(string))
+	// Create new ydisk interface
+	YD := ydisk.NewYDisk(AppCfg["Conf"].(string))
+	// Start daemon if it is configured
+	if AppCfg["StartDaemon"].(bool) {
+		go YD.Start()
+	}
 	// Initialize icon theme
-	icons.SetTheme("/usr/share/yd-go", AppCfg["Theme"].(string))
+	icons.SetTheme("/usr/share/yd-go/icons", AppCfg["Theme"].(string))
 	// Initialize systray icon
 	systray.SetIcon(icons.IconPause)
 	systray.SetTitle("")
@@ -91,28 +107,18 @@ func onReady() {
 	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
 	systray.AddSeparator()
 	mOutput := systray.AddMenuItem("Show daemon output", "")
-	mPath := systray.AddMenuItem("Open: "+FolderPath, "")
+	mPath := systray.AddMenuItem("Open: "+YD.Path, "")
 	mSite := systray.AddMenuItem("Open YandexDisk in browser", "")
 	systray.AddSeparator()
 	mHelp := systray.AddMenuItem("Help", "")
 	mAbout := systray.AddMenuItem("About", "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "")
-	// Create new ydisk interface
-	YD := ydisk.NewYDisk(AppCfg["Conf"].(string), FolderPath)
-	// Dictionary for last synchronized title (as shorten path) and path (as is)
-	var Last map[string]string
-	// it have to be protected as it is updated and read from 2 different goroutines
-	var LastLock sync.RWMutex
-	// Start daemon if it is configured
-	if AppCfg["StartDaemon"].(bool) {
-		go YD.Start()
-	}
+	// Dictionary for last synchronized title (as shorten path) and full path
+	var last LastT
 	go func() {
 		llog.Debug("Menu handler started")
 		defer llog.Debug("Menu handler exited.")
-		// defer request for exit from systray main loop (gtk.main())
-		defer systray.Quit()
 		for {
 			select {
 			case title := <-mStartStop.ClickedCh:
@@ -124,28 +130,18 @@ func onReady() {
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
 				if !strings.HasPrefix(title, "\u200B\u2060") {
-					LastLock.RLock()
-					xdgOpen(filepath.Join(FolderPath, Last[title]))
-					LastLock.RUnlock()
+					xdgOpen(last.get(title))
 				}
 			case <-mOutput.ClickedCh:
 				notifySend(icons.IconNotify, "Yandex.Disk daemon output", YD.Output())
 			case <-mPath.ClickedCh:
-				xdgOpen(FolderPath)
+				xdgOpen(YD.Path)
 			case <-mSite.ClickedCh:
 				xdgOpen("https://disk.yandex.com")
 			case <-mHelp.ClickedCh:
 				xdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
 			case <-mAbout.ClickedCh:
-				notifySend(icons.IconNotify, " ",
-					`yd-go is the panel indicator of Yandex.Disk daemon.
-
-      Version: Betta 0.2
-
-Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
-
-      License: GPL v.3
-`)
+				notifySend(icons.IconNotify, " ", about)
 			case <-mQuit.ClickedCh:
 				llog.Debug("Exit requested.")
 				// Stop daemon if it is configured
@@ -159,6 +155,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 	}()
 
 	go func() {
+		defer systray.Quit() // request for exit from systray main loop (gtk.main())
 		llog.Debug("Changes handler started")
 		defer llog.Debug("Changes handler exited.")
 		// Prepare the staff for icon animation
@@ -181,16 +178,12 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 				// handle last synchronized submenu
 				if yds.ChLast {
 					mLast.RemoveSubmenu()
-					LastLock.Lock()
-					Last = make(map[string]string, 10)
-					LastLock.Unlock()
+					last.reset()
 					if len(yds.Last) > 0 {
 						for _, p := range yds.Last {
-							short := shortName(p, 40)
-							mLast.AddSubmenuItem(short, !notExists(p))
-							LastLock.Lock()
-							Last[short] = p
-							LastLock.Unlock()
+							short, full := shortName(p, 40), filepath.Join(YD.Path, p)
+							mLast.AddSubmenuItem(short, notExists(full))
+							last.update(short, full)
 						}
 						mLast.Enable()
 					} else {
@@ -244,4 +237,8 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 			}
 		}
 	}()
+}
+
+func onExit() {
+	llog.Debug("All done. Bye!")
 }

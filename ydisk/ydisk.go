@@ -1,52 +1,22 @@
+/*
+Package ydisk implements API for yandex-disk daemon. Logging is organized
+via github.com/slytomcat/llog package.
+*/
 package ydisk
-
-/* This package provides API for yandex-disk daemon.
- * A new daemon connection is created with call of:
- *  NewYDisk (conf, path string) YDisk
- * Parameters:
- *  conf - path to yandex-disk configuration file (by default it is: ~/.config/yandex-disk/config.cfg)
- *  path - path to user folder that is synchronized by daemon (default path: ~/Yandex.Disk)
- * Returns new YDisk structure with the following items:
- *  Changes chan YDvals - output channel that provides all detected changes in daemon status within
- *                        the structure YDvals (see description of YDvals structure)
- * The daemon connection has following methods:
- *  Start()          - starts the daemon with the specified configuration
- *  Stop()           - stops the daemon with the specified configuration
- *  Output() string  - returns the daemon status message (in the current user Language)
- *  Close()          - closes the daemon connection (stops all service routines and file watcher,
- *                     close Changes channel)
- *
- * YDvals structure has following items:
- *  Stat string      - Current Status
- *  Prev string      - Previous Status
- *  Total string     - Total space available
- *  Used string      - Used space
- *  Free string      - Free space
- *  Trash string     - Trash size
- *  Last []string    - Last-updated files/folders list (10 or less items)
- *  ChLast bool      - Indicator that Last was changed
- *  Err string       - Error status message
- *  ErrP string      - Error path
- *  Prog string      - Synchronization progress (when in busy status)
- *
- * Debugging organized via llog lib.
- * */
 
 import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
+	"bytes"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/slytomcat/llog"
 )
 
-var AllDone sync.WaitGroup
-
-/* Daemon Status values */
+// Daemon Status values
 type YDvals struct {
 	Stat   string   // Current Status
 	Prev   string   // Previous Status
@@ -149,7 +119,7 @@ type yDstatus struct {
 	Changes chan YDvals // output channel for detected changes or daemon output
 }
 
-/* This control component implemented as State-full go-routine with 3 communication channels */
+/* This control component implemented as State-full go-routine with 2 communication channels */
 func newyDstatus() yDstatus {
 	st := yDstatus{
 		make(chan string),
@@ -157,21 +127,18 @@ func newyDstatus() yDstatus {
 	}
 	go func() {
 		llog.Debug("Status component started")
-		AllDone.Add(1)
-		defer AllDone.Done()
 		yds := newyDvals()
 		for {
 			upd, ok := <-st.updates
-			if ok {
-				if yds.update(upd) {
-					llog.Debug("Change: P=", yds.Prev, "S=", yds.Stat,
-						"T=", yds.Total, "L=", len(yds.Last), "E=", yds.Err)
-					st.Changes <- yds
-				}
-			} else { // st.updates channel closed - exit
+			if !ok { // st.updates channel closed - exit
 				close(st.Changes)
 				llog.Debug("Status component routine finished")
 				return
+			}
+			if yds.update(upd) {
+				llog.Debug("Change: ", yds.Prev, ">", yds.Stat,
+					"T", len(yds.Total) > 0, "L", len(yds.Last), "E", len(yds.Err) > 0)
+				st.Changes <- yds
 			}
 		}
 	}()
@@ -179,10 +146,8 @@ func newyDstatus() yDstatus {
 }
 
 type watcher struct {
-	watch  *fsnotify.Watcher
-	path   bool // Flag that means that watching path was successfully added
-	Events chan fsnotify.Event
-	Errors chan error
+	*fsnotify.Watcher
+	path bool // Flag that means that watching path was successfully added
 }
 
 func newwatcher() watcher {
@@ -193,14 +158,12 @@ func newwatcher() watcher {
 	return watcher{
 		watch,
 		false,
-		watch.Events,
-		watch.Errors,
 	}
 }
 
 func (w *watcher) activate(path string) {
 	if !w.path {
-		err := w.watch.Add(filepath.Join(path, ".sync/cli.log"))
+		err := w.Add(filepath.Join(path, ".sync/cli.log"))
 		if err != nil {
 			llog.Debug("Watch path error:", err)
 			return
@@ -210,46 +173,47 @@ func (w *watcher) activate(path string) {
 	}
 }
 
-func (w *watcher) close() {
-	// TO_DO_Maybe: path need to removed before close watcher?
-	w.watch.Close()
-}
-
+// YDisk provides methods to interact with yandex-disk, path of synchronized catalog
+// and channel for receiving yandex-disk status changes
 type YDisk struct {
+	Path    string      // Path to synchronized folder (obtained from yandex-disk conf. file)
+	Changes chan YDvals // Output channel for detected changes in daemon status
 	conf    string      // Path to yandex-disc configuration file
-	path    string      // Path to synchronized folder (should be obtained from y-d conf. file)
-	stat    yDstatus    // Status object
+	yDstatus            // Status object
 	watch   watcher     // Watcher object
 	exit    chan bool   // Stop signal for Event handler routine
-	Changes chan YDvals // Transfered from status component Updates channel
 }
 
-func NewYDisk(conf, path string) YDisk {
-	// Requirements:
-	// 1. yandex-disk have to be installed and properly configured
-	// 2. path to configuration and synchronized paths from yandex-disk conf-file have to be
-	//    provided in arguments
-	// all checks are done in CheckDaemon(see check.go)
+// NewYDisk creates new YDisk structure for communication with yandex-disk daemon
+// Parameters:
+//  conf - full path to yandex-disk daemon configuration file
+//
+// Checks performed in the beginning:
+//
+//  - check that yandex-disk has installed
+//  - check that yandex-disk was properly configured
+//
+// When something not good NewYDisk panicks
+func NewYDisk(conf string) YDisk {
+	path := checkDaemon(conf)
 	stat := newyDstatus()
 	yd := YDisk{
-		conf,
 		path,
+		stat.Changes,
+		conf,
 		stat,
 		newwatcher(),
 		make(chan bool),
-		stat.Changes,
 	}
-	yd.watch.activate(yd.path) // Try to activate watching at the beginning. It can fail
+	yd.watch.activate(yd.Path) // Try to activate watching at the beginning. It may fail
 
 	go func() {
 		llog.Debug("Event handler started")
-		AllDone.Add(1)
 		tick := time.NewTimer(time.Millisecond * 500)
 		interval := 2
 		defer func() {
 			tick.Stop()
 			llog.Debug("Event handler routine finished")
-			AllDone.Done()
 		}()
 		busy_status := false
 		out := ""
@@ -276,7 +240,7 @@ func NewYDisk(conf, path string) YDisk {
 			}
 			out = yd.getOutput(false)
 			busy_status = strings.HasPrefix(out, "Sync progress")
-			yd.stat.updates <- out
+			yd.updates <- out
 		}
 	}()
 
@@ -284,12 +248,12 @@ func NewYDisk(conf, path string) YDisk {
 	return yd
 }
 
+// Close deactivates the daemon connection (stops all service routines and file watcher,
+// close Changes channel)
 func (yd *YDisk) Close() {
 	yd.exit <- true
-	yd.watch.close()
-	close(yd.stat.updates)
-	AllDone.Wait()
-	llog.Debug("All done. Bye!")
+	yd.watch.Close()
+	close(yd.updates)
 }
 
 func (yd YDisk) getOutput(userLang bool) string {
@@ -304,32 +268,33 @@ func (yd YDisk) getOutput(userLang bool) string {
 	return string(out)
 }
 
-// Request function
+// Output returns the output string of `yandex-disk status` command in the current user language.
 func (yd *YDisk) Output() string {
 	return yd.getOutput(true)
 }
 
-// Commands
+// Start runs `yandex-disk start` if daemon was not started before.
 func (yd *YDisk) Start() {
 	if yd.getOutput(true) == "" {
 		out, err := exec.Command("yandex-disk", "-c", yd.conf, "start").Output()
 		if err != nil {
 			llog.Error(err)
 		}
-		llog.Debug("Daemon start:", string(out))
+		llog.Debug("Daemon start:", string(bytes.TrimRight(out, " \n")))
 	} else {
 		llog.Debug("Daemon already Started")
 	}
-	yd.watch.activate(yd.path) // try to activate watching after daemon start. It shouldn't fail
+	yd.watch.activate(yd.Path) // try to activate watching after daemon start. It shouldn't fail
 }
 
+// Stop runs `yandex-disk stop` if daemon was not stopped before.
 func (yd *YDisk) Stop() {
 	if yd.getOutput(true) != "" {
 		out, err := exec.Command("yandex-disk", "-c", yd.conf, "stop").Output()
 		if err != nil {
 			llog.Error(err)
 		}
-		llog.Debug("Daemon stop:", string(out))
+		llog.Debug("Daemon stop:", string(bytes.TrimRight(out, " \n")))
 		return
 	}
 	llog.Debug("Daemon already stopped")

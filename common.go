@@ -5,10 +5,12 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"sync"
 
 	"github.com/slytomcat/llog"
 )
 
+// notExists returns true when specified path does not exists
 func notExists(path string) bool {
 	_, err := os.Stat(path)
 	if err != nil {
@@ -56,4 +58,27 @@ func shortName(f string, l int) string {
 	} else {
 		return f
 	}
+}
+
+type LastT struct {
+	m map[string]string
+	l sync.RWMutex
+}
+
+func (l *LastT) reset() {
+	l.l.Lock()
+	l.m = make(map[string]string, 10)
+	l.l.Unlock()
+}
+
+func (l *LastT) update(key, value string) {
+	l.l.Lock()
+	l.m[key] = value
+	l.l.Unlock()
+}
+
+func (l LastT) get(key string) string {
+	l.l.RLock()
+	defer l.l.RUnlock()
+	return l.m[key]
 }

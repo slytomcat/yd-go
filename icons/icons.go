@@ -14,9 +14,9 @@ var (
 
 func SetTheme(appHome, theme string) {
 
-	themePath := path.Join(appHome, "icons", theme)
+	themePath := path.Join(appHome, theme)
 
-	IconNotify = path.Join(appHome, "icons", "yd-128.png")
+	IconNotify = path.Join(appHome, "yd-128.png")
 
 	IconBusy = [5]string{
 		path.Join(themePath, "busy1.png"),
