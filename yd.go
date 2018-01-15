@@ -119,7 +119,7 @@ func onReady() {
 	mHelp := systray.AddMenuItem(Msg.Sprint("Help"), "")
 	mAbout := systray.AddMenuItem(Msg.Sprint("About"), "")
 	systray.AddSeparator()
-	mQuit := systray.AddMenuItem("Quit", "")
+	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
 	// Dictionary for last synchronized title (as shorten path) and full path
 	var last LastT
 	go func() {
