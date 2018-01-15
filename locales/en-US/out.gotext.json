@@ -1,0 +1,55 @@
+{
+    "language": "en-US",
+    "messages": [
+        {
+            "id": "Used: {Used}/{Total}",
+            "message": "Used: {Used}/{Total}",
+            "translation": "Used: {Used}/{Total}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Used",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "yds.Used"
+                },
+                {
+                    "id": "Total",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "yds.Total"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Free: {Free} Trash: {Trash}",
+            "message": "Free: {Free} Trash: {Trash}",
+            "translation": "Free: {Free} Trash: {Trash}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Free",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "yds.Free"
+                },
+                {
+                    "id": "Trash",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "yds.Trash"
+                }
+            ],
+            "fuzzy": true
+        }
+    ]
+}
