@@ -13,8 +13,10 @@ The system try icon has menu that allows:
   - to see the current daemon status and cloud-disk properties (Used/Total/Free/Trash)
   - to see (in submenu) and open (in default program) last synchronized files 
   - to start/stop daemon
+  - to see the originl output of daemon in user language
   - to open local syncronized path
   - to open cloud-disk in browser
+  - to open help/support page
 
 Application has its configuration file in ~/.config/yd-go/default.cfg file. File is in JSON format and contain following options:
   - "Conf" - path to daemon config file (default "~/.config/yandex-disk/config.cfg"
