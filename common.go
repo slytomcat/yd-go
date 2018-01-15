@@ -38,6 +38,7 @@ func xdgOpen(uri string) {
 }
 
 func notifySend(icon, title, body string) {
+	llog.Debug("Message:", title, ":", body)
 	err := exec.Command("notify-send", "-i", icon, title, body).Start()
 	if err != nil {
 		llog.Debug(err)
@@ -77,14 +78,21 @@ func (l *LastT) update(key, value string) {
 	l.l.Unlock()
 }
 
-func (l LastT) get(key string) string {
+func (l *LastT) get(key string) string {
 	l.l.RLock()
 	defer l.l.RUnlock()
 	return l.m[key]
 }
 
-func (l LastT) len() int {
+func (l *LastT) len() int {
 	l.l.RLock()
 	defer l.l.RUnlock()
 	return len(l.m)
 }
+
+// func MLC(in string) (out string){
+// 	out, ok := Messages[in]
+// 	if !ok {
+// 		out = in
+// 	}
+// }

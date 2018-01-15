@@ -128,10 +128,10 @@ func onReady() {
 		for {
 			select {
 			case title := <-mStartStop.ClickedCh:
-				switch []rune(title)[0] {
-				case '\u200B': // start
+				switch {
+				case strings.HasPrefix(title, "\u200B"): // start
 					go YD.Start()
-				case '\u2060': // stop
+				case strings.HasPrefix(title, "\u2060"): // stop
 					go YD.Stop()
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
@@ -212,8 +212,8 @@ func onReady() {
 					// handle Start/Stop menu title
 					if yds.Stat == "none" {
 						mStartStop.SetTitle("\u200B" + Msg.Sprint("Start"))
-					} else if mStartStop.GetTitle() != "Stop" {
-						mStartStop.SetTitle("\u2060" + "Stop")
+					} else if !strings.HasPrefix(mStartStop.GetTitle(), "\u2060") {
+						mStartStop.SetTitle("\u2060" + Msg.Sprint("Stop"))
 					}
 					// handle notifications
 					if AppCfg["Notifications"].(bool) {
