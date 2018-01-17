@@ -33,7 +33,7 @@ func expandHome(path string) string {
 func xdgOpen(uri string) {
 	err := exec.Command("xdg-open", uri).Start()
 	if err != nil {
-		llog.Debug(err)
+		llog.Error(err)
 	}
 }
 
@@ -41,47 +41,49 @@ func notifySend(icon, title, body string) {
 	llog.Debug("Message:", title, ":", body)
 	err := exec.Command("notify-send", "-i", icon, title, body).Start()
 	if err != nil {
-		llog.Debug(err)
+		llog.Error(err)
 	}
 }
 
 // shortName returns the shorten version of its first parameter. The second parameter specifies
 // the maximum number of symbols (runes) in returned string.
-func shortName(f string, l int) string {
-	v := []rune(f)
-	if len(v) > l {
-		n := (l - 3) / 2
-		k := n
-		if n+k+3 < l {
-			k += 1
+func shortName(s string, l int) string {
+	r := []rune(s)
+	lr := len(r)
+	if lr > l {
+		b := (l - 3) / 2
+		e := b
+		if b+e+3 < l {
+			e++
 		}
-		return string(v[:n]) + "..." + string(v[len(v)-k:])
-	} else {
-		return f
+		return string(r[:b]) + "..." + string(r[lr-e:])
 	}
+	return s
 }
 
+// LastT type is just map[strig]string protected by RWMutex to be read and updated
+// form different goroutines simulationusly
 type LastT struct {
-	m map[string]string
+	m map[string]*string
 	l sync.RWMutex
 }
 
 func (l *LastT) reset() {
 	l.l.Lock()
-	l.m = make(map[string]string, 10)
+	l.m = make(map[string]*string, 10) // 10 - is a maximum lenghth of the last synchronized
 	l.l.Unlock()
 }
 
 func (l *LastT) update(key, value string) {
 	l.l.Lock()
-	l.m[key] = value
+	l.m[key] = &value
 	l.l.Unlock()
 }
 
 func (l *LastT) get(key string) string {
 	l.l.RLock()
 	defer l.l.RUnlock()
-	return l.m[key]
+	return *l.m[key]
 }
 
 func (l *LastT) len() int {

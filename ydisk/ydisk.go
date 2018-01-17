@@ -16,7 +16,7 @@ import (
 	"github.com/slytomcat/llog"
 )
 
-// Daemon Status values
+// YDvals - Daemon Status values
 type YDvals struct {
 	Stat   string   // Current Status
 	Prev   string   // Previous Status
@@ -79,13 +79,13 @@ func (val *YDvals) update(out string) bool {
 	// map representation of switch_case clause
 	for k, v := range map[string]*string{
 		"Synchronization": &val.Stat,
-		"Total":     &val.Total,
-		"Used":      &val.Used,
-		"Available": &val.Free,
-		"Trash":     &val.Trash,
-		"Error":     &val.Err,
-		"Path":      &val.ErrP,
-		"Sync":      &val.Prog,
+		"Total":           &val.Total,
+		"Used":            &val.Used,
+		"Available":       &val.Free,
+		"Trash":           &val.Trash,
+		"Error":           &val.Err,
+		"Path":            &val.ErrP,
+		"Sync":            &val.Prog,
 	} {
 		setChanged(v, keys[k], &changed)
 	}
@@ -198,12 +198,12 @@ func (yd *YDisk) eventHandler(watch watcher) {
 			return
 		case <-yd.exit:
 			return
-		case <-watch.Events: //event := <-watch.Events:
-			//llog.Debug("Watcher event:") //, event)
+		case event := <-watch.Events:
+			llog.Debug("Watcher event:", event)
 			tick.Reset(time.Second)
 			interval = 2
 		case <-tick.C:
-			//llog.Debug("Timer interval:", interval)
+			llog.Debug("Timer interval:", interval)
 			if yds.Stat == "busy" || yds.Stat == "index" {
 				interval = 2 // keep 2s interval in busy mode
 			}

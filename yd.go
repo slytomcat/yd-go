@@ -27,8 +27,10 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 `
 
 var (
+	// AppConfigFile stores the application configuration file path
 	AppConfigFile string
-	Msg           *message.Printer
+	// Msg is the Localozation printer
+	Msg *message.Printer
 )
 
 func init() {
