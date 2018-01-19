@@ -23,7 +23,8 @@ const about = `yd-go is the panel indicator for Yandex.Disk daemon.
 
 Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 
-      License: GPL v.3
+	  License: GPL v.3
+
 `
 
 var (
@@ -120,6 +121,7 @@ func onReady() {
 	systray.AddSeparator()
 	mHelp := systray.AddMenuItem(Msg.Sprint("Help"), "")
 	mAbout := systray.AddMenuItem(Msg.Sprint("About"), "")
+	mDon := systray.AddMenuItem(Msg.Sprint("Donations"), "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
 	// Dictionary for last synchronized title (as shorten path) and full path
@@ -150,6 +152,8 @@ func onReady() {
 				xdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
 			case <-mAbout.ClickedCh:
 				notifySend(icons.IconNotify, " ", about)
+			case <-mDon.ClickedCh:
+				xdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donats"))
 			case <-mQuit.ClickedCh:
 				llog.Debug("Exit requested.")
 				// Stop daemon if it is configured
