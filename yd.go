@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slytomcat/confJSON"
 	"github.com/slytomcat/llog"
 	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
+	"github.com/slytomcat/yd-go/tools"
 	"github.com/slytomcat/yd-go/ydisk"
 	"golang.org/x/text/message"
 )
@@ -33,6 +36,45 @@ var (
 	// Msg is the Localozation printer
 	Msg *message.Printer
 )
+
+func notifySend(icon, title, body string) {
+	llog.Debug("Message:", title, ":", body)
+	err := exec.Command("notify-send", "-i", icon, title, body).Start()
+	if err != nil {
+		llog.Error(err)
+	}
+}
+
+// LastT type is just map[strig]string protected by RWMutex to be read and updated
+// form different goroutines simulationusly
+type LastT struct {
+	m map[string]*string
+	l sync.RWMutex
+}
+
+func (l *LastT) reset() {
+	l.l.Lock()
+	l.m = make(map[string]*string, 10) // 10 - is a maximum lenghth of the last synchronized
+	l.l.Unlock()
+}
+
+func (l *LastT) update(key, value string) {
+	l.l.Lock()
+	l.m[key] = &value
+	l.l.Unlock()
+}
+
+func (l *LastT) get(key string) string {
+	l.l.RLock()
+	defer l.l.RUnlock()
+	return *l.m[key]
+}
+
+func (l *LastT) len() int {
+	l.l.RLock()
+	defer l.l.RUnlock()
+	return len(l.m)
+}
 
 func init() {
 	var debug bool
@@ -65,25 +107,25 @@ func onReady() {
 	// Prepare the application configuration
 	// Make default app configuration values
 	AppCfg := map[string]interface{}{
-		"Conf":          expandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
-		"Theme":         "dark",                                         // icons theme name
-		"Notifications": true,                                           // display desktop notification
-		"StartDaemon":   true,                                           // start daemon on app start
-		"StopDaemon":    false,                                          // stop daemon on app closure
+		"Conf":          tools.ExpandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
+		"Theme":         "dark",                                               // icons theme name
+		"Notifications": true,                                                 // display desktop notification
+		"StartDaemon":   true,                                                 // start daemon on app start
+		"StopDaemon":    false,                                                // stop daemon on app closure
 	}
 	// Check that app configuration file path exists
-	AppConfigHome := expandHome("~/.config/yd-go")
-	if notExists(AppConfigHome) {
+	AppConfigHome := tools.ExpandHome("~/.config/yd-go")
+	if tools.NotExists(AppConfigHome) {
 		err := os.MkdirAll(AppConfigHome, 0766)
 		if err != nil {
 			llog.Critical("Can't create application configuration path:", err)
 		}
 	}
 	// Path to app configuration file path always comes from command-line flag
-	AppConfigFile = expandHome(AppConfigFile)
+	AppConfigFile = tools.expandHome(AppConfigFile)
 	llog.Debug("Configuration:", AppConfigFile)
 	// Check that app configuration file exists
-	if notExists(AppConfigFile) {
+	if tools.NotExists(AppConfigFile) {
 		//Create and save new configuration file with default values
 		confJSON.Save(AppConfigFile, AppCfg)
 	} else {
@@ -124,8 +166,7 @@ func onReady() {
 	mDon := systray.AddMenuItem(Msg.Sprint("Donations"), "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
-	// Dictionary for last synchronized title (as shorten path) and full path
-	var last LastT
+
 	go func() {
 		llog.Debug("Menu handler started")
 		defer llog.Debug("Menu handler exited.")
@@ -140,20 +181,20 @@ func onReady() {
 				} // do nothing in other cases
 			case title := <-mLast.ClickedCh:
 				if !strings.HasPrefix(title, "\u200B\u2060") {
-					xdgOpen(last.get(title))
+					tools.XdgOpen(last.get(title))
 				}
 			case <-mOutput.ClickedCh:
 				notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk daemon output"), YD.Output())
 			case <-mPath.ClickedCh:
-				xdgOpen(YD.Path)
+				tools.XdgOpen(YD.Path)
 			case <-mSite.ClickedCh:
-				xdgOpen(Msg.Sprint("https://disk.yandex.com"))
+				tools.XdgOpen(Msg.Sprint("https://disk.yandex.com"))
 			case <-mHelp.ClickedCh:
-				xdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
+				tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
 			case <-mAbout.ClickedCh:
 				notifySend(icons.IconNotify, " ", about)
 			case <-mDon.ClickedCh:
-				xdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donats"))
+				tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donats"))
 			case <-mQuit.ClickedCh:
 				llog.Debug("Exit requested.")
 				// Stop daemon if it is configured
@@ -166,6 +207,8 @@ func onReady() {
 		}
 	}()
 
+	// Dictionary for last synchronized title (as shorten path) and full path
+	var last LastT
 	go func() {
 		defer systray.Quit() // request for exit from systray main loop (gtk.main())
 		llog.Debug("Changes handler started")
@@ -193,7 +236,7 @@ func onReady() {
 					if len(yds.Last) > 0 {
 						for _, p := range yds.Last {
 							short, full := shortName(p, 40), filepath.Join(YD.Path, p)
-							mLast.AddSubmenuItem(short, notExists(full))
+							mLast.AddSubmenuItem(short, tools.NotExists(full))
 							last.update(short, full)
 						}
 						mLast.Enable()
@@ -217,9 +260,11 @@ func onReady() {
 					}
 					// handle Start/Stop menu title
 					if yds.Stat == "none" {
-						mStartStop.SetTitle("\u200B" + Msg.Sprint("Start"))
+						mStartStop.SetTitle("\u200B" + Msg.Sprint("Start daemon"))
+						mOutput.Disable()
 					} else if !strings.HasPrefix(mStartStop.GetTitle(), "\u2060") {
-						mStartStop.SetTitle("\u2060" + Msg.Sprint("Stop"))
+						mStartStop.SetTitle("\u2060" + Msg.Sprint("Stop daemon"))
+						mOutput.Enable()
 					}
 					// handle notifications
 					if AppCfg["Notifications"].(bool) {
