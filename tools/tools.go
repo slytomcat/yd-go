@@ -1,3 +1,4 @@
+// Package tools contains commonly used functions for yd-go and yd-qgo projects
 package tools
 
 import (
@@ -21,7 +22,8 @@ func NotExists(path string) bool {
 
 var userHome string
 var once sync.Once
-// ExpandHome returns full path expanding ~ as $HOME 
+
+// ExpandHome returns full path expanding ~ as $HOME
 func ExpandHome(path string) string {
 	if len(path) == 0 || path[0] != '~' {
 		return path
@@ -60,4 +62,3 @@ func ShortName(s string, l int) string {
 	}
 	return s
 }
-
