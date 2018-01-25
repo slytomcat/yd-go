@@ -40,7 +40,7 @@ For building this prject the additional packages are requered:
 
     `go get -d`
     
-Then you can buld the projec with 
+Then you can buld the project with 
 
     go build
 
