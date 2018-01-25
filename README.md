@@ -1,9 +1,9 @@
 # yd-go
-## Panel indicator for Yandex-disk CLI daemon (linux)
+## Panel indicator for Yandex-disk CLI daemon (linux/GTK+)
 
-It's my first project on golang.
+It is GTK+ version of indicator. If you are interested in Qt version, visit: https://github.com/slytomcat/yd-qgo
 
-I've made it as it is rather well-known task for me (I've made the same wrap-up in YD-tools project in Python language).
+I've made it as it is rather well-known task for me (I've made the similar indicator in YD-tools project in Python language: https://github.com/slytomcat/yandex-disk-indicator it's also uses GTK+).
 
 GUI for wrapper show current status in system tray by different icons. During synchronization the icon is animated. 
 
@@ -40,7 +40,7 @@ For building this prject the additional packages are requered:
 
     `go get -d`
     
-Then you can buld the projec with 
+Then you can buld the project with 
 
     go build
 
