@@ -3,6 +3,8 @@
 
 It is GTK+ version of indicator. If you are interested in Qt version, visit: https://github.com/slytomcat/yd-qgo
 
+Russian wiki: https://github.com/slytomcat/yd-go/wiki
+
 I've made it as it is rather well-known task for me (I've made the similar indicator in YD-tools project in Python language: https://github.com/slytomcat/yandex-disk-indicator it's also uses GTK+).
 
 GUI for wrapper show current status in system tray by different icons. During synchronization the icon is animated. 
