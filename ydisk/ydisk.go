@@ -148,7 +148,7 @@ type YDisk struct {
 	Path     string      // Path to synchronized folder (obtained from yandex-disk conf. file)
 	Changes  chan YDvals // Output channel for detected changes in daemon status
 	conf     string      // Path to yandex-disc configuration file
-	exit     chan bool   // Stop signal for Event handler routine
+	exit     chan bool   // Stop signal/replay chanel for Event handler routine
 	activate func()      // Function to activate watche after start of daemon
 }
 
@@ -190,6 +190,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		tick.Stop()
 		close(yd.Changes)
 		llog.Debug("Event handler exited")
+		yd.exit <- true  // Report completion
 	}()
 	for {
 		select {
@@ -233,10 +234,11 @@ func (yd YDisk) getOutput(userLang bool) string {
 	return string(out)
 }
 
-// Close deactivates the daemon connection (stops event handler that closes file watcher
-// and Changes channel)
+// Close deactivates the daemon connection: stops event handler that closes file watcher
+// and Changes channel. 
 func (yd *YDisk) Close() {
 	yd.exit <- true
+	<- yd.exit // Wait for the event handler completion
 }
 
 // Output returns the output string of `yandex-disk status` command in the current user language.

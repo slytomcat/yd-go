@@ -122,7 +122,7 @@ func onReady() {
 		}
 	}
 	// Path to app configuration file path always comes from command-line flag
-	AppConfigFile = tools.expandHome(AppConfigFile)
+	AppConfigFile = tools.ExpandHome(AppConfigFile)
 	llog.Debug("Configuration:", AppConfigFile)
 	// Check that app configuration file exists
 	if tools.NotExists(AppConfigFile) {
@@ -166,6 +166,8 @@ func onReady() {
 	mDon := systray.AddMenuItem(Msg.Sprint("Donations"), "")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
+	// Dictionary for last synchronized title (as shorten path) and full path
+	var last LastT
 
 	go func() {
 		llog.Debug("Menu handler started")
@@ -207,8 +209,6 @@ func onReady() {
 		}
 	}()
 
-	// Dictionary for last synchronized title (as shorten path) and full path
-	var last LastT
 	go func() {
 		defer systray.Quit() // request for exit from systray main loop (gtk.main())
 		llog.Debug("Changes handler started")
@@ -227,7 +227,7 @@ func onReady() {
 				currentStatus = yds.Stat
 
 				mStatus.SetTitle(Msg.Sprint("Status: ") + Msg.Sprint(yds.Stat) + " " + yds.Prog +
-					yds.Err + " " + shortName(yds.ErrP, 30))
+					yds.Err + " " + tools.ShortName(yds.ErrP, 30))
 				mSize1.SetTitle(Msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
 				mSize2.SetTitle(Msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 				if yds.ChLast { // last synchronized list changed
@@ -235,7 +235,7 @@ func onReady() {
 					last.reset()
 					if len(yds.Last) > 0 {
 						for _, p := range yds.Last {
-							short, full := shortName(p, 40), filepath.Join(YD.Path, p)
+							short, full := tools.ShortName(p, 40), filepath.Join(YD.Path, p)
 							mLast.AddSubmenuItem(short, tools.NotExists(full))
 							last.update(short, full)
 						}
