@@ -252,7 +252,9 @@ func onReady() {
 						systray.SetIcon(icons.IconIdle)
 					case "busy", "index":
 						systray.SetIcon(icons.IconBusy[currentIcon])
-						tick.Reset(333 * time.Millisecond)
+						if yds.Prev != "busy" && yds.Prev != "index" {
+							tick.Reset(333 * time.Millisecond)
+						}
 					case "none", "paused":
 						systray.SetIcon(icons.IconPause)
 					default:
@@ -262,7 +264,7 @@ func onReady() {
 					if yds.Stat == "none" {
 						mStartStop.SetTitle("\u200B" + Msg.Sprint("Start daemon"))
 						mOutput.Disable()
-					} else if !strings.HasPrefix(mStartStop.GetTitle(), "\u2060") {
+					} else if yds.Prev == "none" || yds.Prev == "unknown" {
 						mStartStop.SetTitle("\u2060" + Msg.Sprint("Stop daemon"))
 						mOutput.Enable()
 					}

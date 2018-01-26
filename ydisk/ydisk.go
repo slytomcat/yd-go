@@ -149,7 +149,7 @@ type YDisk struct {
 	Changes  chan YDvals // Output channel for detected changes in daemon status
 	conf     string      // Path to yandex-disc configuration file
 	exit     chan bool   // Stop signal/replay chanel for Event handler routine
-	activate func()      // Function to activate watche after start of daemon
+	activate func()      // Function to activate watcher after start of daemon
 }
 
 // NewYDisk creates new YDisk structure for communication with yandex-disk daemon
@@ -190,7 +190,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		tick.Stop()
 		close(yd.Changes)
 		llog.Debug("Event handler exited")
-		yd.exit <- true  // Report completion
+		yd.exit <- true // Report completion
 	}()
 	for {
 		select {
@@ -202,15 +202,16 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		case event := <-watch.Events:
 			llog.Debug("Watcher event:", event)
 			tick.Reset(time.Second)
-			interval = 2
+			interval = 1
 		case <-tick.C:
 			llog.Debug("Timer interval:", interval)
 			if yds.Stat == "busy" || yds.Stat == "index" {
 				interval = 2 // keep 2s interval in busy mode
+			} else {
+				interval <<= 1 // continuously increase timer interval: 2s, 4s, 8s.
 			}
 			if interval < 10 {
 				tick.Reset(time.Duration(interval) * time.Second)
-				interval <<= 1 // continuously increase timer interval: 2s, 4s, 8s.
 			}
 		}
 		if yds.update(yd.getOutput(false)) {
@@ -235,10 +236,10 @@ func (yd YDisk) getOutput(userLang bool) string {
 }
 
 // Close deactivates the daemon connection: stops event handler that closes file watcher
-// and Changes channel. 
+// and Changes channel.
 func (yd *YDisk) Close() {
 	yd.exit <- true
-	<- yd.exit // Wait for the event handler completion
+	<-yd.exit // Wait for the event handler completion
 }
 
 // Output returns the output string of `yandex-disk status` command in the current user language.
