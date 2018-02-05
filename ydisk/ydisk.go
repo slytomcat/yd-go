@@ -115,7 +115,7 @@ func (val *YDvals) update(out string) bool {
 
 type watcher struct {
 	*fsnotify.Watcher
-	path bool // Flag that means that watching path was successfully added
+	active bool // Flag that means that watching path was successfully added
 }
 
 func newwatcher() watcher {
@@ -130,14 +130,14 @@ func newwatcher() watcher {
 }
 
 func (w *watcher) activate(path string) {
-	if !w.path {
+	if !w.active {
 		err := w.Add(filepath.Join(path, ".sync/cli.log"))
 		if err != nil {
 			llog.Debug("Watch path error:", err)
 			return
 		}
 		llog.Debug("Watch path added")
-		w.path = true
+		w.active = true
 	}
 }
 
@@ -183,7 +183,7 @@ func NewYDisk(conf string) YDisk {
 func (yd *YDisk) eventHandler(watch watcher) {
 	llog.Debug("Event handler started")
 	yds := newYDvals()
-	tick := time.NewTimer(time.Millisecond * 100)
+	tick := time.NewTimer(time.Millisecond * 100)  // First time trigger it quickly to update icon and meny 
 	interval := 1
 	defer func() {
 		watch.Close()
