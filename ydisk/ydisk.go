@@ -190,7 +190,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		tick.Stop()
 		close(yd.Changes)
 		llog.Debug("Event handler exited")
-		yd.exit <- true // Report completion
+		yd.exit <- true // Report exit completion
 	}()
 	for {
 		select {
