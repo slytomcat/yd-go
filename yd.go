@@ -16,7 +16,7 @@ import (
 	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/tools"
-	"github.com/slytomcat/yd-go/ydisk"
+	"github.com/slytomcat/ydisk"
 	"golang.org/x/text/message"
 )
 
@@ -133,7 +133,10 @@ func onReady() {
 		confJSON.Load(AppConfigFile, &AppCfg)
 	}
 	// Create new ydisk interface
-	YD := ydisk.NewYDisk(AppCfg["Conf"].(string))
+	YD, err := ydisk.NewYDisk(AppCfg["Conf"].(string))
+	if err != nil {
+		llog.Critical("Fatal error. Exit.")
+	}
 	// Start daemon if it is configured
 	if AppCfg["StartDaemon"].(bool) {
 		go YD.Start()
