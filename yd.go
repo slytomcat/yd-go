@@ -171,6 +171,8 @@ func onReady() {
 	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
 	// Dictionary for last synchronized title (as shorten path) and full path
 	var last LastT
+	// NOTE: there can be an issue if two (or more) files has the same shorten representation. 
+	// In such a case all menu labels will be joined with the single full path (path of the last addad item)
 
 	go func() {
 		llog.Debug("Menu handler started")
@@ -199,7 +201,7 @@ func onReady() {
 			case <-mAbout.ClickedCh:
 				notifySend(icons.IconNotify, " ", about)
 			case <-mDon.ClickedCh:
-				tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donats"))
+				tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donations"))
 			case <-mQuit.ClickedCh:
 				llog.Debug("Exit requested.")
 				// Stop daemon if it is configured
