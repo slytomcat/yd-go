@@ -45,7 +45,7 @@ func notifySend(icon, title, body string) {
 	}
 }
 
-// LastT type is just map[strig]string protected by RWMutex to be read and updated
+// LastT type is just map[strig]string protected by RWMutex to be read and setd
 // form different goroutines simulationusly
 type LastT struct {
 	m map[string]*string
@@ -58,7 +58,7 @@ func (l *LastT) reset() {
 	l.l.Unlock()
 }
 
-func (l *LastT) update(key, value string) {
+func (l *LastT) set(key, value string) {
 	l.l.Lock()
 	l.m[key] = &value
 	l.l.Unlock()
@@ -240,13 +240,13 @@ func onReady() {
 						for _, p := range yds.Last {
 							short, full := tools.ShortName(p, 40), filepath.Join(YD.Path, p)
 							mLast.AddSubmenuItem(short, tools.NotExists(full))
-							last.update(short, full)
+							last.set(short, full)
 						}
 						mLast.Enable()
 					} else {
 						mLast.Disable()
 					}
-					llog.Debug("Last synchronized updated L", last.len())
+					llog.Debug("Last synchronized setd L", last.len())
 				}
 				if yds.Stat != yds.Prev { // status changed
 					// change indicator icon
@@ -300,7 +300,7 @@ func onReady() {
 					}
 				}
 				llog.Debug("Change handled")
-			case <-tick.C: //  timer event
+			case <-tick.C: //  Icon timer event
 				currentIcon++
 				currentIcon %= 5
 				if currentStatus == "busy" || currentStatus == "index" {
