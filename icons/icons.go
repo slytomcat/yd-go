@@ -5,18 +5,24 @@ import (
 )
 
 var (
-	IconBusy   [5]string
+	// IconBusy - set of 5 icons to be shown in busy status (with animation)
+	IconBusy   [5]string 
+	// IconError - is the icon to show error status
 	IconError  string
+	// IconIdle - is shown whe daemon do nothing (waits fo events)
 	IconIdle   string
+	// IconPause - is shown in inactive status (not started/paused)
 	IconPause  string
+	// IconNotify - 128x128 icon to show in notifications
 	IconNotify string
 )
 
-func SetTheme(appHome, theme string) {
+// SetTheme sets the Icon* variable according to selected theme
+func SetTheme(icoHome, theme string) {
 
-	themePath := path.Join(appHome, theme)
+	themePath := path.Join(icoHome, theme)
 
-	IconNotify = path.Join(appHome, "yd-128.png")
+	IconNotify = path.Join(icoHome, "yd-128.png")
 
 	IconBusy = [5]string{
 		path.Join(themePath, "busy1.png"),
