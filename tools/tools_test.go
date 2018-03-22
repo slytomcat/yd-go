@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"path"
-	"os"
 	"log"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/slytomcat/llog"
@@ -50,7 +50,9 @@ func TestNotExists(t *testing.T) {
 	if !NotExists("/Unreal path\n") {
 		t.Error("NotExists reports that `/Unreal path\n` exists.")
 	}
-	
+
 }
 
 // I have no idea how to test XdgOpen...
+
+// Need tests for AppInit
