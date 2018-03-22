@@ -2,12 +2,16 @@
 package tools
 
 import (
+	"flag"
+	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"sync"
 
+	"github.com/slytomcat/confJSON"
 	"github.com/slytomcat/llog"
 )
 
@@ -61,4 +65,60 @@ func ShortName(s string, l int) string {
 		return string(r[:b]) + "..." + string(r[lr-e:])
 	}
 	return s
+}
+
+// AppInit handles command line arguments, loads the application configuration and
+// initializes logging facility. Parameter:
+//   appName - name of application,
+// Returns *map[string]interface{} - with application configuration
+func AppInit(appName string) map[string]interface{} {
+	var debug bool
+	var AppConfigFile string
+	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
+	flag.StringVar(&AppConfigFile, "config", "~/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage:\n\n\t\t"+appName+" [-debug] [-config=<Path to indicator config>]\n\n")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+	// Initialize logging facility
+	llog.SetOutput(os.Stderr)
+	llog.SetPrefix("")
+	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
+	if debug {
+		llog.SetLevel(llog.DEBUG)
+		llog.Info("Debugging enabled")
+	} else {
+		llog.SetLevel(-1)
+	}
+
+	// Prepare the application configuration
+	// Make default app configuration
+	AppCfg := map[string]interface{}{
+		"Conf":          ExpandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
+		"Theme":         "dark",                                         // icons theme name
+		"Notifications": true,                                           // display desktop notification
+		"StartDaemon":   true,                                           // start daemon on app start
+		"StopDaemon":    false,                                          // stop daemon on app closure
+	}
+	// Check that app configuration file path exists
+	AppConfigHome := ExpandHome("~/.config/" + appName)
+	if NotExists(AppConfigHome) {
+		err := os.MkdirAll(AppConfigHome, 0766)
+		if err != nil {
+			llog.Critical("Can't create application configuration path:", err)
+		}
+	}
+	// Path to app configuration file path always comes from command-line flag
+	AppConfigFile = ExpandHome(AppConfigFile)
+	llog.Debug("Configuration:", AppConfigFile)
+	// Check that app configuration file exists
+	if NotExists(AppConfigFile) {
+		//Create and save new configuration file with default values
+		confJSON.Save(AppConfigFile, AppCfg)
+	} else {
+		// Read app configuration file
+		confJSON.Load(AppConfigFile, &AppCfg)
+	}
+	return AppCfg
 }

@@ -1,17 +1,12 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/slytomcat/confJSON"
 	"github.com/slytomcat/llog"
 	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
@@ -31,9 +26,7 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 `
 
 var (
-	// AppConfigFile stores the application configuration file path
-	AppConfigFile string
-	// Msg is the Localozation printer
+	// Msg is the Localization printer
 	Msg *message.Printer
 )
 
@@ -45,8 +38,8 @@ func notifySend(icon, title, body string) {
 	}
 }
 
-// LastT type is just map[strig]string protected by RWMutex to be read and setd
-// form different goroutines simulationusly
+// LastT type is just map[strig]string protected by RWMutex to be read and set
+// form different goroutines simultaneously
 type LastT struct {
 	m map[string]*string
 	l sync.RWMutex
@@ -54,7 +47,7 @@ type LastT struct {
 
 func (l *LastT) reset() {
 	l.l.Lock()
-	l.m = make(map[string]*string, 10) // 10 - is a maximum lenghth of the last synchronized
+	l.m = make(map[string]*string, 10) // 10 - is a maximum length of the last synchronized
 	l.l.Unlock()
 }
 
@@ -76,62 +69,16 @@ func (l *LastT) len() int {
 	return len(l.m)
 }
 
-func init() {
-	var debug bool
-	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
-	flag.StringVar(&AppConfigFile, "config", "~/.config/yd-go/default.cfg", "Path to the indicator configuration file")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage:\n\n\t\tyd-go [-debug] [-config=<Path to indicator config>]\n\n")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	// Initialize logging facility
-	llog.SetOutput(os.Stderr)
-	llog.SetPrefix("")
-	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
-	if debug {
-		llog.SetLevel(llog.DEBUG)
-		llog.Info("Debugging enabled")
-	} else {
-		llog.SetLevel(-1)
-	}
-	// Initialize translations
-	Msg = message.NewPrinter(message.MatchLanguage("ru"))
-}
-
 func main() {
 	systray.Run(onReady, onExit)
 }
 
 func onReady() {
-	// Prepare the application configuration
-	// Make default app configuration values
-	AppCfg := map[string]interface{}{
-		"Conf":          tools.ExpandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
-		"Theme":         "dark",                                               // icons theme name
-		"Notifications": true,                                                 // display desktop notification
-		"StartDaemon":   true,                                                 // start daemon on app start
-		"StopDaemon":    false,                                                // stop daemon on app closure
-	}
-	// Check that app configuration file path exists
-	AppConfigHome := tools.ExpandHome("~/.config/yd-go")
-	if tools.NotExists(AppConfigHome) {
-		err := os.MkdirAll(AppConfigHome, 0766)
-		if err != nil {
-			llog.Critical("Can't create application configuration path:", err)
-		}
-	}
-	// Path to app configuration file path always comes from command-line flag
-	AppConfigFile = tools.ExpandHome(AppConfigFile)
-	llog.Debug("Configuration:", AppConfigFile)
-	// Check that app configuration file exists
-	if tools.NotExists(AppConfigFile) {
-		//Create and save new configuration file with default values
-		confJSON.Save(AppConfigFile, AppCfg)
-	} else {
-		// Read app configuration file
-		confJSON.Load(AppConfigFile, &AppCfg)
-	}
+	// Initialize application and receive the application configuration
+	AppCfg := tools.AppInit("yd-go")
+	// Initialize translations
+	Msg = message.NewPrinter(message.MatchLanguage("ru"))
+
 	// Create new ydisk interface
 	YD, err := ydisk.NewYDisk(AppCfg["Conf"].(string))
 	if err != nil {
@@ -171,7 +118,7 @@ func onReady() {
 	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
 	// Dictionary for last synchronized title (as shorten path) and full path
 	var last LastT
-	// NOTE: there can be an issue if two (or more) files has the same shorten representation. 
+	// NOTE: there can be an issue if two (or more) files has the same shorten representation.
 	// In such a case all menu labels will be joined with the single full path (path of the last addad item)
 
 	go func() {
