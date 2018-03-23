@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/slytomcat/confJSON"
+	"github.com/slytomcat/confjson"
 	"github.com/slytomcat/llog"
 )
 
@@ -115,10 +115,10 @@ func AppInit(appName string) map[string]interface{} {
 	// Check that app configuration file exists
 	if NotExists(AppConfigFile) {
 		//Create and save new configuration file with default values
-		confJSON.Save(AppConfigFile, AppCfg)
+		confjson.Save(AppConfigFile, AppCfg)
 	} else {
 		// Read app configuration file
-		confJSON.Load(AppConfigFile, &AppCfg)
+		confjson.Load(AppConfigFile, &AppCfg)
 	}
 	return AppCfg
 }
