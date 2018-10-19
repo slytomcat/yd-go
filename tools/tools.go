@@ -115,10 +115,17 @@ func AppInit(appName string) map[string]interface{} {
 	// Check that app configuration file exists
 	if NotExists(AppConfigFile) {
 		//Create and save new configuration file with default values
-		confjson.Save(AppConfigFile, AppCfg)
+		err := confjson.Save(AppConfigFile, AppCfg)
+		if err != nil {
+			llog.Critical("Can't create application configuration file:", err)
+		}
 	} else {
 		// Read app configuration file
-		confjson.Load(AppConfigFile, &AppCfg)
+		Cfg, err := confjson.Load(AppConfigFile)
+		if err != nil {
+			llog.Critical("Can't access application configuration file:", err)
+		}
+		AppCfg = *Cfg
 	}
 	return AppCfg
 }
