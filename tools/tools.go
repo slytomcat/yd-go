@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"os/user"
-	"path/filepath"
 	"sync"
 
 	"github.com/slytomcat/confjson"
@@ -28,20 +26,20 @@ var userHome string
 var once sync.Once
 
 // ExpandHome returns full path expanding ~ as $HOME
-func ExpandHome(path string) string {
-	if len(path) == 0 || path[0] != '~' {
-		return path
-	}
-	once.Do(func() {
-		usr, err := user.Current()
-		if err != nil {
-			llog.Critical("Can't get current user profile:", err)
-		}
-		userHome = usr.HomeDir
-		llog.Debug("User home folder:", userHome)
-	})
-	return filepath.Join(userHome, path[1:])
-}
+// func ExpandHome(path string) string {
+// 	if len(path) == 0 || path[0] != '~' {
+// 		return path
+// 	}
+// 	once.Do(func() {
+// 		usr, err := user.Current()
+// 		if err != nil {
+// 			llog.Critical("Can't get current user profile:", err)
+// 		}
+// 		userHome = usr.HomeDir
+// 		llog.Debug("User home folder:", userHome)
+// 	})
+// 	return filepath.Join(userHome, path[1:])
+// }
 
 // XdgOpen opens the uri via xdg-open command
 func XdgOpen(uri string) {
@@ -75,7 +73,7 @@ func AppInit(appName string) map[string]interface{} {
 	var debug bool
 	var AppConfigFile string
 	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
-	flag.StringVar(&AppConfigFile, "config", "~/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
+	flag.StringVar(&AppConfigFile, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage:\n\n\t\t"+appName+" [-debug] [-config=<Path to indicator config>]\n\n")
 		flag.PrintDefaults()
@@ -95,14 +93,14 @@ func AppInit(appName string) map[string]interface{} {
 	// Prepare the application configuration
 	// Make default app configuration
 	AppCfg := map[string]interface{}{
-		"Conf":          ExpandHome("~/.config/yandex-disk/config.cfg"), // path to daemon config file
-		"Theme":         "dark",                                         // icons theme name
-		"Notifications": true,                                           // display desktop notification
-		"StartDaemon":   true,                                           // start daemon on app start
-		"StopDaemon":    false,                                          // stop daemon on app closure
+		"Conf":          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
+		"Theme":         "dark",                                               // icons theme name
+		"Notifications": true,                                                 // display desktop notification
+		"StartDaemon":   true,                                                 // start daemon on app start
+		"StopDaemon":    false,                                                // stop daemon on app closure
 	}
 	// Check that app configuration file path exists
-	AppConfigHome := ExpandHome("~/.config/" + appName)
+	AppConfigHome := os.ExpandEnv("$HOME/.config/" + appName)
 	if NotExists(AppConfigHome) {
 		err := os.MkdirAll(AppConfigHome, 0766)
 		if err != nil {
@@ -110,7 +108,7 @@ func AppInit(appName string) map[string]interface{} {
 		}
 	}
 	// Path to app configuration file path always comes from command-line flag
-	AppConfigFile = ExpandHome(AppConfigFile)
+	AppConfigFile = os.ExpandEnv(AppConfigFile)
 	llog.Debug("Configuration:", AppConfigFile)
 	// Check that app configuration file exists
 	if NotExists(AppConfigFile) {

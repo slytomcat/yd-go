@@ -3,7 +3,6 @@ package tools
 import (
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/slytomcat/llog"
@@ -30,14 +29,14 @@ func TestShortName(t *testing.T) {
 
 }
 
-func TestExpandHome(t *testing.T) {
-	if ExpandHome("~") != os.Getenv("HOME") {
-		t.Error("~ not expanded to value of HOME environment variable")
-	}
-	if path.Join(os.Getenv("HOME"), "folder") != ExpandHome("~/folder") {
-		t.Error("Path with ~ not expanded to correct value")
-	}
-}
+// func TestExpandHome(t *testing.T) {
+// 	if ExpandHome("~") != os.Getenv("HOME") {
+// 		t.Error("~ not expanded to value of HOME environment variable")
+// 	}
+// 	if path.Join(os.Getenv("HOME"), "folder") != ExpandHome("~/folder") {
+// 		t.Error("Path with ~ not expanded to correct value")
+// 	}
+// }
 
 func TestNotExists(t *testing.T) {
 	wd, err := os.Getwd()
