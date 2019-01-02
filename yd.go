@@ -82,14 +82,20 @@ func onReady() {
 	// Create new ydisk interface
 	YD, err := ydisk.NewYDisk(AppCfg["Conf"].(string))
 	if err != nil {
-		llog.Critical("Fatal error. Exit.")
+		llog.Critical("Fatal error:", err)
 	}
 	// Start daemon if it is configured
-	if AppCfg["StartDaemon"].(bool) {
+	if start, ok := AppCfg["StartDaemon"].(bool); start {
 		go YD.Start()
+	} else if !ok {
+		llog.Critical("Config read error: StartDaemon should be bool", err)
 	}
 	// Initialize icon theme
-	icons.SetTheme("/usr/share/yd-go/icons", AppCfg["Theme"].(string))
+	theme, ok := AppCfg["Theme"].(string)
+	if !ok {
+		llog.Critical("Config read error: Theme should be string")
+	}
+	icons.SetTheme("/usr/share/yd-go/icons", theme)
 	// Initialize systray icon
 	systray.SetIcon(icons.IconPause)
 	systray.SetTitle("")
@@ -123,7 +129,11 @@ func onReady() {
 
 	go func() {
 		llog.Debug("Menu handler started")
-		defer llog.Debug("Menu handler exited.")
+		defer func() {
+			llog.Debug("Menu handler exited.")
+			YD.Close() // it closes Changes channel
+		}()
+
 		for {
 			select {
 			case title := <-mStartStop.ClickedCh:
@@ -152,10 +162,13 @@ func onReady() {
 			case <-mQuit.ClickedCh:
 				llog.Debug("Exit requested.")
 				// Stop daemon if it is configured
-				if AppCfg["StopDaemon"].(bool) {
+				stop, ok := AppCfg["StopDaemon"].(bool)
+				if ok != true {
+					llog.Critical("Config error:", err)
+				}
+				if stop {
 					YD.Stop()
 				}
-				YD.Close() // it closes Changes channel
 				return
 			}
 		}
