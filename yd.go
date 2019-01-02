@@ -1,3 +1,5 @@
+// Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
+// License: GPL v.3
 package main
 
 import (
@@ -24,7 +26,6 @@ Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 	  License: GPL v.3
 
 `
-
 var (
 	// Msg is the Localization printer
 	Msg *message.Printer
@@ -69,209 +70,231 @@ func (l *LastT) len() int {
 	return len(l.m)
 }
 
+type menu struct {
+	status *systray.MenuItem
+	size1  *systray.MenuItem
+	size2  *systray.MenuItem
+	last   *systray.MenuItem
+	lastT  *LastT
+	ssAct  *systray.MenuItem
+	out    *systray.MenuItem
+	path   *systray.MenuItem
+	site   *systray.MenuItem
+	help   *systray.MenuItem
+	about  *systray.MenuItem
+	don    *systray.MenuItem
+	quit   *systray.MenuItem
+}
+
 func main() {
 	systray.Run(onReady, onExit)
 }
 
 func onReady() {
-	// Initialize application and receive the application configuration
-	AppCfg := tools.AppInit("yd-go")
 	// Initialize translations
 	Msg = message.NewPrinter(message.MatchLanguage("ru"))
+
+	// Initialize application and receive the application configuration
+	AppCfg := tools.AppInit("yd-go")
 
 	// Create new ydisk interface
 	YD, err := ydisk.NewYDisk(AppCfg["Conf"].(string))
 	if err != nil {
 		llog.Critical("Fatal error:", err)
 	}
+	var ok bool
 	// Start daemon if it is configured
 	if start, ok := AppCfg["StartDaemon"].(bool); start {
 		go YD.Start()
 	} else if !ok {
-		llog.Critical("Config read error: StartDaemon should be bool", err)
+		llog.Critical("Config read error: StartDaemon should be bool")
 	}
 	// Initialize icon theme
-	theme, ok := AppCfg["Theme"].(string)
-	if !ok {
+	var theme string
+	if theme, ok = AppCfg["Theme"].(string); !ok {
 		llog.Critical("Config read error: Theme should be string")
 	}
 	icons.SetTheme("/usr/share/yd-go/icons", theme)
 	// Initialize systray icon
 	systray.SetIcon(icons.IconPause)
+
+	m := new(menu)
+
+	// Read stop flag (to stop the daemon on exit)
+	stop, ok := AppCfg["StopDaemon"].(bool) 
+	if !ok {
+		llog.Critical("Config read error: StopDaemon should be bool")
+	}
+
+	note, ok := AppCfg["Notifications"].(bool)
+	if !ok {
+		llog.Critical("Config error:", err)
+	}
+
 	systray.SetTitle("")
 	// Initialize systray menu
-	mStatus := systray.AddMenuItem(Msg.Sprint("Status: ")+Msg.Sprint("unknown"), "")
-	mStatus.Disable()
-	mSize1 := systray.AddMenuItem("", "")
-	mSize1.Disable()
-	mSize2 := systray.AddMenuItem("", "")
-	mSize2.Disable()
+	m.status = systray.AddMenuItem(Msg.Sprint("Status: ")+Msg.Sprint("unknown"), "")
+	m.status.Disable()
+	m.size1 = systray.AddMenuItem("", "")
+	m.size1.Disable()
+	m.size2 = systray.AddMenuItem("", "")
+	m.size2.Disable()
 	systray.AddSeparator()
 	// use 2 ZERO WIDTH SPACES to avoid matching with filenames
-	mLast := systray.AddMenuItem("\u200B\u2060"+Msg.Sprint("Last synchronized"), "")
-	mLast.Disable()
-	systray.AddSeparator()
-	mStartStop := systray.AddMenuItem("", "") // no title at start as current status is unknown
-	systray.AddSeparator()
-	mOutput := systray.AddMenuItem(Msg.Sprint("Show daemon output"), "")
-	mPath := systray.AddMenuItem(Msg.Sprint("Open: ")+YD.Path, "")
-	mSite := systray.AddMenuItem(Msg.Sprint("Open YandexDisk in browser"), "")
-	systray.AddSeparator()
-	mHelp := systray.AddMenuItem(Msg.Sprint("Help"), "")
-	mAbout := systray.AddMenuItem(Msg.Sprint("About"), "")
-	mDon := systray.AddMenuItem(Msg.Sprint("Donations"), "")
-	systray.AddSeparator()
-	mQuit := systray.AddMenuItem(Msg.Sprint("Quit"), "")
+	m.last = systray.AddMenuItem("\u200B\u2060"+Msg.Sprint("Last synchronized"), "")
+	m.last.Disable()
 	// Dictionary for last synchronized title (as shorten path) and full path
-	var last LastT
+	m.lastT = new(LastT)
 	// NOTE: there can be an issue if two (or more) files has the same shorten representation.
 	// In such a case all menu labels will be joined with the single full path (path of the last addad item)
+	systray.AddSeparator()
+	m.ssAct = systray.AddMenuItem("", "") // no title at start as current status is unknown
+	systray.AddSeparator()
+	m.out = systray.AddMenuItem(Msg.Sprint("Show daemon output"), "")
+	m.path = systray.AddMenuItem(Msg.Sprint("Open: ")+YD.Path, "")
+	m.site = systray.AddMenuItem(Msg.Sprint("Open YandexDisk in browser"), "")
+	systray.AddSeparator()
+	m.help = systray.AddMenuItem(Msg.Sprint("Help"), "")
+	m.about = systray.AddMenuItem(Msg.Sprint("About"), "")
+	m.don = systray.AddMenuItem(Msg.Sprint("Donations"), "")
+	systray.AddSeparator()
+	m.quit = systray.AddMenuItem(Msg.Sprint("Quit"), "")
 
-	go func() {
-		llog.Debug("Menu handler started")
-		defer func() {
-			llog.Debug("Menu handler exited.")
-			YD.Close() // it closes Changes channel
-		}()
+	// Start handlers
+	go menuHandler(YD, m, stop)    // handler for GUI events
+	go changeHandler(YD, m, note)  // handler for YDisk events 
+}
 
-		for {
-			select {
-			case title := <-mStartStop.ClickedCh:
-				switch {
-				case strings.HasPrefix(title, "\u200B"): // start
-					go YD.Start()
-				case strings.HasPrefix(title, "\u2060"): // stop
-					go YD.Stop()
-				} // do nothing in other cases
-			case title := <-mLast.ClickedCh:
-				if !strings.HasPrefix(title, "\u200B\u2060") {
-					tools.XdgOpen(last.get(title))
-				}
-			case <-mOutput.ClickedCh:
-				notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk daemon output"), YD.Output())
-			case <-mPath.ClickedCh:
-				tools.XdgOpen(YD.Path)
-			case <-mSite.ClickedCh:
-				tools.XdgOpen(Msg.Sprint("https://disk.yandex.com"))
-			case <-mHelp.ClickedCh:
-				tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
-			case <-mAbout.ClickedCh:
-				notifySend(icons.IconNotify, " ", about)
-			case <-mDon.ClickedCh:
-				tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donations"))
-			case <-mQuit.ClickedCh:
-				llog.Debug("Exit requested.")
-				// Stop daemon if it is configured
-				stop, ok := AppCfg["StopDaemon"].(bool)
-				if ok != true {
-					llog.Critical("Config error:", err)
-				}
-				if stop {
-					YD.Stop()
-				}
+func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
+	llog.Debug("Menu handler started")
+	defer func() {
+		llog.Debug("Menu handler exited.")
+		YD.Close() // it closes Changes channel
+	}()
+
+	for {
+		select {
+		case title := <-m.ssAct.ClickedCh:
+			switch {
+			case strings.HasPrefix(title, "\u200B"): // start
+				go YD.Start()
+			case strings.HasPrefix(title, "\u2060"): // stop
+				go YD.Stop()
+			} // do nothing in other cases
+		case title := <-m.last.ClickedCh:
+			if !strings.HasPrefix(title, "\u200B\u2060") {
+				tools.XdgOpen(m.lastT.get(title))
+			}
+		case <-m.out.ClickedCh:
+			notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk daemon output"), YD.Output())
+		case <-m.path.ClickedCh:
+			tools.XdgOpen(YD.Path)
+		case <-m.site.ClickedCh:
+			tools.XdgOpen(Msg.Sprint("https://disk.yandex.com"))
+		case <-m.help.ClickedCh:
+			tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
+		case <-m.about.ClickedCh:
+			notifySend(icons.IconNotify, " ", about)
+		case <-m.don.ClickedCh:
+			tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donations"))
+		case <-m.quit.ClickedCh:
+			llog.Debug("Exit requested.")
+			// Stop daemon if it is configured
+			if stop {
+				YD.Stop()
+			}
+			return
+		}
+	}
+}
+
+func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
+	defer systray.Quit() // request for exit from systray main loop (gtk.main())
+	llog.Debug("Changes handler started")
+	defer llog.Debug("Changes handler exited.")
+	// Prepare the staff for icon animation
+	currentIcon := 0
+	tick := time.NewTimer(333 * time.Millisecond)
+	defer tick.Stop()
+	currentStatus := ""
+	for {
+		select {
+		case <-tick.C: //  Icon timer event
+			currentIcon = (currentIcon + 1) % 5
+			if currentStatus == "busy" || currentStatus == "index" {
+				systray.SetIcon(icons.IconBusy[currentIcon])
+				tick.Reset(333 * time.Millisecond)
+			}
+		case yds, ok := <-YD.Changes: // get YDisk change event
+			if !ok { // as Changes channel closed - exit
 				return
 			}
-		}
-	}()
+			currentStatus = yds.Stat
 
-	go func() {
-		defer systray.Quit() // request for exit from systray main loop (gtk.main())
-		llog.Debug("Changes handler started")
-		defer llog.Debug("Changes handler exited.")
-		// Prepare the staff for icon animation
-		currentIcon := 0
-		tick := time.NewTimer(333 * time.Millisecond)
-		defer tick.Stop()
-		currentStatus := ""
-		for {
-			select {
-			case yds, ok := <-YD.Changes: // YD changed status event
-				if !ok { // as Changes channel closed - exit
-					return
+			m.status.SetTitle(Msg.Sprint("Status: ") + Msg.Sprint(yds.Stat) + " " + yds.Prog +
+				yds.Err + " " + tools.ShortName(yds.ErrP, 30))
+			m.size1.SetTitle(Msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
+			m.size2.SetTitle(Msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
+			if yds.ChLast { // last synchronized list changed
+				m.last.RemoveSubmenu()
+				m.lastT.reset()
+				if len(yds.Last) > 0 {
+					for _, p := range yds.Last {
+						short, full := tools.ShortName(p, 40), filepath.Join(YD.Path, p)
+						m.last.AddSubmenuItem(short, tools.NotExists(full))
+						m.lastT.set(short, full)
+					}
+					m.last.Enable()
+				} else {
+					m.last.Disable()
 				}
-				currentStatus = yds.Stat
-
-				mStatus.SetTitle(Msg.Sprint("Status: ") + Msg.Sprint(yds.Stat) + " " + yds.Prog +
-					yds.Err + " " + tools.ShortName(yds.ErrP, 30))
-				mSize1.SetTitle(Msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
-				mSize2.SetTitle(Msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
-				if yds.ChLast { // last synchronized list changed
-					mLast.RemoveSubmenu()
-					last.reset()
-					if len(yds.Last) > 0 {
-						for _, p := range yds.Last {
-							short, full := tools.ShortName(p, 40), filepath.Join(YD.Path, p)
-							mLast.AddSubmenuItem(short, tools.NotExists(full))
-							last.set(short, full)
-						}
-						mLast.Enable()
-					} else {
-						mLast.Disable()
-					}
-					llog.Debug("Last synchronized setd L", last.len())
-				}
-				if yds.Stat != yds.Prev { // status changed
-					// change indicator icon
-					switch yds.Stat {
-					case "idle":
-						systray.SetIcon(icons.IconIdle)
-					case "busy", "index":
-						systray.SetIcon(icons.IconBusy[currentIcon])
-						if yds.Prev != "busy" && yds.Prev != "index" {
-							tick.Reset(333 * time.Millisecond)
-						}
-					case "none", "paused":
-						systray.SetIcon(icons.IconPause)
-					default:
-						systray.SetIcon(icons.IconError)
-					}
-					// handle Start/Stop menu title
-					if yds.Stat == "none" {
-						mStartStop.SetTitle("\u200B" + Msg.Sprint("Start daemon"))
-						mOutput.Disable()
-					} else if yds.Prev == "none" || yds.Prev == "unknown" {
-						mStartStop.SetTitle("\u2060" + Msg.Sprint("Stop daemon"))
-						mOutput.Enable()
-					}
-					// handle notifications
-					if AppCfg["Notifications"].(bool) {
-						switch {
-						case yds.Stat == "none" && yds.Prev != "unknown":
-							notifySend(
-								icons.IconNotify,
-								Msg.Sprint("Yandex.Disk"),
-								Msg.Sprint("Daemon stopped"))
-						case yds.Prev == "none":
-							notifySend(
-								icons.IconNotify,
-								Msg.Sprint("Yandex.Disk"),
-								Msg.Sprint("Daemon started"))
-						case (yds.Stat == "busy" || yds.Stat == "index") &&
-							(yds.Prev != "busy" && yds.Prev != "index"):
-							notifySend(
-								icons.IconNotify,
-								Msg.Sprint("Yandex.Disk"),
-								Msg.Sprint("Synchronization started"))
-						case (yds.Stat == "idle" || yds.Stat == "error") &&
-							(yds.Prev == "busy" || yds.Prev == "index"):
-							notifySend(
-								icons.IconNotify,
-								Msg.Sprint("Yandex.Disk"),
-								Msg.Sprint("Synchronization finished"))
-						}
-					}
-				}
-				llog.Debug("Change handled")
-			case <-tick.C: //  Icon timer event
-				currentIcon++
-				currentIcon %= 5
-				if currentStatus == "busy" || currentStatus == "index" {
+				llog.Debug("Last synchronized length:", m.lastT.len())
+			}
+			if yds.Stat != yds.Prev { // status changed
+				// change indicator icon
+				switch yds.Stat {
+				case "idle":
+					systray.SetIcon(icons.IconIdle)
+				case "busy", "index":
 					systray.SetIcon(icons.IconBusy[currentIcon])
-					tick.Reset(333 * time.Millisecond)
+					if yds.Prev != "busy" && yds.Prev != "index" {
+						tick.Reset(333 * time.Millisecond)
+					}
+				case "none", "paused":
+					systray.SetIcon(icons.IconPause)
+				default:
+					systray.SetIcon(icons.IconError)
+				}
+				// handle Start/Stop menu title
+				if yds.Stat == "none" {
+					m.ssAct.SetTitle("\u200B" + Msg.Sprint("Start daemon"))
+					m.out.Disable()
+				} else if yds.Prev == "none" || yds.Prev == "unknown" {
+					m.ssAct.SetTitle("\u2060" + Msg.Sprint("Stop daemon"))
+					m.out.Enable()
+				}
+				if note {	// handle notifications
+					switch {
+					case yds.Stat == "none" && yds.Prev != "unknown":
+						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
+							Msg.Sprint("Daemon stopped"))
+					case yds.Prev == "none":
+						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
+							Msg.Sprint("Daemon started"))
+					case (yds.Stat == "busy" || yds.Stat == "index") &&
+						 (yds.Prev != "busy" && yds.Prev != "index"):
+						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
+							Msg.Sprint("Synchronization started"))
+					case (yds.Stat == "idle" || yds.Stat == "error") &&	
+						 (yds.Prev == "busy" || yds.Prev == "index"):
+						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),	
+						Msg.Sprint("Synchronization finished"))
+					}
 				}
 			}
+			llog.Debug("Change handled")
 		}
-	}()
+	}
 }
 
 func onExit() {

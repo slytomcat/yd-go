@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"sync"
 
 	"github.com/slytomcat/confjson"
 	"github.com/slytomcat/llog"
@@ -21,25 +20,6 @@ func NotExists(path string) bool {
 	}
 	return false
 }
-
-var userHome string
-var once sync.Once
-
-// ExpandHome returns full path expanding ~ as $HOME
-// func ExpandHome(path string) string {
-// 	if len(path) == 0 || path[0] != '~' {
-// 		return path
-// 	}
-// 	once.Do(func() {
-// 		usr, err := user.Current()
-// 		if err != nil {
-// 			llog.Critical("Can't get current user profile:", err)
-// 		}
-// 		userHome = usr.HomeDir
-// 		llog.Debug("User home folder:", userHome)
-// 	})
-// 	return filepath.Join(userHome, path[1:])
-// }
 
 // XdgOpen opens the uri via xdg-open command
 func XdgOpen(uri string) {
