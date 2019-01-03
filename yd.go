@@ -169,7 +169,7 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 	llog.Debug("Menu handler started")
 	defer func() {
 		llog.Debug("Menu handler exited.")
-		YD.Close() // it closes Changes channel
+		YD.Close() // it closes Changes channel -> closed channel closes disk event handler
 	}()
 
 	for {
