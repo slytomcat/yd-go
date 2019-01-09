@@ -6,8 +6,11 @@ github.com/slytomcat/llog v0.0.0-20181019073344-e5e77a7e5708 h1:RjYOrfIDjVN/qAEJ
 github.com/slytomcat/llog v0.0.0-20181019073344-e5e77a7e5708/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
 github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5 h1:ifdkIcwFB/i53vu+dHb+isV3yIozni2pWOmt9vIZC+U=
 github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5/go.mod h1:kkwijnLZO0ubbN/iDF+eXbtRucAFb7kfASfT2viinT4=
+github.com/slytomcat/yandex-disk-simulator v0.0.0-20190107200251-207ace62e091/go.mod h1:eGnZP1FMyaG5BJAVMkC5aglVULFxuaaY0PUiPIfdzUo=
 github.com/slytomcat/ydisk v0.0.0-20181225162754-73f7df333538 h1:eNfSP+r9+9i8lIPwfNHh8FeGdrXPNdOk9DIxA2In51Y=
 github.com/slytomcat/ydisk v0.0.0-20181225162754-73f7df333538/go.mod h1:9TsV+G/aRJ2rBk7XYPOlfKYePP1r5jFp+scNA3aPA7c=
+github.com/slytomcat/ydisk v0.0.0-20190109214517-d118a54d46a5 h1:W3DujKo2HuBvzEfYsB1LGrxv1kgcvsERN3ZrUgBVxao=
+github.com/slytomcat/ydisk v0.0.0-20190109214517-d118a54d46a5/go.mod h1:Q6jUb1QVxdHHMC85yLRIjFWNIDy7+9MoF2pWjMERvX0=
 golang.org/x/sys v0.0.0-20181228144115-9a3f9b0469bb h1:pf3XwC90UUdNPYWZdFjhGBE7DUFuK3Ct1zWmZ65QN30=
 golang.org/x/sys v0.0.0-20181228144115-9a3f9b0469bb/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
