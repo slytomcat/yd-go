@@ -13,7 +13,7 @@ wget https://gist.githubusercontent.com/stefanbuck/ce788fee19ab6eb0b4447a85fc99f
 chmod a+x upload-github-release-asset.sh
 
 # install requirements
-apt install libgtk-3-dev libappindicator3-dev
+sudo apt install libgtk-3-dev libappindicator3-dev
 
 # set environment
 export OWNER=$CIRCLE_PROJECT_USERNAME
