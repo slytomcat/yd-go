@@ -34,7 +34,7 @@ func ShortName(s string, l int) string {
 	lr := len(r)
 	if lr > l {
 		b := (l - 3) / 2
-		return string(r[:b]) + "..." + string(r[lr - (l - b - 3):])
+		return string(r[:b]) + "..." + string(r[lr-(l-b-3):])
 	}
 	return s
 }
@@ -76,7 +76,7 @@ func AppInit(appName string) map[string]interface{} {
 	// Check that app configuration file path exists
 	AppConfigHome := os.ExpandEnv("$HOME/.config/" + appName)
 	if NotExists(AppConfigHome) {
-		if err := os.MkdirAll(AppConfigHome, 0766) ;err != nil {
+		if err := os.MkdirAll(AppConfigHome, 0766); err != nil {
 			llog.Critical("Can't create application configuration path:", err)
 		}
 	}
@@ -91,10 +91,11 @@ func AppInit(appName string) map[string]interface{} {
 		}
 	} else {
 		// Read app configuration file
-		AppCfg, err := confjson.Load(AppConfigFile)
+		cfg, err := confjson.Load(AppConfigFile)
 		if err != nil {
 			llog.Critical("Can't access application configuration file:", err)
 		}
+		AppCfg = cfg
 	}
 	return AppCfg
 }
