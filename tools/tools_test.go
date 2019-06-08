@@ -20,10 +20,13 @@ func TestShortName(t *testing.T) {
 	if len(ShortName("1234567890", 8)) != 8 {
 		t.Error("Long string not changed")
 	}
+	if len(ShortName("12345678901", 8)) != 8 {
+		t.Error("Long string not changed")
+	}
 	if len([]rune(ShortName("русский текст", 10))) != 10 {
 		t.Error("Long string with national symbols not shorten as expected")
 	}
-	if len([]rune(ShortName("русский текст", 40))) != 13 {
+	if len([]rune(ShortName("русский текст да", 40))) != 16 {
 		t.Error("Short string with national symbols has unexpected length")
 	}
 

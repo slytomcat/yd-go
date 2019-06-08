@@ -14,8 +14,7 @@ import (
 
 // NotExists returns true when specified path does not exists
 func NotExists(path string) bool {
-	_, err := os.Stat(path)
-	if err != nil {
+	if _, err := os.Stat(path); err != nil {
 		return os.IsNotExist(err)
 	}
 	return false
@@ -23,8 +22,7 @@ func NotExists(path string) bool {
 
 // XdgOpen opens the uri via xdg-open command
 func XdgOpen(uri string) {
-	err := exec.Command("xdg-open", uri).Start()
-	if err != nil {
+	if err := exec.Command("xdg-open", uri).Start(); err != nil {
 		llog.Error(err)
 	}
 }
@@ -36,11 +34,7 @@ func ShortName(s string, l int) string {
 	lr := len(r)
 	if lr > l {
 		b := (l - 3) / 2
-		e := b
-		if b+e+3 < l {
-			e++
-		}
-		return string(r[:b]) + "..." + string(r[lr-e:])
+		return string(r[:b]) + "..." + string(r[lr - (l - b - 3):])
 	}
 	return s
 }
@@ -82,8 +76,7 @@ func AppInit(appName string) map[string]interface{} {
 	// Check that app configuration file path exists
 	AppConfigHome := os.ExpandEnv("$HOME/.config/" + appName)
 	if NotExists(AppConfigHome) {
-		err := os.MkdirAll(AppConfigHome, 0766)
-		if err != nil {
+		if err := os.MkdirAll(AppConfigHome, 0766) ;err != nil {
 			llog.Critical("Can't create application configuration path:", err)
 		}
 	}
@@ -93,17 +86,15 @@ func AppInit(appName string) map[string]interface{} {
 	// Check that app configuration file exists
 	if NotExists(AppConfigFile) {
 		//Create and save new configuration file with default values
-		err := confjson.Save(AppConfigFile, AppCfg)
-		if err != nil {
+		if err := confjson.Save(AppConfigFile, AppCfg); err != nil {
 			llog.Critical("Can't create application configuration file:", err)
 		}
 	} else {
 		// Read app configuration file
-		Cfg, err := confjson.Load(AppConfigFile)
+		AppCfg, err := confjson.Load(AppConfigFile)
 		if err != nil {
 			llog.Critical("Can't access application configuration file:", err)
 		}
-		AppCfg = *Cfg
 	}
 	return AppCfg
 }
