@@ -1,9 +1,13 @@
 module github.com/slytomcat/yd-go
 
 require (
-	github.com/slytomcat/confjson v0.0.0-20181021221824-c949fb10b6ef
-	github.com/slytomcat/llog v0.0.0-20181019073344-e5e77a7e5708
+	github.com/slytomcat/confjson v0.0.0-20190608164107-fc25809bcc85
+	github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b
 	github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5
-	github.com/slytomcat/ydisk v0.0.0-20190109214517-d118a54d46a5
-	golang.org/x/text v0.3.0
+	github.com/slytomcat/ydisk v0.0.0-20190204161635-18d7bea467b6
+	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5 // indirect
+	golang.org/x/net v0.0.0-20190607181551-461777fb6f67 // indirect
+	golang.org/x/sys v0.0.0-20190609082536-301114b31cce // indirect
+	golang.org/x/text v0.3.2
+	golang.org/x/tools v0.0.0-20190608022120-eacb66d2a7c3 // indirect
 )
