@@ -92,7 +92,7 @@ func main() {
 
 func onReady() {
 	// Initialize translations
-	//Msg = message.NewPrinter(message.MatchLanguage("ru"))
+	Msg = message.NewPrinter(message.MatchLanguage("ru"))
 
 	// Initialize application and receive the application configuration
 	AppCfg := tools.AppInit("yd-go")

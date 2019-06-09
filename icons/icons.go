@@ -99,7 +99,7 @@ func PrepareIcons() error {
 }
 // ClearIcons removes icons form file system on exit
 func ClearIcons() error { 
-	if err := os.Remove(icoHome); err != nil {
+	if err := os.RemoveAll(icoHome); err != nil {
 		return fmt.Errorf("Can't remove icon folder: %v", err)
 	}
 	return nil
