@@ -38,19 +38,15 @@ For building this prject the additional packages are requered:
 
     `sudo apt-get install libgtk-3-dev libappindicator3-dev`
 
-2. Go packages that is used in the progect. They can be installed by:
-
-    `go get -d`
-    
 Then you can buld the project with 
 
     go build
 
 ## Installation
-Run install.bash script with root previlegies for installation.
+Run 
+    go install
 
-    sudo ./install.bash
-
+Or copy yd-go to somewhere in the path (/usr/bin for example)
 
 ## Usage
 		yd-go [-debug] [-config=<Path to indicator config>]
