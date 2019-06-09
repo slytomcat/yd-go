@@ -19,7 +19,7 @@ import (
 
 const about = `yd-go is the panel indicator for Yandex.Disk daemon.
 
-      Version: 0.3
+      Version: 0.4.0
 
 Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 
