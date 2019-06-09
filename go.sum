@@ -1,3 +1,5 @@
+github.com/cratonica/2goarray v0.0.0-20190331194516-514510793eaa h1:Wg+722vs7a2zQH5lR9QWYsVbplKeffaQFIs5FTdfNNo=
+github.com/cratonica/2goarray v0.0.0-20190331194516-514510793eaa/go.mod h1:6Arca19mRx58CA7OWEd7Wu1NpC1rd3uDnNs6s1pj/DI=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/slytomcat/confjson v0.0.0-20181021221824-c949fb10b6ef h1:8hlXlFgSAKfEstA3ZXiMuXehR0q8YXbEWzl35DaWvFQ=
@@ -20,6 +22,7 @@ github.com/slytomcat/ydisk v0.0.0-20190109214517-d118a54d46a5/go.mod h1:Q6jUb1QV
 github.com/slytomcat/ydisk v0.0.0-20190204161635-18d7bea467b6 h1:E/UG8BrLTSo0BR5Yj/Rp2FnO6erjB+HHIIKDEEFSbM4=
 github.com/slytomcat/ydisk v0.0.0-20190204161635-18d7bea467b6/go.mod h1:JNROsdmw1xqYbJGmm4LnsqIjqur4Yz9lAGI/rb+s1lU=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5 h1:58fnuSXlxZmFdJyvtTFVmVhcMLU6v5fEb/ok4wyqtNU=
 golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
 golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
 golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=

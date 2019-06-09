@@ -25,9 +25,3 @@ export GOARCH=amd64
 go build
 mv yd-go yd-go-amd64
 ./upload-github-release-asset.sh github_api_token=$GHAPITOKEN owner=$OWNER repo=$REPO tag="$TAG" filename=yd-go-amd64
-
-# build binary for linux 386 platform
-export GOARCH=386
-go build 
-mv yd-go yd-go-386
-./upload-github-release-asset.sh  github_api_token=$GHAPITOKEN owner=$OWNER repo=$REPO tag=$TAG filename=yd-go-386

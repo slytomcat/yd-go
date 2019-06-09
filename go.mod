@@ -1,6 +1,7 @@
 module github.com/slytomcat/yd-go
 
 require (
+	github.com/cratonica/2goarray v0.0.0-20190331194516-514510793eaa // indirect
 	github.com/slytomcat/confjson v0.0.0-20190608164107-fc25809bcc85
 	github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b
 	github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5

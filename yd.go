@@ -92,7 +92,7 @@ func main() {
 
 func onReady() {
 	// Initialize translations
-	Msg = message.NewPrinter(message.MatchLanguage("ru"))
+	//Msg = message.NewPrinter(message.MatchLanguage("ru"))
 
 	// Initialize application and receive the application configuration
 	AppCfg := tools.AppInit("yd-go")
@@ -114,7 +114,10 @@ func onReady() {
 	if theme, ok = AppCfg["Theme"].(string); !ok {
 		llog.Critical("Config read error: Theme should be string")
 	}
-	icons.SetTheme("/usr/share/yd-go/icons", theme)
+	if err := icons.PrepareIcons(); err != nil {
+		llog.Critical(err)
+	}
+	icons.SetTheme(theme)
 	// Initialize systray icon
 	systray.SetIcon(icons.IconPause)
 
@@ -203,6 +206,7 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 			if stop {
 				YD.Stop()
 			}
+			icons.ClearIcons()
 			return
 		}
 	}
