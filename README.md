@@ -1,5 +1,7 @@
-# yd-go
+# yd-go 
+[![CircleCI](https://circleci.com/gh/slytomcat/yd-go.svg?style=svg)](https://circleci.com/gh/slytomcat/yd-go)
 ## Panel indicator for Yandex-disk CLI daemon (linux/GTK+)
+
 
 It is GTK+ version of indicator. If you are interested in Qt version, visit: https://github.com/slytomcat/yd-qgo
 
