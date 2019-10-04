@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -19,14 +20,16 @@ import (
 
 const about = `yd-go is the panel indicator for Yandex.Disk daemon.
 
-      Version: 0.4.1
+      Version: %s
 
 Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
 
 	  License: GPL v.3
 
 `
+
 var (
+	version, _ = exec.Command("git", "describe", "--tags").Output()
 	// Msg is the Localization printer
 	Msg *message.Printer
 )
@@ -124,7 +127,7 @@ func onReady() {
 	m := new(menu)
 
 	// Read stop flag (to stop the daemon on exit)
-	stop, ok := AppCfg["StopDaemon"].(bool) 
+	stop, ok := AppCfg["StopDaemon"].(bool)
 	if !ok {
 		llog.Critical("Config read error: StopDaemon should be bool")
 	}
@@ -164,8 +167,8 @@ func onReady() {
 	m.quit = systray.AddMenuItem(Msg.Sprint("Quit"), "")
 
 	// Start handlers
-	go menuHandler(YD, m, stop)    // handler for GUI events
-	go changeHandler(YD, m, note)  // handler for YDisk events 
+	go menuHandler(YD, m, stop)   // handler for GUI events
+	go changeHandler(YD, m, note) // handler for YDisk events
 }
 
 func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
@@ -197,7 +200,7 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 		case <-m.help.ClickedCh:
 			tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
 		case <-m.about.ClickedCh:
-			notifySend(icons.IconNotify, " ", about)
+			notifySend(icons.IconNotify, " ", fmt.Sprintf(about, version))
 		case <-m.don.ClickedCh:
 			tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donations"))
 		case <-m.quit.ClickedCh:
@@ -277,7 +280,7 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 					m.ssAct.SetTitle("\u2060" + Msg.Sprint("Stop daemon"))
 					m.out.Enable()
 				}
-				if note {	// handle notifications
+				if note { // handle notifications
 					switch {
 					case yds.Stat == "none" && yds.Prev != "unknown":
 						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
@@ -286,13 +289,13 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
 							Msg.Sprint("Daemon started"))
 					case (yds.Stat == "busy" || yds.Stat == "index") &&
-						 (yds.Prev != "busy" && yds.Prev != "index"):
+						(yds.Prev != "busy" && yds.Prev != "index"):
 						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
 							Msg.Sprint("Synchronization started"))
-					case (yds.Stat == "idle" || yds.Stat == "error") &&	
-						 (yds.Prev == "busy" || yds.Prev == "index"):
-						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),	
-						Msg.Sprint("Synchronization finished"))
+					case (yds.Stat == "idle" || yds.Stat == "error") &&
+						(yds.Prev == "busy" || yds.Prev == "index"):
+						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
+							Msg.Sprint("Synchronization finished"))
 					}
 				}
 			}
