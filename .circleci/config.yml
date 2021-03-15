@@ -15,7 +15,7 @@ jobs:
           command: go build
       - run:
           name: upload_release
-          command: 
+          command: |
             TAG=$(git describe --tags)
             mv yd-go yd-go-amd64
             ghr -t ${GHAPITOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${TAG} ./yd-go-amd64
