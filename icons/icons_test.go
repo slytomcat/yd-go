@@ -125,3 +125,18 @@ func Test_SetTheme(t *testing.T) {
 	}
 
 }
+
+func Test_IconsE(t *testing.T) {
+	err := PrepareIcons()
+	if err != nil {
+		t.Error(err)
+	}
+	err = PrepareIcons()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ClearIcons()
+	if err != nil {
+		t.Error(err)
+	}
+}
