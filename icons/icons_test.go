@@ -1,6 +1,9 @@
 package icons
 
-import "testing"
+import (
+	"path"
+	"testing"
+)
 
 func Test_Data_lightBusy1(t *testing.T) {
 	if len(lightBusy1) == 0 {
@@ -102,4 +105,23 @@ func Test_Data_yd128(t *testing.T) {
 	if len(yd128) == 0 {
 		t.Error("len(yd128) = 0")
 	}
+}
+
+func Test_Icons(t *testing.T) {
+	err := PrepareIcons()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ClearIcons()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func Test_SetTheme(t *testing.T) {
+	SetTheme("theme")
+	if IconError != path.Join(icoHome, "themeError.png") {
+		t.Errorf("wrong path of IconError: %s", IconError)
+	}
+
 }
