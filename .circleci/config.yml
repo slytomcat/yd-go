@@ -14,17 +14,35 @@ jobs:
           name: build
           command: go build
       - run:
-          name: upload_release
+          name: prepare artifacts
           command: |
-            TAG=$(git describe --tags)
+            git describe --tags > TAG
             mv yd-go yd-go-amd64
-            ghr -t ${GHAPITOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${TAG} ./yd-go-amd64
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./yd-go-amd64
+            - ./TAG
+  upload:
+    docker:
+      - image: 'cibuilds/github:0.10'
+    steps:
+      - attach_workspace:
+          at: ./artifacts
+      - run:
+          name: Publish Release on GitHub
+          command: |
+            TAG=$(cat ./artifacts/TAG)
+            ghr -t ${GHAPITOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${TAG} ./artifacts/yd-go-amd64
+
+
 
 workflows:
   version: 2.1
-  build:
+  build_upload:
     jobs:
-      - build:
+      - build
+      - upload:
           filters:
             branches:
               only: master
