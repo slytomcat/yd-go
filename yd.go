@@ -1,4 +1,4 @@
-// Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
+// Copyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)
 // License: GPL v.3
 package main
 
@@ -22,7 +22,7 @@ const about = `yd-go is the panel indicator for Yandex.Disk daemon.
 
       Version: %s
 
-Copyleft 2017-2018 Sly_tom_cat (slytomcat@mail.ru)
+Copyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)
 
 	  License: GPL v.3
 
