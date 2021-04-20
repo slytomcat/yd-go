@@ -1,9 +1,12 @@
 // Copyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)
 // License: GPL v.3
+
+//go:generate gotext -srclang=en update -out=catalog.go -lang=en,ru
+
 package main
 
 import (
-	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -18,21 +21,22 @@ import (
 	"golang.org/x/text/message"
 )
 
-const about = `yd-go is the panel indicator for Yandex.Disk daemon.
+var (
+	version = "local build"
+	// msg is the Localization printer
+	msg      *message.Printer
+	statusTr map[string]string
+)
 
-      Version: %s
+const about = `yd-go is the GTK-based panel indicator for Yandex.Disk daemon.
+
+	Version: %s
 
 Copyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)
 
-	  License: GPL v.3
+	License: GPL v.3
 
 `
-
-var (
-	version, _ = exec.Command("git", "describe", "--tags").Output()
-	// Msg is the Localization printer
-	Msg *message.Printer
-)
 
 func notifySend(icon, title, body string) {
 	llog.Debug("Message:", title, ":", body)
@@ -94,11 +98,17 @@ func main() {
 }
 
 func onReady() {
-	// Initialize translations
-	Msg = message.NewPrinter(message.MatchLanguage("ru"))
-
 	// Initialize application and receive the application configuration
 	AppCfg := tools.AppInit("yd-go")
+
+	// Initialize translations
+	lng := os.Getenv("LANG")
+	if len(lng) > 2 {
+		lng = lng[:2]
+	}
+
+	llog.Infof("Local language is: %v", lng)
+	msg = message.NewPrinter(message.MatchLanguage(lng))
 
 	// Create new ydisk interface
 	YD, err := ydisk.NewYDisk(AppCfg["Conf"].(string))
@@ -124,6 +134,15 @@ func onReady() {
 	// Initialize systray icon
 	systray.SetIcon(icons.IconPause)
 
+	// Initialize status localization
+	statusTr = map[string]string{
+		"idle":   msg.Sprintf("idle"),
+		"index":  msg.Sprintf("index"),
+		"busy":   msg.Sprintf("busy"),
+		"none":   msg.Sprintf("none"),
+		"paused": msg.Sprintf("paused"),
+	}
+
 	m := new(menu)
 
 	// Read stop flag (to stop the daemon on exit)
@@ -139,7 +158,7 @@ func onReady() {
 
 	systray.SetTitle("")
 	// Initialize systray menu
-	m.status = systray.AddMenuItem(Msg.Sprint("Status: ")+Msg.Sprint("unknown"), "")
+	m.status = systray.AddMenuItem("", "")
 	m.status.Disable()
 	m.size1 = systray.AddMenuItem("", "")
 	m.size1.Disable()
@@ -147,7 +166,7 @@ func onReady() {
 	m.size2.Disable()
 	systray.AddSeparator()
 	// use 2 ZERO WIDTH SPACES to avoid matching with filenames
-	m.last = systray.AddMenuItem("\u200B\u2060"+Msg.Sprint("Last synchronized"), "")
+	m.last = systray.AddMenuItem("\u200B\u2060"+msg.Sprintf("Last synchronized"), "")
 	m.last.Disable()
 	// Dictionary for last synchronized title (as shorten path) and full path
 	m.lastT = new(LastT)
@@ -156,15 +175,15 @@ func onReady() {
 	systray.AddSeparator()
 	m.ssAct = systray.AddMenuItem("", "") // no title at start as current status is unknown
 	systray.AddSeparator()
-	m.out = systray.AddMenuItem(Msg.Sprint("Show daemon output"), "")
-	m.path = systray.AddMenuItem(Msg.Sprint("Open: ")+YD.Path, "")
-	m.site = systray.AddMenuItem(Msg.Sprint("Open YandexDisk in browser"), "")
+	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
+	m.path = systray.AddMenuItem(msg.Sprintf("Open: %s", YD.Path), "")
+	m.site = systray.AddMenuItem(msg.Sprintf("Open YandexDisk in browser"), "")
 	systray.AddSeparator()
-	m.help = systray.AddMenuItem(Msg.Sprint("Help"), "")
-	m.about = systray.AddMenuItem(Msg.Sprint("About"), "")
-	m.don = systray.AddMenuItem(Msg.Sprint("Donations"), "")
+	m.help = systray.AddMenuItem(msg.Sprintf("Help"), "")
+	m.about = systray.AddMenuItem(msg.Sprintf("About"), "")
+	m.don = systray.AddMenuItem(msg.Sprintf("Donations"), "")
 	systray.AddSeparator()
-	m.quit = systray.AddMenuItem(Msg.Sprint("Quit"), "")
+	m.quit = systray.AddMenuItem(msg.Sprintf("Quit"), "")
 
 	// Start handlers
 	go menuHandler(YD, m, stop)   // handler for GUI events
@@ -181,6 +200,7 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 	for {
 		select {
 		case title := <-m.ssAct.ClickedCh:
+			m.ssAct.Disable()
 			switch {
 			case strings.HasPrefix(title, "\u200B"): // start
 				go YD.Start()
@@ -192,17 +212,17 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 				tools.XdgOpen(m.lastT.get(title))
 			}
 		case <-m.out.ClickedCh:
-			notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk daemon output"), YD.Output())
+			notifySend(icons.IconNotify, msg.Sprintf("Yandex.Disk daemon output"), YD.Output())
 		case <-m.path.ClickedCh:
 			tools.XdgOpen(YD.Path)
 		case <-m.site.ClickedCh:
-			tools.XdgOpen(Msg.Sprint("https://disk.yandex.com"))
+			tools.XdgOpen("https://disk.yandex.com")
 		case <-m.help.ClickedCh:
-			tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT"))
+			tools.XdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
-			notifySend(icons.IconNotify, " ", fmt.Sprintf(about, version))
+			notifySend(icons.IconNotify, " ", msg.Sprintf(about, version))
 		case <-m.don.ClickedCh:
-			tools.XdgOpen(Msg.Sprint("https://github.com/slytomcat/yd-go/wiki/Donations"))
+			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case <-m.quit.ClickedCh:
 			llog.Debug("Exit requested.")
 			// Stop daemon if it is configured
@@ -237,11 +257,10 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 				return
 			}
 			currentStatus = yds.Stat
-
-			m.status.SetTitle(Msg.Sprint("Status: ") + Msg.Sprint(yds.Stat) + " " + yds.Prog +
-				yds.Err + " " + tools.ShortName(yds.ErrP, 30))
-			m.size1.SetTitle(Msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
-			m.size2.SetTitle(Msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
+			st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.ShortName(yds.ErrP, 30)}, " ")
+			m.status.SetTitle(msg.Sprintf("Status: %s", st))
+			m.size1.SetTitle(msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
+			m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 			if yds.ChLast { // last synchronized list changed
 				m.last.RemoveSubmenu()
 				m.lastT.reset()
@@ -274,28 +293,30 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 				}
 				// handle Start/Stop menu title
 				if yds.Stat == "none" {
-					m.ssAct.SetTitle("\u200B" + Msg.Sprint("Start daemon"))
+					m.ssAct.SetTitle("\u200B" + msg.Sprintf("Start daemon"))
+					m.ssAct.Enable()
 					m.out.Disable()
 				} else if yds.Prev == "none" || yds.Prev == "unknown" {
-					m.ssAct.SetTitle("\u2060" + Msg.Sprint("Stop daemon"))
+					m.ssAct.SetTitle("\u2060" + msg.Sprintf("Stop daemon"))
+					m.ssAct.Enable()
 					m.out.Enable()
 				}
 				if note { // handle notifications
 					switch {
 					case yds.Stat == "none" && yds.Prev != "unknown":
-						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
-							Msg.Sprint("Daemon stopped"))
+						notifySend(icons.IconNotify, "Yandex.Disk",
+							msg.Sprintf("Daemon stopped"))
 					case yds.Prev == "none":
-						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
-							Msg.Sprint("Daemon started"))
+						notifySend(icons.IconNotify, "Yandex.Disk",
+							msg.Sprintf("Daemon started"))
 					case (yds.Stat == "busy" || yds.Stat == "index") &&
 						(yds.Prev != "busy" && yds.Prev != "index"):
-						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
-							Msg.Sprint("Synchronization started"))
+						notifySend(icons.IconNotify, "Yandex.Disk",
+							msg.Sprintf("Synchronization started"))
 					case (yds.Stat == "idle" || yds.Stat == "error") &&
 						(yds.Prev == "busy" || yds.Prev == "index"):
-						notifySend(icons.IconNotify, Msg.Sprint("Yandex.Disk"),
-							Msg.Sprint("Synchronization finished"))
+						notifySend(icons.IconNotify, "Yandex.Disk",
+							msg.Sprintf("Synchronization finished"))
 					}
 				}
 			}
