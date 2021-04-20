@@ -1,0 +1,242 @@
+{
+    "language": "en",
+    "messages": [
+        {
+            "id": "idle",
+            "message": "idle",
+            "translation": "idle",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "index",
+            "message": "index",
+            "translation": "index",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "busy",
+            "message": "busy",
+            "translation": "busy",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "none",
+            "message": "none",
+            "translation": "none",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "paused",
+            "message": "paused",
+            "translation": "paused",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Last synchronized",
+            "message": "Last synchronized",
+            "translation": "Last synchronized",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Show daemon output",
+            "message": "Show daemon output",
+            "translation": "Show daemon output",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Open: {Path}",
+            "message": "Open: {Path}",
+            "translation": "Open: {Path}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Path",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "YD.Path"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Open YandexDisk in browser",
+            "message": "Open YandexDisk in browser",
+            "translation": "Open YandexDisk in browser",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Help",
+            "message": "Help",
+            "translation": "Help",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "About",
+            "message": "About",
+            "translation": "About",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Donations",
+            "message": "Donations",
+            "translation": "Donations",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Quit",
+            "message": "Quit",
+            "translation": "Quit",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Yandex.Disk daemon output",
+            "message": "Yandex.Disk daemon output",
+            "translation": "Yandex.Disk daemon output",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": [
+                "about",
+                "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3"
+            ],
+            "message": "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
+            "translation": "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Version",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "version"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Status: {St}",
+            "message": "Status: {St}",
+            "translation": "Status: {St}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "St",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "st"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Used: {Used}/{Total}",
+            "message": "Used: {Used}/{Total}",
+            "translation": "Used: {Used}/{Total}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Used",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "yds.Used"
+                },
+                {
+                    "id": "Total",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "yds.Total"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Free: {Free} Trash: {Trash}",
+            "message": "Free: {Free} Trash: {Trash}",
+            "translation": "Free: {Free} Trash: {Trash}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Free",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "yds.Free"
+                },
+                {
+                    "id": "Trash",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "yds.Trash"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Start daemon",
+            "message": "Start daemon",
+            "translation": "Start daemon",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Stop daemon",
+            "message": "Stop daemon",
+            "translation": "Stop daemon",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Daemon stopped",
+            "message": "Daemon stopped",
+            "translation": "Daemon stopped",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Daemon started",
+            "message": "Daemon started",
+            "translation": "Daemon started",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Synchronization started",
+            "message": "Synchronization started",
+            "translation": "Synchronization started",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Synchronization finished",
+            "message": "Synchronization finished",
+            "translation": "Synchronization finished",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        }
+    ]
+}

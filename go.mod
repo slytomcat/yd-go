@@ -10,8 +10,8 @@ require (
 	github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b
 	github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5
 	github.com/slytomcat/ydisk v0.0.0-20210223140457-b3b716f57361
-	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
-	golang.org/x/text v0.3.5
+	golang.org/x/sys v0.0.0-20210415045647-66c3f260301c // indirect
+	golang.org/x/text v0.3.6
 )
 
 go 1.16
