@@ -29,7 +29,6 @@ func TestShortName(t *testing.T) {
 	if len([]rune(ShortName("русский текст да", 40))) != 16 {
 		t.Error("Short string with national symbols has unexpected length")
 	}
-
 }
 
 func TestNotExists(t *testing.T) {

@@ -32,7 +32,7 @@ const about = `yd-go is the GTK-based panel indicator for Yandex.Disk daemon.
 
 	Version: %s
 
-Copyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)
+Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 
 	License: GPL v.3
 
@@ -53,10 +53,11 @@ type LastT struct {
 	l sync.RWMutex
 }
 
-func (l *LastT) reset() {
-	l.l.Lock()
-	l.m = make(map[string]*string, 10) // 10 - is a maximum length of the last synchronized
-	l.l.Unlock()
+func newLastT() *LastT {
+	return &LastT{
+		m: map[string]*string{},
+		l: sync.RWMutex{},
+	}
 }
 
 func (l *LastT) set(key, value string) {
@@ -169,11 +170,11 @@ func onReady() {
 	m.last = systray.AddMenuItem("\u200B\u2060"+msg.Sprintf("Last synchronized"), "")
 	m.last.Disable()
 	// Dictionary for last synchronized title (as shorten path) and full path
-	m.lastT = new(LastT)
+	m.lastT = nil // do not initialize it on start: it wiil be initialized on the first menu update
 	// NOTE: there can be an issue if two (or more) files has the same shorten representation.
 	// In such a case all menu labels will be joined with the single full path (path of the last addad item)
 	systray.AddSeparator()
-	m.ssAct = systray.AddMenuItem("", "") // no title at start as current status is unknown
+	m.ssAct = systray.AddMenuItem("", "") // no title at start as current status is unknown, it will be updated on the first menu update
 	systray.AddSeparator()
 	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
 	m.path = systray.AddMenuItem(msg.Sprintf("Open: %s", YD.Path), "")
@@ -209,7 +210,9 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 			} // do nothing in other cases
 		case title := <-m.last.ClickedCh:
 			if !strings.HasPrefix(title, "\u200B\u2060") {
-				tools.XdgOpen(m.lastT.get(title))
+				if uri := m.lastT.get(title); uri != "" {
+					tools.XdgOpen(uri)
+				}
 			}
 		case <-m.out.ClickedCh:
 			notifySend(icons.IconNotify, msg.Sprintf("Yandex.Disk daemon output"), YD.Output())
@@ -220,7 +223,7 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 		case <-m.help.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
-			notifySend(icons.IconNotify, " ", msg.Sprintf(about, version))
+			notifySend(icons.IconNotify, " ", msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.don.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case <-m.quit.ClickedCh:
@@ -263,7 +266,7 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 			m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 			if yds.ChLast { // last synchronized list changed
 				m.last.RemoveSubmenu()
-				m.lastT.reset()
+				m.lastT = newLastT()
 				if len(yds.Last) > 0 {
 					for _, p := range yds.Last {
 						short, full := tools.ShortName(p, 40), filepath.Join(YD.Path, p)
