@@ -84,10 +84,10 @@
         {
             "id": [
                 "about",
-                "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3"
+                "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3"
             ],
-            "message": "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
-            "translation": "yd-go это индикатор панели (GTK) для утилиты Yandex.Disk.\n\n\tВерсия: %[1]s\n\nCopyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)\n\n\tЛицензия: GPL v.3",
+            "message": "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
+            "translation": "yd-go это индикатор панели (GTK) для утилиты Yandex.Disk.\n\n\tВерсия: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tЛицензия: GPL v.3",
             "placeholders": [
                 {
                     "id": "Version",

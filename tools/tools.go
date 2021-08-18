@@ -31,12 +31,11 @@ func XdgOpen(uri string) {
 // the maximum number of symbols (runes) in returned string.
 func ShortName(s string, l int) string {
 	r := []rune(s)
-	lr := len(r)
-	if lr > l {
-		b := (l - 3) / 2
-		return string(r[:b]) + "..." + string(r[lr-(l-b-3):])
+	if len(r) < l {
+		return s
 	}
-	return s
+	b := (l - 3) / 2
+	return string(r[:b]) + "..." + string(r[len(r)-(l-3-b):])
 }
 
 // AppInit handles command line arguments, loads the application configuration and
@@ -91,11 +90,11 @@ func AppInit(appName string) map[string]interface{} {
 		}
 	} else {
 		// Read app configuration file
-		cfg, err := confjson.Load(AppConfigFile)
+		var err error
+		AppCfg, err = confjson.Load(AppConfigFile)
 		if err != nil {
 			llog.Critical("Can't access application configuration file:", err)
 		}
-		AppCfg = cfg
 	}
 	return AppCfg
 }

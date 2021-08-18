@@ -6,6 +6,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/getlantern/systray"
 	"github.com/slytomcat/llog"
-	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/tools"
 	"github.com/slytomcat/ydisk"
@@ -32,7 +34,7 @@ const about = `yd-go is the GTK-based panel indicator for Yandex.Disk daemon.
 
 	Version: %s
 
-Copyleft 2017-2021 Sly_tom_cat (slytomcat@mail.ru)
+Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 
 	License: GPL v.3
 
@@ -53,10 +55,11 @@ type LastT struct {
 	l sync.RWMutex
 }
 
-func (l *LastT) reset() {
-	l.l.Lock()
-	l.m = make(map[string]*string, 10) // 10 - is a maximum length of the last synchronized
-	l.l.Unlock()
+func newLastT() *LastT {
+	return &LastT{
+		m: map[string]*string{},
+		l: sync.RWMutex{},
+	}
 }
 
 func (l *LastT) set(key, value string) {
@@ -78,19 +81,21 @@ func (l *LastT) len() int {
 }
 
 type menu struct {
-	status *systray.MenuItem
-	size1  *systray.MenuItem
-	size2  *systray.MenuItem
-	last   *systray.MenuItem
-	lastT  *LastT
-	ssAct  *systray.MenuItem
-	out    *systray.MenuItem
-	path   *systray.MenuItem
-	site   *systray.MenuItem
-	help   *systray.MenuItem
-	about  *systray.MenuItem
-	don    *systray.MenuItem
-	quit   *systray.MenuItem
+	status     *systray.MenuItem
+	size1      *systray.MenuItem
+	size2      *systray.MenuItem
+	last       *systray.MenuItem
+	lasts      []*systray.MenuItem
+	lastCancel func()
+	start      *systray.MenuItem
+	stop       *systray.MenuItem
+	out        *systray.MenuItem
+	path       *systray.MenuItem
+	site       *systray.MenuItem
+	help       *systray.MenuItem
+	about      *systray.MenuItem
+	don        *systray.MenuItem
+	quit       *systray.MenuItem
 }
 
 func main() {
@@ -122,17 +127,24 @@ func onReady() {
 	} else if !ok {
 		llog.Critical("Config read error: StartDaemon should be bool")
 	}
+	// Read stop flag (to stop the daemon on exit)
+	stop, ok := AppCfg["StopDaemon"].(bool)
+	if !ok {
+		llog.Critical("Config read error: StopDaemon should be bool")
+	}
+	note, ok := AppCfg["Notifications"].(bool)
+	if !ok {
+		llog.Critical("Config error:", err)
+	}
+
 	// Initialize icon theme
 	var theme string
 	if theme, ok = AppCfg["Theme"].(string); !ok {
 		llog.Critical("Config read error: Theme should be string")
 	}
-	if err := icons.PrepareIcons(); err != nil {
-		llog.Critical(err)
-	}
-	icons.SetTheme(theme)
+	icons.SelectTheme(theme)
 	// Initialize systray icon
-	systray.SetIcon(icons.IconPause)
+	systray.SetIcon(icons.PauseIcon)
 
 	// Initialize status localization
 	statusTr = map[string]string{
@@ -144,19 +156,7 @@ func onReady() {
 	}
 
 	m := new(menu)
-
-	// Read stop flag (to stop the daemon on exit)
-	stop, ok := AppCfg["StopDaemon"].(bool)
-	if !ok {
-		llog.Critical("Config read error: StopDaemon should be bool")
-	}
-
-	note, ok := AppCfg["Notifications"].(bool)
-	if !ok {
-		llog.Critical("Config error:", err)
-	}
-
-	systray.SetTitle("")
+	systray.SetTitle("yd-go indicator")
 	// Initialize systray menu
 	m.status = systray.AddMenuItem("", "")
 	m.status.Disable()
@@ -165,15 +165,19 @@ func onReady() {
 	m.size2 = systray.AddMenuItem("", "")
 	m.size2.Disable()
 	systray.AddSeparator()
-	// use 2 ZERO WIDTH SPACES to avoid matching with filenames
-	m.last = systray.AddMenuItem("\u200B\u2060"+msg.Sprintf("Last synchronized"), "")
+	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
+	m.lasts = make([]*systray.MenuItem, 10)
+	for i := 0; i < 10; i++ {
+		m.lasts[i] = m.last.AddSubMenuItem("", "")
+		m.lasts[i].Hide()
+	}
 	m.last.Disable()
-	// Dictionary for last synchronized title (as shorten path) and full path
-	m.lastT = new(LastT)
-	// NOTE: there can be an issue if two (or more) files has the same shorten representation.
-	// In such a case all menu labels will be joined with the single full path (path of the last addad item)
+	m.lastCancel = nil
 	systray.AddSeparator()
-	m.ssAct = systray.AddMenuItem("", "") // no title at start as current status is unknown
+	m.start = systray.AddMenuItem(msg.Sprintf("Start daemon"), "")
+	m.start.Hide()
+	m.stop = systray.AddMenuItem(msg.Sprintf("Stop daemon"), "")
+	m.stop.Hide()
 	systray.AddSeparator()
 	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
 	m.path = systray.AddMenuItem(msg.Sprintf("Open: %s", YD.Path), "")
@@ -199,18 +203,12 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 
 	for {
 		select {
-		case title := <-m.ssAct.ClickedCh:
-			m.ssAct.Disable()
-			switch {
-			case strings.HasPrefix(title, "\u200B"): // start
-				go YD.Start()
-			case strings.HasPrefix(title, "\u2060"): // stop
-				go YD.Stop()
-			} // do nothing in other cases
-		case title := <-m.last.ClickedCh:
-			if !strings.HasPrefix(title, "\u200B\u2060") {
-				tools.XdgOpen(m.lastT.get(title))
-			}
+		case <-m.start.ClickedCh:
+			m.start.Disable()
+			go YD.Start()
+		case <-m.stop.ClickedCh:
+			m.stop.Disable()
+			go YD.Stop()
 		case <-m.out.ClickedCh:
 			notifySend(icons.IconNotify, msg.Sprintf("Yandex.Disk daemon output"), YD.Output())
 		case <-m.path.ClickedCh:
@@ -220,7 +218,7 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 		case <-m.help.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
-			notifySend(icons.IconNotify, " ", msg.Sprintf(about, version))
+			notifySend(icons.IconNotify, " ", msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.don.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case <-m.quit.ClickedCh:
@@ -229,7 +227,6 @@ func menuHandler(YD *ydisk.YDisk, m *menu, stop bool) {
 			if stop {
 				YD.Stop()
 			}
-			icons.ClearIcons()
 			return
 		}
 	}
@@ -249,7 +246,7 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 		case <-tick.C: //  Icon timer event
 			currentIcon = (currentIcon + 1) % 5
 			if currentStatus == "busy" || currentStatus == "index" {
-				systray.SetIcon(icons.IconBusy[currentIcon])
+				systray.SetIcon(icons.BusyIcons[currentIcon])
 				tick.Reset(333 * time.Millisecond)
 			}
 		case yds, ok := <-YD.Changes: // get YDisk change event
@@ -259,46 +256,77 @@ func changeHandler(YD *ydisk.YDisk, m *menu, note bool) {
 			currentStatus = yds.Stat
 			st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.ShortName(yds.ErrP, 30)}, " ")
 			m.status.SetTitle(msg.Sprintf("Status: %s", st))
+			if yds.Stat == "error" {
+				m.status.SetTooltip(fmt.Sprintf("%s\nPath: %s", yds.Err, yds.ErrP))
+			} else {
+				m.status.SetTooltip("")
+			}
 			m.size1.SetTitle(msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
 			m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 			if yds.ChLast { // last synchronized list changed
-				m.last.RemoveSubmenu()
-				m.lastT.reset()
+				if m.lastCancel != nil {
+					m.lastCancel() // stop all click handlers
+				}
+				for i := range m.lasts {
+					m.lasts[i].Hide()
+				}
 				if len(yds.Last) > 0 {
-					for _, p := range yds.Last {
+					ctx, cancel := context.WithCancel(context.Background())
+					m.lastCancel = cancel
+					for i, p := range yds.Last {
 						short, full := tools.ShortName(p, 40), filepath.Join(YD.Path, p)
-						m.last.AddSubmenuItem(short, tools.NotExists(full))
-						m.lastT.set(short, full)
+						m.lasts[i].SetTitle(short)
+						m.lasts[i].SetTooltip(p)
+						if tools.NotExists(full) {
+							m.lasts[i].Disable()
+						} else {
+							m.lasts[i].Enable()
+							// start individual click handler for each sub menu item
+							go func(ctx context.Context, mi *systray.MenuItem, path string) {
+								for {
+									select {
+									case <-ctx.Done():
+										return
+									case <-mi.ClickedCh:
+										tools.XdgOpen(path)
+									}
+								}
+							}(ctx, m.lasts[i], full)
+						}
+						m.lasts[i].Show()
 					}
 					m.last.Enable()
 				} else {
 					m.last.Disable()
 				}
-				llog.Debug("Last synchronized length:", m.lastT.len())
+				m.last.Show()
+				llog.Debug("Last synchronized length:", len(yds.Last))
 			}
 			if yds.Stat != yds.Prev { // status changed
 				// change indicator icon
 				switch yds.Stat {
 				case "idle":
-					systray.SetIcon(icons.IconIdle)
+					systray.SetIcon(icons.IdleIcon)
 				case "busy", "index":
-					systray.SetIcon(icons.IconBusy[currentIcon])
+					systray.SetIcon(icons.BusyIcons[currentIcon])
 					if yds.Prev != "busy" && yds.Prev != "index" {
 						tick.Reset(333 * time.Millisecond)
 					}
 				case "none", "paused":
-					systray.SetIcon(icons.IconPause)
+					systray.SetIcon(icons.PauseIcon)
 				default:
-					systray.SetIcon(icons.IconError)
+					systray.SetIcon(icons.ErrorIcon)
 				}
 				// handle Start/Stop menu title
 				if yds.Stat == "none" {
-					m.ssAct.SetTitle("\u200B" + msg.Sprintf("Start daemon"))
-					m.ssAct.Enable()
+					m.start.Enable()
+					m.start.Show()
+					m.stop.Hide()
 					m.out.Disable()
 				} else if yds.Prev == "none" || yds.Prev == "unknown" {
-					m.ssAct.SetTitle("\u2060" + msg.Sprintf("Stop daemon"))
-					m.ssAct.Enable()
+					m.stop.Enable()
+					m.stop.Show()
+					m.start.Hide()
 					m.out.Enable()
 				}
 				if note { // handle notifications
