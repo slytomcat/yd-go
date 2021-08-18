@@ -30,9 +30,7 @@ Application has its configuration file in ~/.config/yd-go/default.cfg file. File
   - "StopDaemon" - Flag that shows should be the daemon stopped on app closure
 
 ## Get
-Download source from master branch and unzip it to the go source folder ($GOHATH/src) (it can be removed after buiding and installation).
-Change current directoru to the progect folder 
-    cd $GOHATH/src/yd-go/
+Download source from master branch and unzip or just clone repository .
 
 ## Build 
 For building this prject the additional packages are requered:
