@@ -5,10 +5,10 @@ github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 h1:NRUJuo3v3WGC/g5YiyF790gut6oQr5f3FBI88Wv0dx4=
 github.com/getlantern/context v0.0.0-20190109183933-c447772a6520/go.mod h1:L+mq6/vvYHKjCX2oez0CgEAJmbq1fbb/oNJIWQkBybY=
+github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7/go.mod h1:l+xpFBrCtDLpK9qNjxs+cHU6+BAdlBaxHqikB6Lku3A=
 github.com/getlantern/errors v1.0.1 h1:XukU2whlh7OdpxnkXhNH9VTLVz0EVPGKDV5K0oWhvzw=
 github.com/getlantern/errors v1.0.1/go.mod h1:l+xpFBrCtDLpK9qNjxs+cHU6+BAdlBaxHqikB6Lku3A=
-github.com/getlantern/filepersist v0.0.0-20160317154340-c5f0cd24e799 h1:FhkPUYCQYmoxS02r2GRrIV7dahUIncRl36xzs3/mnjA=
-github.com/getlantern/filepersist v0.0.0-20160317154340-c5f0cd24e799/go.mod h1:8DGAx0LNUfXNnEH+fXI0s3OCBA/351kZCiz/8YSK3i8=
+github.com/getlantern/golog v0.0.0-20190830074920-4ef2e798c2d7/go.mod h1:zx/1xUUeYPy3Pcmet8OSXLbF47l+3y6hIPpyLWoR9oc=
 github.com/getlantern/golog v0.0.0-20201105130739-9586b8bde3a9 h1:8MYJU90rB1bsavemKSAuDKBjtAKo5xq95bEPOnzV7CE=
 github.com/getlantern/golog v0.0.0-20201105130739-9586b8bde3a9/go.mod h1:ZyIjgH/1wTCl+B+7yH1DqrWp6MPJqESmwmEQ89ZfhvA=
 github.com/getlantern/hex v0.0.0-20190417191902-c6586a6fe0b7 h1:micT5vkcr9tOVk1FiH8SWKID8ultN44Z+yzd2y/Vyb0=
@@ -19,6 +19,8 @@ github.com/getlantern/hidden v0.0.0-20201229170000-e66e7f878730/go.mod h1:6mmzY2
 github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f/go.mod h1:D5ao98qkA6pxftxoqzibIBBrLSUli+kYnJqrgBf9cIA=
 github.com/getlantern/ops v0.0.0-20200403153110-8476b16edcd6 h1:QthAQCekS1YOeYWSvoHI6ZatlG4B+GBDLxV/2ZkBsTA=
 github.com/getlantern/ops v0.0.0-20200403153110-8476b16edcd6/go.mod h1:D5ao98qkA6pxftxoqzibIBBrLSUli+kYnJqrgBf9cIA=
+github.com/getlantern/systray v1.1.0 h1:U0wCEqseLi2ok1fE6b88gJklzriavPJixZysZPkZd/Y=
+github.com/getlantern/systray v1.1.0/go.mod h1:AecygODWIsBquJCJFop8MEQcJbWFfw/1yWbVabNgpCM=
 github.com/go-stack/stack v1.8.0 h1:5SgMzNM5HxrEjV0ww2lTmX6E2Izsfxas4+YHWRs3Lsk=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
 github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c h1:rp5dCmg/yLR3mgFuSOe4oEnDDmGLROTvMragMUXpTQw=
@@ -30,8 +32,6 @@ github.com/slytomcat/confjson v0.0.0-20190608164107-fc25809bcc85/go.mod h1:iP3Mb
 github.com/slytomcat/llog v0.0.0-20190104202300-c8978e4fae9a/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b h1:dA052uHDSetWtfSVIhqOQN4mnUN+KqDS2cBt/0UsrwQ=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
-github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5 h1:ifdkIcwFB/i53vu+dHb+isV3yIozni2pWOmt9vIZC+U=
-github.com/slytomcat/systray v0.0.0-20180108174847-6a5d57e284c5/go.mod h1:kkwijnLZO0ubbN/iDF+eXbtRucAFb7kfASfT2viinT4=
 github.com/slytomcat/ydisk v0.0.0-20210223140457-b3b716f57361 h1:kwkizwxLFjWHrW+l+fpXuM04LdlEUhCU6JP3fKipEFI=
 github.com/slytomcat/ydisk v0.0.0-20210223140457-b3b716f57361/go.mod h1:uGII6qjWwnUjqJGbQpRpVc4WdfNHy09g6cgQ3k26FLA=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
@@ -39,6 +39,7 @@ github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 golang.org/x/sys v0.0.0-20190226215855-775f8194d0f9/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210415045647-66c3f260301c h1:6L+uOeS3OQt/f4eFHXZcTxeZrGCuz+CLElgEBjbcTA4=
 golang.org/x/sys v0.0.0-20210415045647-66c3f260301c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
