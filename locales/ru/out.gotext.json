@@ -32,6 +32,16 @@
             "translation": "Последние синхронизированные"
         },
         {
+            "id": "Start daemon",
+            "message": "Start daemon",
+            "translation": "Запустить утилиту"
+        },
+        {
+            "id": "Stop daemon",
+            "message": "Stop daemon",
+            "translation": "Остановить утилиту"
+        },
+        {
             "id": "Show daemon output",
             "message": "Show daemon output",
             "translation": "Показать вывод утилиты"
@@ -167,16 +177,6 @@
                     "expr": "yds.Trash"
                 }
             ]
-        },
-        {
-            "id": "Start daemon",
-            "message": "Start daemon",
-            "translation": "Запустить утилиту"
-        },
-        {
-            "id": "Stop daemon",
-            "message": "Stop daemon",
-            "translation": "Остановить утилиту"
         },
         {
             "id": "Daemon stopped",

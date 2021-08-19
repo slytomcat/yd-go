@@ -44,6 +44,20 @@
             "fuzzy": true
         },
         {
+            "id": "Start daemon",
+            "message": "Start daemon",
+            "translation": "Start daemon",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Stop daemon",
+            "message": "Stop daemon",
+            "translation": "Stop daemon",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
             "id": "Show daemon output",
             "message": "Show daemon output",
             "translation": "Show daemon output",
@@ -202,20 +216,6 @@
                     "expr": "yds.Trash"
                 }
             ],
-            "fuzzy": true
-        },
-        {
-            "id": "Start daemon",
-            "message": "Start daemon",
-            "translation": "Start daemon",
-            "translatorComment": "Copied from source.",
-            "fuzzy": true
-        },
-        {
-            "id": "Stop daemon",
-            "message": "Stop daemon",
-            "translation": "Stop daemon",
-            "translatorComment": "Copied from source.",
             "fuzzy": true
         },
         {

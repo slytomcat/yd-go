@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 
 	"github.com/slytomcat/llog"
 )
@@ -47,15 +48,56 @@ type Config struct {
 	StopDaemon    bool
 }
 
-// AppInit handles command line arguments, loads the application configuration and
+// NewConfig returns the application configeration
+func NewConfig(cfgFilePath string) *Config {
+	cfg := &Config{
+		Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
+		Theme:         "dark",                                               // icons theme name
+		Notifications: true,                                                 // display desktop notification
+		StartDaemon:   true,                                                 // start daemon on app start
+		StopDaemon:    false,                                                // stop daemon on app closure
+	}
+
+	cfgPath, _ := path.Split(cfgFilePath)
+	// Check that app configuration file path exists
+	if NotExists(cfgPath) {
+		if err := os.MkdirAll(cfgPath, 0766); err != nil {
+			llog.Critical("Can't create application configuration path:", err)
+		}
+	}
+	// Check that app configuration file exists
+	if NotExists(cfgFilePath) {
+		//Create and save new configuration file with default values
+		data, _ := json.Marshal(cfg)
+		err := os.WriteFile(cfgFilePath, data, 0766)
+		if err != nil {
+			llog.Critical("Can't save configuration file:", err)
+		}
+		llog.Debugf("cfg saved: %+v", cfgFilePath)
+	} else {
+		// Read app configuration file
+		data, err := os.ReadFile(cfgFilePath)
+		if err != nil {
+			llog.Criticalf("reading config file error: %v", err)
+		}
+		err = json.Unmarshal(data, cfg)
+		if err != nil {
+			llog.Criticalf("parsing config file error: %v", err)
+		}
+		llog.Debugf("cfg read: %+v", cfg)
+	}
+	return cfg
+}
+
+// AppInit handles command line arguments and
 // initializes logging facility.
 // Parameter: appName - name of application,
-// Returns *Config
-func AppInit(appName string) *Config {
+// Returns: path to config file
+func AppInit(appName string) string {
 	var debug bool
-	var AppConfigFile string
+	var config string
 	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
-	flag.StringVar(&AppConfigFile, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
+	flag.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage:\n\n\t\t"+appName+" [-debug] [-config=<Path to indicator config>]\n\n")
 		flag.PrintDefaults()
@@ -72,45 +114,5 @@ func AppInit(appName string) *Config {
 		llog.SetLevel(-1)
 	}
 
-	// Prepare the application configuration
-	// Make default app configuration
-	AppCfg := &Config{
-		Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
-		Theme:         "dark",                                               // icons theme name
-		Notifications: true,                                                 // display desktop notification
-		StartDaemon:   true,                                                 // start daemon on app start
-		StopDaemon:    false,                                                // stop daemon on app closure
-	}
-	// Check that app configuration file path exists
-	AppConfigHome := os.ExpandEnv("$HOME/.config/" + appName)
-	if NotExists(AppConfigHome) {
-		if err := os.MkdirAll(AppConfigHome, 0766); err != nil {
-			llog.Critical("Can't create application configuration path:", err)
-		}
-	}
-	// Path to app configuration file path always comes from command-line flag
-	AppConfigFile = os.ExpandEnv(AppConfigFile)
-	llog.Debug("Configuration:", AppConfigFile)
-	// Check that app configuration file exists
-	if NotExists(AppConfigFile) {
-		//Create and save new configuration file with default values
-		data, _ := json.Marshal(AppCfg)
-		err := os.WriteFile(AppConfigFile, data, 0766)
-		if err != nil {
-			llog.Critical("Can't save configuration file:", err)
-		}
-		llog.Debugf("cfg saved: %+v", AppCfg)
-	} else {
-		// Read app configuration file
-		data, err := os.ReadFile(AppConfigFile)
-		if err != nil {
-			llog.Criticalf("reading config file error: %v", err)
-		}
-		err = json.Unmarshal(data, AppCfg)
-		if err != nil {
-			llog.Criticalf("parsing config file error: %v", err)
-		}
-		llog.Debugf("cfg read: %+v", AppCfg)
-	}
-	return AppCfg
+	return os.ExpandEnv(config)
 }
