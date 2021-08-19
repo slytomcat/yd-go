@@ -2,13 +2,13 @@
 package tools
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 
-	"github.com/slytomcat/confjson"
 	"github.com/slytomcat/llog"
 )
 
@@ -38,11 +38,20 @@ func ShortName(s string, l int) string {
 	return string(r[:b]) + "..." + string(r[len(r)-(l-3-b):])
 }
 
+// Config is applicatinon configuration
+type Config struct {
+	Conf          string // path to daemon config file
+	Theme         string // icons theme name
+	Notifications bool   // display desktop notification
+	StartDaemon   bool   // start daemon on app start
+	StopDaemon    bool
+}
+
 // AppInit handles command line arguments, loads the application configuration and
-// initializes logging facility. Parameter:
-//   appName - name of application,
-// Returns *map[string]interface{} - with application configuration
-func AppInit(appName string) map[string]interface{} {
+// initializes logging facility.
+// Parameter: appName - name of application,
+// Returns *Config
+func AppInit(appName string) *Config {
 	var debug bool
 	var AppConfigFile string
 	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
@@ -65,12 +74,12 @@ func AppInit(appName string) map[string]interface{} {
 
 	// Prepare the application configuration
 	// Make default app configuration
-	AppCfg := map[string]interface{}{
-		"Conf":          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
-		"Theme":         "dark",                                               // icons theme name
-		"Notifications": true,                                                 // display desktop notification
-		"StartDaemon":   true,                                                 // start daemon on app start
-		"StopDaemon":    false,                                                // stop daemon on app closure
+	AppCfg := &Config{
+		Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
+		Theme:         "dark",                                               // icons theme name
+		Notifications: true,                                                 // display desktop notification
+		StartDaemon:   true,                                                 // start daemon on app start
+		StopDaemon:    false,                                                // stop daemon on app closure
 	}
 	// Check that app configuration file path exists
 	AppConfigHome := os.ExpandEnv("$HOME/.config/" + appName)
@@ -85,16 +94,23 @@ func AppInit(appName string) map[string]interface{} {
 	// Check that app configuration file exists
 	if NotExists(AppConfigFile) {
 		//Create and save new configuration file with default values
-		if err := confjson.Save(AppConfigFile, AppCfg); err != nil {
-			llog.Critical("Can't create application configuration file:", err)
+		data, _ := json.Marshal(AppCfg)
+		err := os.WriteFile(AppConfigFile, data, 0766)
+		if err != nil {
+			llog.Critical("Can't save configuration file:", err)
 		}
+		llog.Debugf("cfg saved: %+v", AppCfg)
 	} else {
 		// Read app configuration file
-		var err error
-		AppCfg, err = confjson.Load(AppConfigFile)
+		data, err := os.ReadFile(AppConfigFile)
 		if err != nil {
-			llog.Critical("Can't access application configuration file:", err)
+			llog.Criticalf("reading config file error: %v", err)
 		}
+		err = json.Unmarshal(data, AppCfg)
+		if err != nil {
+			llog.Criticalf("parsing config file error: %v", err)
+		}
+		llog.Debugf("cfg read: %+v", AppCfg)
 	}
 	return AppCfg
 }
