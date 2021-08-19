@@ -27,8 +27,6 @@ github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c h1:rp5dCmg/yLR3mgF
 github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c/go.mod h1:X07ZCGwUbLaax7L0S3Tw4hpejzu63ZrrQiUe6W0hcy0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/slytomcat/confjson v0.0.0-20190608164107-fc25809bcc85 h1:6w015KpxUtJzD/nXB75t7AOfItOR2oSmPuK/WwEBg0M=
-github.com/slytomcat/confjson v0.0.0-20190608164107-fc25809bcc85/go.mod h1:iP3Mbhx4kUsE/cN8KZDOeeyN6zg+ciKuIMhESBBqt84=
 github.com/slytomcat/llog v0.0.0-20190104202300-c8978e4fae9a/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b h1:dA052uHDSetWtfSVIhqOQN4mnUN+KqDS2cBt/0UsrwQ=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
