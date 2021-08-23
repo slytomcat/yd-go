@@ -74,9 +74,17 @@ jobs:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Download Artifacts
         uses: actions/download-artifact@v2.0.8
         with:
           name: build_artifacts
-      - name: Create release and upload binary to release assets
-        run: gh release create $(cat VERSION) './yd-go#amd64 linux' --repo github.com/slytomcat/yd-go
+      - name: Upload to release assets
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          file: 'yd-go'
+          draft: false
+          verbose: true
+          overwrite: true
