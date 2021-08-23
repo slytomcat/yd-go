@@ -23,9 +23,10 @@ import (
 
 var (
 	version = "local build"
-	// msg is the Localization printer
-	msg      *message.Printer
-	statusTr map[string]string
+
+	msg      *message.Printer  // msg is the Localization printer
+	statusTr map[string]string // translated statuses
+	icon     *icons.Icon       // icon helper
 )
 
 const about = `yd-go is the GTK-based panel indicator for Yandex.Disk daemon.
@@ -40,7 +41,7 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 
 func notifySend(title, body string) {
 	llog.Debug("Message:", title, ":", body)
-	err := exec.Command("notify-send", "-i", icons.NotifyIcon, title, body).Start()
+	err := exec.Command("notify-send", "-i", icon.NotifyIcon, title, body).Start()
 	if err != nil {
 		llog.Error(err)
 	}
@@ -64,26 +65,13 @@ type menu struct {
 	quit   *systray.MenuItem
 }
 
-// Icon is the busy icon animation helper
-type Icon struct {
-	current int
-	Tick    *time.Timer
-}
-
-// Next returns next busy icon index and resets the timer
-func (i *Icon) Next() int {
-	i.current = (i.current + 1) % 5
-	i.Tick.Reset(333 * time.Millisecond)
-	return i.current
-}
-
 func main() {
 	systray.Run(onReady, onExit)
 }
 
 func onReady() {
-	// Initialize application and receive the application configuration
-	AppCfg := tools.AppInit("yd-go")
+	// Initialize application and get the application configuration
+	appConfig := tools.NewConfig(tools.AppInit("yd-go"))
 
 	// Initialize translations
 	lng := os.Getenv("LANG")
@@ -94,15 +82,13 @@ func onReady() {
 	llog.Infof("Local language is: %v", lng)
 	msg = message.NewPrinter(message.MatchLanguage(lng))
 
-	YD, err := ydisk.NewYDisk(AppCfg.Conf)
+	YD, err := ydisk.NewYDisk(appConfig.Conf)
 	if err != nil {
 		llog.Critical("Fatal error:", err)
 	}
 
-	// Initialize icon theme
-	icons.SelectTheme(AppCfg.Theme)
-	// Initialize systray icon
-	systray.SetIcon(icons.PauseIcon)
+	// Initialize icon helper
+	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
 
 	// Initialize status localization
 	statusTr = map[string]string{
@@ -124,6 +110,7 @@ func onReady() {
 	m.size2.Disable()
 	systray.AddSeparator()
 	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
+	m.last.Disable()
 	for i := 0; i < 10; i++ {
 		m.lastM[i] = m.last.AddSubMenuItem("", "")
 		m.lastM[i].Hide()
@@ -145,7 +132,7 @@ func onReady() {
 	m.quit = systray.AddMenuItem(msg.Sprintf("Quit"), "")
 
 	// Start handler
-	go eventHandler(m, AppCfg, YD)
+	go eventHandler(m, appConfig, YD)
 }
 
 // menuHandler handles UI events
@@ -163,14 +150,6 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 		systray.Quit()
 	}()
 
-	// Prepare the staff for icon animation
-	icon := Icon{
-		current: 0,
-		Tick:    time.NewTimer(333 * time.Millisecond),
-	}
-	defer icon.Tick.Stop()
-	currentStatus := ""
-loop:
 	for {
 		select {
 		case <-m.lastM[0].ClickedCh:
@@ -211,19 +190,14 @@ loop:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case <-m.quit.ClickedCh:
 			llog.Debug("Exit requested.")
-			break loop
-		case <-icon.Tick.C: //  Icon timer event
-			if currentStatus == "busy" || currentStatus == "index" {
-				systray.SetIcon(icons.BusyIcons[icon.Next()])
-			}
+			return
 		case yds := <-YD.Changes: // YDisk change event
-			currentStatus = yds.Stat
 			updateMenu(m, yds, icon, cfg.Notifications, YD.Path)
 		}
 	}
 }
 
-func updateMenu(m *menu, yds ydisk.YDvals, icon Icon, note bool, path string) {
+func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path string) {
 	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.ShortName(yds.ErrP, 30)}, " ")
 	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	if yds.Stat == "error" {
@@ -256,27 +230,20 @@ func updateMenu(m *menu, yds ydisk.YDvals, icon Icon, note bool, path string) {
 	}
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
-		switch yds.Stat {
-		case "idle":
-			systray.SetIcon(icons.IdleIcon)
-		case "busy", "index":
-			systray.SetIcon(icons.BusyIcons[icon.Next()])
-		case "none", "paused":
-			systray.SetIcon(icons.PauseIcon)
-		default:
-			systray.SetIcon(icons.ErrorIcon)
-		}
+		icon.Set(yds.Stat)
 		// handle Start/Stop menu items
-		if yds.Stat == "none" {
-			m.start.Show()
-			m.stop.Hide()
-			m.out.Disable()
-		} else {
-			m.stop.Show()
-			m.start.Hide()
-			m.out.Enable()
+		if yds.Stat == "none" || yds.Prev == "none" || yds.Prev == "unknown" {
+			if yds.Stat == "none" {
+				m.start.Show()
+				m.stop.Hide()
+				m.out.Disable()
+			} else {
+				m.stop.Show()
+				m.start.Hide()
+				m.out.Enable()
+			}
 		}
-		if note { // handle notifications
+		if note {
 			go handleNotifications(yds)
 		}
 	}
@@ -299,6 +266,6 @@ func handleNotifications(yds ydisk.YDvals) {
 }
 
 func onExit() {
-	icons.CleanUp()
+	icon.CleanUp()
 	llog.Debug("All done. Bye!")
 }

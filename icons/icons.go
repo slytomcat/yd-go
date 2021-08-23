@@ -1,128 +1,124 @@
 package icons
 
 import (
-	"fmt"
 	"os"
-	"path"
+	"sync/atomic"
+	"time"
+
+	"github.com/slytomcat/llog"
 )
 
-var (
-	// IconBusy - set of 5 icons to be shown in busy status (with animation)
-	IconBusy [5]string
-	// IconError - is the icon to show error status
-	IconError string
-	// IconIdle - is shown whe daemon do nothing (waits fo events)
-	IconIdle string
-	// IconPause - is shown in inactive status (not started/paused)
-	IconPause string
-	// IconNotify - 128x128 icon to show in notifications
-	IconNotify string
+var interval = time.Millisecond * 333
 
-	icoHome string // temporary directory for icons files
-)
+// Icon is the icon helper
+type Icon struct {
+	NotifyIcon    string // path to notification icon stored as file on disk
+	currentStatus string
+	currentIcon   int64
+	busyIcons     [5][]byte
+	idleIcon      []byte
+	pauseIcon     []byte
+	errorIcon     []byte
+	setFunc       func([]byte)
+	ticker        *time.Ticker
+	exit          chan struct{}
+}
 
-// saveFile just saves data into file with given name
-func saveFile(name string, data []byte) error {
-	f, err := os.Create(name)
+// NewIcon initializes the icon helper and retuns it.
+// Use icon.CleanUp() for properly utilization of icon helper.
+func NewIcon(theme string, set func([]byte)) *Icon {
+	file, err := os.CreateTemp(os.TempDir(), "yd_notify_icon*.png")
 	if err != nil {
-		return fmt.Errorf("Can't create file: %w", err)
+		llog.Critical(err)
 	}
-	defer f.Close()
-
-	if _, err = f.Write(data); err != nil {
-		return fmt.Errorf("Can't write file: %w", err)
-	}
-	return nil
-}
-
-// PrepareIcons prepare icons files for indicator
-func PrepareIcons() error {
-	// Get user cache dir
-	cacheDir, err := os.UserCacheDir()
+	_, err = file.Write(yd128)
 	if err != nil {
-		return fmt.Errorf("Can't locate user cache folder: %w", err)
-	}
-	icoHome = path.Join(cacheDir, "yd-go-icons")
-	if err := os.MkdirAll(icoHome, 0766); err != nil {
-		return fmt.Errorf("Can't create icon folder path: %w", err)
+		llog.Critical(err)
 	}
 
-	// put all binary data to files
-	if err := saveFile(path.Join(icoHome, "darkBusy1.png"), darkBusy1); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
+	i := &Icon{
+		currentStatus: "",
+		currentIcon:   0,
+		busyIcons:     [5][]byte{},
+		idleIcon:      []byte{},
+		pauseIcon:     []byte{},
+		errorIcon:     []byte{},
+		NotifyIcon:    file.Name(),
+		setFunc:       set,
+		ticker:        time.NewTicker(interval),
+		exit:          make(chan struct{}, 1),
 	}
-	if err := saveFile(path.Join(icoHome, "darkBusy2.png"), darkBusy2); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "darkBusy3.png"), darkBusy3); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "darkBusy4.png"), darkBusy4); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "darkBusy5.png"), darkBusy5); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "darkError.png"), darkError); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "darkIdle.png"), darkIdle); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "darkPause.png"), darkPause); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightBusy1.png"), lightBusy1); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightBusy2.png"), lightBusy2); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightBusy3.png"), lightBusy3); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightBusy4.png"), lightBusy4); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightBusy5.png"), lightBusy5); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightError.png"), lightError); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightIdle.png"), lightIdle); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	if err := saveFile(path.Join(icoHome, "lightPause.png"), lightPause); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-	IconNotify = path.Join(icoHome, "yd128.png")
-	if err := saveFile(IconNotify, yd128); err != nil {
-		return fmt.Errorf("Can't write icon file: %w", err)
-	}
-
-	return nil
+	i.ticker.Stop()
+	i.SetTheme(theme)
+	go i.loop()
+	i.setFunc(i.pauseIcon)
+	return i
 }
 
-// ClearIcons removes icons form file system on exit
-func ClearIcons() error {
-	if err := os.RemoveAll(icoHome); err != nil {
-		return fmt.Errorf("Can't remove icon folder: %w", err)
+// SetTheme select one of the icons' themes
+func (i *Icon) SetTheme(theme string) {
+	switch theme {
+	case "light":
+		i.busyIcons = [5][]byte{lightBusy1, lightBusy2, lightBusy3, lightBusy4, lightBusy5}
+		i.idleIcon = lightIdle
+		i.pauseIcon = lightPause
+		i.errorIcon = lightError
+	case "dark":
+		i.busyIcons = [5][]byte{darkBusy1, darkBusy2, darkBusy3, darkBusy4, darkBusy5}
+		i.idleIcon = darkIdle
+		i.pauseIcon = darkPause
+		i.errorIcon = darkError
+	default:
+		llog.Criticalf("wrong theme: '%s' (should be 'dark' or 'light')", theme)
 	}
-	return nil
+	if i.currentStatus != "" {
+		i.setIcon(i.currentStatus)
+	}
 }
 
-// SetTheme sets the Icon* variable according to selected theme
-func SetTheme(theme string) {
-
-	IconBusy = [5]string{
-		path.Join(icoHome, theme+"Busy1.png"),
-		path.Join(icoHome, theme+"Busy2.png"),
-		path.Join(icoHome, theme+"Busy3.png"),
-		path.Join(icoHome, theme+"Busy4.png"),
-		path.Join(icoHome, theme+"Busy5.png"),
+func (i *Icon) setIcon(status string) {
+	switch status {
+	case "busy", "index":
+		i.setFunc(i.busyIcons[atomic.LoadInt64(&i.currentIcon)])
+	case "idle":
+		i.setFunc(i.idleIcon)
+	case "none", "paused":
+		i.setFunc(i.pauseIcon)
+	default:
+		i.setFunc(i.errorIcon)
 	}
-	IconError = path.Join(icoHome, theme+"Error.png")
-	IconIdle = path.Join(icoHome, theme+"Idle.png")
-	IconPause = path.Join(icoHome, theme+"Pause.png")
+}
+
+// Set sets the icon by status
+func (i *Icon) Set(status string) {
+	i.setIcon(status)
+	if status == "busy" || status == "index" {
+		if i.currentStatus != "busy" && i.currentStatus != "index" {
+			i.ticker.Reset(interval)
+		}
+	} else {
+		i.ticker.Stop()
+	}
+	i.currentStatus = status
+}
+
+func (i *Icon) loop() {
+	for {
+		select {
+		case <-i.ticker.C:
+			atomic.StoreInt64(&i.currentIcon, (i.currentIcon+1)%5)
+			i.setFunc(i.busyIcons[i.currentIcon])
+		case <-i.exit:
+			return
+		}
+	}
+}
+
+// CleanUp removes temporary file for notification icon
+func (i *Icon) CleanUp() {
+	if err := os.Remove(i.NotifyIcon); err != nil {
+		llog.Critical(err)
+	}
+	i.ticker.Stop()
+	i.exit <- struct{}{}
 }

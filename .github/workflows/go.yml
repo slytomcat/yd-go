@@ -1,0 +1,82 @@
+name: Go
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+    branches:
+      - master
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - name: Dependencies
+        run: |
+          sudo apt update
+          sudo apt install libgtk-3-dev libappindicator3-dev
+      - name: Cache
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            /home/runner/.cache/go-build/
+            /home/runner/go/pkg/mod/
+          key: GO_MOD_CACHE
+      - name: Test
+        run: go test -v --race -coverprofile cover.out ./...
+      - name: Format coverage
+        run: go tool cover -html=cover.out -o coverage.html
+      - name: Upload coverage to Artifacts
+        uses: actions/upload-artifact@v2.2.2
+        with:
+          name: coverage_artifacts
+          path: coverage.html
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Dependencies
+        run: |
+          sudo apt update
+          sudo apt install libgtk-3-dev libappindicator3-dev
+      - name: Get version
+        run: |
+          git fetch --prune --unshallow --tags
+          git describe --tag > VERSION
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - name: Cache
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            /home/runner/.cache/go-build/
+            /home/runner/go/pkg/mod/
+          key: GO_MOD_CACHE
+      - name: Build amd64
+        run: |
+          GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.version=$(cat VERSION)"
+      - name: Upload a Build Artifacts
+        uses: actions/upload-artifact@v2.2.2
+        with:
+          name: build_artifacts
+          path: |
+            yd-go
+            VERSION
+  push:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2.0.8
+        with:
+          name: build_artifacts
+      - name: Create release and upload binary to release assets
+        run: gh release create $(cat VERSION) './yd-go#amd64 linux' --repo github.com/slytomcat/yd-go

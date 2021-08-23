@@ -1,142 +1,115 @@
 package icons
 
 import (
-	"path"
+	"bytes"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_Data_lightBusy1(t *testing.T) {
-	if len(lightBusy1) == 0 {
-		t.Error("len( lightBusy1) = 0")
-	}
+type fakeIcon struct {
+	icon []byte
+	mu   sync.Mutex
 }
 
-func Test_Data_lightBusy2(t *testing.T) {
-	if len(lightBusy2) == 0 {
-		t.Error("len( lightBusy2) = 0")
-	}
+func (f *fakeIcon) set(icon []byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.icon = icon
 }
 
-func Test_Data_lightBusy3(t *testing.T) {
-	if len(lightBusy3) == 0 {
-		t.Error("len( lightBusy3) = 0")
-	}
+func (f *fakeIcon) get() []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.icon
 }
 
-func Test_Data_lightBusy4(t *testing.T) {
-	if len(lightBusy4) == 0 {
-		t.Error("len( lightBusy4) = 0")
-	}
+var fi fakeIcon
+
+func TestNewIcon(t *testing.T) {
+	i := NewIcon("dark", fi.set)
+	assert.NotNil(t, i)
+	defer i.CleanUp()
+	assert.NotNil(t, i)
+	assert.Equal(t, darkPause, fi.get())
+	assert.Equal(t, darkError, i.errorIcon)
+	assert.Equal(t, darkIdle, i.idleIcon)
+	assert.Equal(t, darkPause, i.pauseIcon)
+	assert.Equal(t, [5][]byte{darkBusy1, darkBusy2, darkBusy3, darkBusy4, darkBusy5}, i.busyIcons)
 }
 
-func Test_Data_lightBusy5(t *testing.T) {
-	if len(lightBusy5) == 0 {
-		t.Error("len( lightBusy5) = 0")
-	}
+func TestSetTheme(t *testing.T) {
+	i := NewIcon("dark", fi.set)
+	assert.NotNil(t, i)
+	defer i.CleanUp()
+	assert.Equal(t, darkPause, fi.get())
+	i.SetTheme("light")
+	assert.Equal(t, darkPause, fi.get()) // current icon should not be changed if Set() was not called after NewIcon()
+	assert.Equal(t, lightError, i.errorIcon)
+	assert.Equal(t, lightIdle, i.idleIcon)
+	assert.Equal(t, lightPause, i.pauseIcon)
+	assert.Equal(t, [5][]byte{lightBusy1, lightBusy2, lightBusy3, lightBusy4, lightBusy5}, i.busyIcons)
+	i.Set("idle")
+	assert.Equal(t, lightIdle, fi.get())
+	i.SetTheme("dark")
+	assert.Equal(t, darkIdle, fi.get()) // after a call of Set(), the SetTheme() should change current icon
 }
 
-func Test_Data_lightError(t *testing.T) {
-	if len(lightError) == 0 {
-		t.Error("len( lightError) = 0")
-	}
+func TestSet(t *testing.T) {
+	i := NewIcon("dark", fi.set)
+	assert.NotNil(t, i)
+	defer i.CleanUp()
+	i.Set("error")
+	assert.Equal(t, darkError, fi.get())
+	i.Set("idle")
+	assert.Equal(t, darkIdle, fi.get())
+	i.Set("none")
+	assert.Equal(t, darkPause, fi.get())
+	i.Set("busy")
+	assert.Equal(t, darkBusy1, fi.get())
 }
 
-func Test_Data_lightIdle(t *testing.T) {
-	if len(lightIdle) == 0 {
-		t.Error("len( lightIdle) = 0")
+func TestAnimation(t *testing.T) {
+	interval = 10 * time.Millisecond
+	tick := time.Millisecond
+	waitFor := interval + 5*tick
+	event := func(i []byte) func() bool {
+		return func() bool { return bytes.Equal(fi.get(), i) }
 	}
+
+	i := NewIcon("dark", fi.set)
+	assert.NotNil(t, i)
+	defer i.CleanUp()
+	i.Set("index")
+	assert.Equal(t, darkBusy1, fi.get())
+	assert.Eventually(t, event(darkBusy2), waitFor, tick)
+	assert.Eventually(t, event(darkBusy3), waitFor, tick)
+	assert.Eventually(t, event(darkBusy4), waitFor, tick)
+	assert.Eventually(t, event(darkBusy5), waitFor, tick)
+	assert.Eventually(t, event(darkBusy1), waitFor, tick)
 }
 
-func Test_Data_lightPause(t *testing.T) {
-	if len(lightPause) == 0 {
-		t.Error("len( lightPause) = 0")
-	}
+func TestWrongTheme(t *testing.T) {
+	defer func() {
+		assert.NotNil(t, recover())
+	}()
+
+	_ = NewIcon("wrong", fi.set)
+
+	assert.FailNow(t, "we should not get here")
 }
 
-func Test_Data_darkBusy1(t *testing.T) {
-	if len(darkBusy1) == 0 {
-		t.Error("len(darkBusy1) = 0")
-	}
-}
+func TestDubleCleanUp(t *testing.T) {
+	i := NewIcon("dark", fi.set)
+	assert.NotNil(t, i)
+	i.CleanUp()
+	defer func() {
+		assert.NotNil(t, recover())
+	}()
 
-func Test_Data_darkBusy2(t *testing.T) {
-	if len(darkBusy2) == 0 {
-		t.Error("len(darkBusy2) = 0")
-	}
-}
+	i.CleanUp()
 
-func Test_Data_darkBusy3(t *testing.T) {
-	if len(darkBusy3) == 0 {
-		t.Error("len(darkBusy3) = 0")
-	}
-}
-
-func Test_Data_darkBusy4(t *testing.T) {
-	if len(darkBusy4) == 0 {
-		t.Error("len(darkBusy4) = 0")
-	}
-}
-
-func Test_Data_darkBusy5(t *testing.T) {
-	if len(darkBusy5) == 0 {
-		t.Error("len(darkBusy5) = 0")
-	}
-}
-
-func Test_Data_darkError(t *testing.T) {
-	if len(darkError) == 0 {
-		t.Error("len(darkError) = 0")
-	}
-}
-
-func Test_Data_darkIdle(t *testing.T) {
-	if len(darkIdle) == 0 {
-		t.Error("len(darkIdle) = 0")
-	}
-}
-
-func Test_Data_darkPause(t *testing.T) {
-	if len(darkPause) == 0 {
-		t.Error("len(darkPause) = 0")
-	}
-}
-
-func Test_Data_yd128(t *testing.T) {
-	if len(yd128) == 0 {
-		t.Error("len(yd128) = 0")
-	}
-}
-
-func Test_Icons(t *testing.T) {
-	err := PrepareIcons()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ClearIcons()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func Test_SetTheme(t *testing.T) {
-	SetTheme("theme")
-	if IconError != path.Join(icoHome, "themeError.png") {
-		t.Errorf("wrong path of IconError: %s", IconError)
-	}
-
-}
-
-func Test_IconsE(t *testing.T) {
-	err := PrepareIcons()
-	if err != nil {
-		t.Error(err)
-	}
-	err = PrepareIcons()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ClearIcons()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.FailNow(t, "we should not get here")
 }

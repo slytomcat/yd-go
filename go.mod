@@ -8,6 +8,7 @@ require (
 	github.com/getlantern/systray v1.1.0
 	github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b
 	github.com/slytomcat/ydisk v0.0.0-20210223140457-b3b716f57361
+	github.com/stretchr/testify v1.7.0
 	golang.org/x/sys v0.0.0-20210415045647-66c3f260301c // indirect
 	golang.org/x/text v0.3.6
 )
