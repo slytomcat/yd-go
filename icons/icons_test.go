@@ -74,7 +74,7 @@ func TestSet(t *testing.T) {
 func TestAnimation(t *testing.T) {
 	interval = 10 * time.Millisecond
 	tick := time.Millisecond
-	waitFor := interval + tick*2
+	waitFor := interval + 5*tick
 	event := func(i []byte) func() bool {
 		return func() bool { return bytes.Equal(fi.get(), i) }
 	}

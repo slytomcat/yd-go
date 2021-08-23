@@ -61,7 +61,7 @@ jobs:
           key: GO_MOD_CACHE
       - name: Build amd64
         run: |
-          GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.version=$(cat VERSION)" ./...
+          GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.version=$(cat VERSION)"
       - name: Upload a Build Artifacts
         uses: actions/upload-artifact@v2.2.2
         with:
