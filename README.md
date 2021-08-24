@@ -1,5 +1,5 @@
 # yd-go 
-[![CircleCI](https://circleci.com/gh/slytomcat/yd-go.svg?style=svg)](https://circleci.com/gh/slytomcat/yd-go)
+[![Go](https://github.com/slytomcat/yd-go/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/slytomcat/yd-go/actions/workflows/go.yml)
 ## Panel indicator for Yandex-disk CLI daemon (linux/GTK+)
 
 
