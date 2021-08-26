@@ -93,18 +93,18 @@ func NewConfig(cfgFilePath string) *Config {
 // initializes logging facility.
 // Parameter: appName - name of application,
 // Returns: path to config file
-func AppInit(appName string) string {
+func AppInit(appName string, args []string) string {
 	var debug bool
 	var config string
-	flag.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
-	flag.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage:\n\n\t\t"+appName+" [-debug] [-config=<Path to indicator config>]\n\n")
-		flag.PrintDefaults()
+	f := flag.NewFlagSet(appName, flag.ExitOnError)
+	f.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
+	f.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
+	f.Usage = func() {
+		_, _ = fmt.Fprintf(f.Output(), "Usage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>]\n\n", appName)
+		f.PrintDefaults()
 	}
-	flag.Parse()
+	_ = f.Parse(args[1:])
 	// Initialize logging facility
-	llog.SetOutput(os.Stderr)
 	llog.SetPrefix("")
 	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	if debug {

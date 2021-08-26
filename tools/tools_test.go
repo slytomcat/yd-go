@@ -1,10 +1,13 @@
 package tools
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/slytomcat/llog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,10 +27,8 @@ func TestNotExists(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
-	testPath := "./cfgTest/"
+	testPath := t.TempDir()
 	testFile := path.Join(testPath, "cfg")
-	defer os.RemoveAll(testPath)
-	os.RemoveAll(testPath)
 
 	t.Run("no config file", func(t *testing.T) {
 		cfg := NewConfig(testFile)
@@ -86,47 +87,61 @@ func TestConfig(t *testing.T) {
 	t.Run("bad config file", func(t *testing.T) {
 		os.WriteFile(testFile, []byte(`bad,bad,bad`), 0766)
 
-		defer func() {
-			assert.NotNil(t, recover())
-		}()
-		_ = NewConfig(testFile)
-
-		assert.Fail(t, "this code should not executed")
+		assert.Panics(t, func() { _ = NewConfig(testFile) })
 	})
 
 	t.Run("config file cat't be read", func(t *testing.T) {
-
-		defer func() {
-			assert.NotNil(t, recover())
-		}()
-		_ = NewConfig(testPath)
-
-		assert.Fail(t, "this code should not executed")
+		assert.Panics(t, func() { _ = NewConfig(testPath) })
 	})
 
 	t.Run("config file cat't be written", func(t *testing.T) {
-
-		defer func() {
-			assert.NotNil(t, recover())
-		}()
-		_ = NewConfig("/dev/non_existing_device")
-
-		assert.Fail(t, "this code should not executed")
+		assert.Panics(t, func() { _ = NewConfig("/dev/non_existing_device") })
 	})
 
 	t.Run("config file path cat't be created", func(t *testing.T) {
-
-		defer func() {
-			assert.NotNil(t, recover())
-		}()
-		_ = NewConfig("/dev/non_existing_device/file")
-
-		assert.Fail(t, "this code should not executed")
+		assert.Panics(t, func() { _ = NewConfig("/dev/non_existing_device/file") })
 	})
 
 	// 100% coverage for Config !!!
 }
 
-// I have no idea how to test XdgOpen...
+func TestAppInit(t *testing.T) {
+	appName := "yd-go-test"
 
-// Need tests for AppInit
+	t.Run("start w/o params", func(t *testing.T) {
+		cfgPath := AppInit(appName, []string{appName})
+		assert.Equal(t, os.ExpandEnv("$HOME/.config/yd-go-test/default.cfg"), cfgPath)
+	})
+
+	t.Run("start with -config", func(t *testing.T) {
+		cfgPath := AppInit(appName, []string{appName, "-config=file"})
+		assert.Equal(t, "file", cfgPath)
+	})
+
+	t.Run("start with -debug", func(t *testing.T) {
+
+		buf := &bytes.Buffer{}
+		llog.SetOutput(buf)
+		cfgPath := AppInit(appName, []string{appName, "-debug", "-config=file"})
+		assert.Equal(t, "file", cfgPath)
+		assert.Contains(t, buf.String(), "Debugging enabled")
+	})
+
+	t.Run("start with -h", func(t *testing.T) {
+		r, w, err := os.Pipe()
+		assert.NoError(t, err)
+		oserr := os.Stderr
+		os.Stderr = w
+		defer func() {
+			os.Stderr = oserr
+		}()
+		// help request will call os.Exit(0) that panics the testing
+		assert.Panics(t, func() { _ = AppInit(appName, []string{appName, "-h"}) })
+		w.Close()
+		b, err := io.ReadAll(r)
+		assert.NoError(t, err)
+		assert.Contains(t, string(b), "Usage:\n\n\t\t\"yd-go-test")
+	})
+}
+
+// I have no idea how to test XdgOpen...
