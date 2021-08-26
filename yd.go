@@ -71,7 +71,8 @@ func main() {
 
 func onReady() {
 	// Initialize application and get the application configuration
-	appConfig := tools.NewConfig(tools.AppInit("yd-go"))
+	cfgPath := tools.AppInit("yd-go", os.Args)
+	appConfig := tools.NewConfig(cfgPath)
 
 	// Initialize translations
 	lng := os.Getenv("LANG")
