@@ -7,33 +7,33 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type fakeIcon struct {
+type mockIcon struct {
 	icon []byte
 	mu   sync.Mutex
 }
 
-func (f *fakeIcon) set(icon []byte) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.icon = icon
+func (m *mockIcon) set(icon []byte) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.icon = icon
 }
 
-func (f *fakeIcon) get() []byte {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.icon
+func (m *mockIcon) get() []byte {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.icon
 }
 
-var fi fakeIcon
+var mi mockIcon
 
 func TestNewIcon(t *testing.T) {
-	i := NewIcon("dark", fi.set)
-	assert.NotNil(t, i)
+	i := NewIcon("dark", mi.set)
+	require.NotNil(t, i)
 	defer i.CleanUp()
-	assert.NotNil(t, i)
-	assert.Equal(t, darkPause, fi.get())
+	assert.Equal(t, darkPause, mi.get())
 	assert.Equal(t, darkError, i.errorIcon)
 	assert.Equal(t, darkIdle, i.idleIcon)
 	assert.Equal(t, darkPause, i.pauseIcon)
@@ -41,34 +41,34 @@ func TestNewIcon(t *testing.T) {
 }
 
 func TestSetTheme(t *testing.T) {
-	i := NewIcon("dark", fi.set)
-	assert.NotNil(t, i)
+	i := NewIcon("dark", mi.set)
+	require.NotNil(t, i)
 	defer i.CleanUp()
-	assert.Equal(t, darkPause, fi.get())
+	assert.Equal(t, darkPause, mi.get())
 	i.SetTheme("light")
-	assert.Equal(t, darkPause, fi.get()) // current icon should not be changed if Set() was not called after NewIcon()
+	assert.Equal(t, darkPause, mi.get()) // current icon should not be changed if Set() was not called after NewIcon() as status is still unknown
 	assert.Equal(t, lightError, i.errorIcon)
 	assert.Equal(t, lightIdle, i.idleIcon)
 	assert.Equal(t, lightPause, i.pauseIcon)
 	assert.Equal(t, [5][]byte{lightBusy1, lightBusy2, lightBusy3, lightBusy4, lightBusy5}, i.busyIcons)
 	i.Set("idle")
-	assert.Equal(t, lightIdle, fi.get())
+	assert.Equal(t, lightIdle, mi.get())
 	i.SetTheme("dark")
-	assert.Equal(t, darkIdle, fi.get()) // after a call of Set(), the SetTheme() should change current icon
+	assert.Equal(t, darkIdle, mi.get()) // after a call of Set(), the SetTheme() should change current icon
 }
 
 func TestSet(t *testing.T) {
-	i := NewIcon("dark", fi.set)
-	assert.NotNil(t, i)
+	i := NewIcon("dark", mi.set)
+	require.NotNil(t, i)
 	defer i.CleanUp()
 	i.Set("error")
-	assert.Equal(t, darkError, fi.get())
+	assert.Equal(t, darkError, mi.get())
 	i.Set("idle")
-	assert.Equal(t, darkIdle, fi.get())
+	assert.Equal(t, darkIdle, mi.get())
 	i.Set("none")
-	assert.Equal(t, darkPause, fi.get())
+	assert.Equal(t, darkPause, mi.get())
 	i.Set("busy")
-	assert.Equal(t, darkBusy1, fi.get())
+	assert.Equal(t, darkBusy1, mi.get())
 }
 
 func TestAnimation(t *testing.T) {
@@ -76,14 +76,14 @@ func TestAnimation(t *testing.T) {
 	tick := time.Millisecond
 	waitFor := interval + 5*tick
 	event := func(i []byte) func() bool {
-		return func() bool { return bytes.Equal(fi.get(), i) }
+		return func() bool { return bytes.Equal(mi.get(), i) }
 	}
 
-	i := NewIcon("dark", fi.set)
-	assert.NotNil(t, i)
+	i := NewIcon("dark", mi.set)
+	require.NotNil(t, i)
 	defer i.CleanUp()
 	i.Set("index")
-	assert.Equal(t, darkBusy1, fi.get())
+	assert.Equal(t, darkBusy1, mi.get())
 	assert.Eventually(t, event(darkBusy2), waitFor, tick)
 	assert.Eventually(t, event(darkBusy3), waitFor, tick)
 	assert.Eventually(t, event(darkBusy4), waitFor, tick)
@@ -92,24 +92,14 @@ func TestAnimation(t *testing.T) {
 }
 
 func TestWrongTheme(t *testing.T) {
-	defer func() {
-		assert.NotNil(t, recover())
-	}()
-
-	_ = NewIcon("wrong", fi.set)
-
-	assert.FailNow(t, "we should not get here")
+	require.Panics(t, func() {
+		_ = NewIcon("wrong", mi.set)
+	})
 }
 
 func TestDubleCleanUp(t *testing.T) {
-	i := NewIcon("dark", fi.set)
-	assert.NotNil(t, i)
+	i := NewIcon("dark", mi.set)
+	require.NotNil(t, i)
 	i.CleanUp()
-	defer func() {
-		assert.NotNil(t, recover())
-	}()
-
-	i.CleanUp()
-
-	assert.FailNow(t, "we should not get here")
+	require.Panics(t, i.CleanUp)
 }

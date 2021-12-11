@@ -39,10 +39,6 @@ func NewIcon(theme string, set func([]byte)) *Icon {
 	i := &Icon{
 		currentStatus: "",
 		currentIcon:   0,
-		busyIcons:     [5][]byte{},
-		idleIcon:      []byte{},
-		pauseIcon:     []byte{},
-		errorIcon:     []byte{},
 		NotifyIcon:    file.Name(),
 		setFunc:       set,
 		ticker:        time.NewTicker(interval),
@@ -114,11 +110,11 @@ func (i *Icon) loop() {
 	}
 }
 
-// CleanUp removes temporary file for notification icon
+// CleanUp removes temporary file for notification icon and stops internal loop
 func (i *Icon) CleanUp() {
 	if err := os.Remove(i.NotifyIcon); err != nil {
 		llog.Critical(err)
 	}
 	i.ticker.Stop()
-	i.exit <- struct{}{}
+	close(i.exit)
 }
