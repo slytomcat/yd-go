@@ -51,6 +51,7 @@ type Config struct {
 // NewConfig returns the application configeration
 func NewConfig(cfgFilePath string) *Config {
 	cfg := &Config{
+		// fill it with default values
 		Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
 		Theme:         "dark",                                               // icons theme name
 		Notifications: true,                                                 // display desktop notification
