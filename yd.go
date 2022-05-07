@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray" //"github.com/getlantern/systray"
 	"github.com/slytomcat/llog"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/notify"
@@ -109,9 +109,10 @@ func onReady() {
 		"paused": msg.Sprintf("paused"),
 	}
 
+	time.Sleep(10 * time.Millisecond)
 	m := new(menu)
 	systray.SetTitle("yd-go indicator")
-	// Initialize systray menu
+	//Initialize systray menu
 	m.status = systray.AddMenuItem("", "")
 	m.status.Disable()
 	m.size1 = systray.AddMenuItem("", "")
