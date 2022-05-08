@@ -92,6 +92,7 @@ func onReady() {
 	notify, err := notify.New(appName, icon.NotifyIcon, true, -1)
 	if err != nil {
 		notifySend = func(title, body string) {}
+		llog.Warningf("Notification is not availabe due to D-Bus connection error: %v", err)
 	} else {
 		notifySend = func(title, body string) {
 			llog.Debug("Message:", title, ":", body)
