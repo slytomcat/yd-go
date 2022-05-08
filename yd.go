@@ -8,7 +8,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	// "os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,6 +16,7 @@ import (
 	"github.com/getlantern/systray"
 	"github.com/slytomcat/llog"
 	"github.com/slytomcat/yd-go/icons"
+	"github.com/slytomcat/yd-go/notify"
 	"github.com/slytomcat/yd-go/tools"
 	"github.com/slytomcat/ydisk"
 	"golang.org/x/text/message"
@@ -29,7 +30,9 @@ var (
 	icon     *icons.Icon       // icon helper
 )
 
-const about = `yd-go is the GTK-based panel indicator for Yandex.Disk daemon.
+const (
+	appName = "yd-go"
+	about   = appName + ` is the panel indicator for Yandex.Disk daemon.
 
 	Version: %s
 
@@ -38,14 +41,9 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	License: GPL v.3
 
 `
+)
 
-func notifySend(title, body string) {
-	llog.Debug("Message:", title, ":", body)
-	err := exec.Command("notify-send", "-i", icon.NotifyIcon, title, body).Start()
-	if err != nil {
-		llog.Error(err)
-	}
-}
+var notifySend func(title, body string)
 
 type menu struct {
 	status *systray.MenuItem
@@ -71,7 +69,7 @@ func main() {
 
 func onReady() {
 	// Initialize application and get the application configuration
-	cfgPath := tools.AppInit("yd-go", os.Args)
+	cfgPath := tools.AppInit(appName, os.Args)
 	appConfig := tools.NewConfig(cfgPath)
 
 	// Initialize translations
@@ -80,7 +78,7 @@ func onReady() {
 		lng = lng[:2]
 	}
 
-	llog.Infof("Local language is: %v", lng)
+	llog.Debugf("Local language is: %v", lng)
 	msg = message.NewPrinter(message.MatchLanguage(lng))
 
 	YD, err := ydisk.NewYDisk(appConfig.Conf)
@@ -90,6 +88,16 @@ func onReady() {
 
 	// Initialize icon helper
 	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+
+	notify, err := notify.New(appName, icon.NotifyIcon, true, -1)
+	if err != nil {
+		notifySend = func(title, body string) {}
+	} else {
+		notifySend = func(title, body string) {
+			llog.Debug("Message:", title, ":", body)
+			notify.Send("", title, body)
+		}
+	}
 
 	// Initialize status localization
 	statusTr = map[string]string{

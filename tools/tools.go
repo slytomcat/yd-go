@@ -106,7 +106,7 @@ func AppInit(appName string, args []string) string {
 	}
 	_ = f.Parse(args[1:])
 	// Initialize logging facility
-	llog.SetPrefix("")
+	llog.SetPrefix(appName)
 	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	if debug {
 		llog.SetLevel(llog.DEBUG)
