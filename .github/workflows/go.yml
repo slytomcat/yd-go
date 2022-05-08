@@ -28,9 +28,7 @@ jobs:
             /home/runner/go/pkg/mod/
           key: GO_MOD_CACHE
       - name: Test
-        run: |
-          env
-          go test -v --race -coverprofile cover.out ./...
+        run: go test -v --race -coverprofile cover.out ./...
       - name: Format coverage
         run: go tool cover -html=cover.out -o coverage.html
       - name: Upload coverage to Artifacts
