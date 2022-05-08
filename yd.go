@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"fyne.io/systray" //"github.com/getlantern/systray"
+	"fyne.io/systray"
 	"github.com/slytomcat/llog"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/notify"
