@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -8,6 +9,9 @@ import (
 )
 
 func TestDBusNotify(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping testing in CI environment")
+	}
 	icon := "dialog-information"
 	n, err := New("appname", "", true, -1)
 	require.NoError(t, err)
