@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skycoin/systray"
 	"github.com/slytomcat/llog"
+	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/notify"
 	"github.com/slytomcat/yd-go/tools"
@@ -109,7 +109,7 @@ func onReady() {
 		"paused": msg.Sprintf("paused"),
 	}
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	m := new(menu)
 	systray.SetTitle("yd-go indicator")
 	//Initialize systray menu
@@ -259,6 +259,7 @@ func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path str
 			go handleNotifications(yds)
 		}
 	}
+	m.last.Show() // to update parent item view
 	llog.Debug("Change handled")
 }
 
