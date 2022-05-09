@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"fyne.io/systray"
+	"github.com/skycoin/systray"
 	"github.com/slytomcat/llog"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/notify"
@@ -237,6 +237,7 @@ func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path str
 		} else {
 			m.last.Enable()
 		}
+		m.last.Show() // to update parent item view
 		llog.Debug("Last synchronized length:", len(yds.Last))
 	}
 	if yds.Stat != yds.Prev { // status changed
