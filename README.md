@@ -36,7 +36,7 @@ Download source from master branch and unzip or just clone repository .
 There is no additional libraries/packages requered for building. Just jump into project directory and run:
 
 ```bash
-./build
+./build.sh
 ```
 ## Installation
 Run 
