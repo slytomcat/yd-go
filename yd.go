@@ -112,9 +112,8 @@ func onReady() {
 	time.Sleep(30 * time.Millisecond) // wait for D-Bus connection
 	m := new(menu)
 	systray.SetTitle("yd-go indicator")
-	//Initialize systray menu
 	m.status = systray.AddMenuItem("", "")
-	m.status.Disable() // it will panic when connection to D-Bus is not establishe jet.
+	m.status.Disable()
 	m.size1 = systray.AddMenuItem("", "")
 	m.size1.Disable()
 	m.size2 = systray.AddMenuItem("", "")

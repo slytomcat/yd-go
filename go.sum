@@ -15,6 +15,10 @@ github.com/slytomcat/systray v1.10.1-0.20220510122616-9540cd4b730c h1:U/eNjwXa1p
 github.com/slytomcat/systray v1.10.1-0.20220510122616-9540cd4b730c/go.mod h1:wVCHpiTI7RS8G8hewNOCKgvPvHMpWFbOzwttzN4fpgo=
 github.com/slytomcat/systray v1.10.1-0.20220511211916-ed9c2a72f439 h1:iGYX5BKDGbCqj/Jep+rO8syY4zP3jejgL9/A6Aapi4Y=
 github.com/slytomcat/systray v1.10.1-0.20220511211916-ed9c2a72f439/go.mod h1:wVCHpiTI7RS8G8hewNOCKgvPvHMpWFbOzwttzN4fpgo=
+github.com/slytomcat/systray v1.10.1-0.20220513010906-1e1c97db4a9c h1:8ThBPAKJVhRTgSmm5MMAlsJ6d4zO2XlX7VIyjw90Ee0=
+github.com/slytomcat/systray v1.10.1-0.20220513010906-1e1c97db4a9c/go.mod h1:wVCHpiTI7RS8G8hewNOCKgvPvHMpWFbOzwttzN4fpgo=
+github.com/slytomcat/systray v1.10.1-0.20220514131034-4161b38b9ccc h1:VSwhek1h18fCZD46x8E/eJIDF3W8eKK2fKi5spisEIk=
+github.com/slytomcat/systray v1.10.1-0.20220514131034-4161b38b9ccc/go.mod h1:wVCHpiTI7RS8G8hewNOCKgvPvHMpWFbOzwttzN4fpgo=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7 h1:EI1vrgTpx0SJmLOrau1lKOjoQZJgD8nqmsmDo5m2mzc=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7/go.mod h1:HGKn4ml8RTHFmLPT6IvQampuLo0s/pBm6G48J79fBYM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
@@ -24,6 +28,8 @@ golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6 h1:nonptSpoQ4vQjyraW20DXPAglgQfVnM9ZC6MmNLMR60=
 golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a h1:N2T1jUrTQE9Re6TFF5PhvEHXHCguynGhKjWVsIUt5cY=
+golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/text v0.3.7 h1:olpwvP2KacW1ZWvsR7uQhoyTYvKAupfQrRGBFM352Gk=
 golang.org/x/text v0.3.7/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
