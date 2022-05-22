@@ -12,11 +12,14 @@ import (
 )
 
 func TestShortName(t *testing.T) {
-	assert.Equal(t, "1234567890", ShortName("1234567890", 20))
-	assert.Equal(t, "12...890", ShortName("1234567890", 8))
-	assert.Equal(t, "12...123", ShortName("1234567890123", 8))
-	assert.Equal(t, "русский текст", ShortName("русский текст", 20))
-	assert.Equal(t, "рус...дада", ShortName("русский текст дада", 10))
+	assert.Equal(t, "1234567890", MakeTitle("1234567890", 20))
+	assert.Equal(t, "12...890", MakeTitle("1234567890", 8))
+	assert.Equal(t, "12...123", MakeTitle("1234567890123", 8))
+	assert.Equal(t, "русский текст", MakeTitle("русский текст", 20))
+	assert.Equal(t, "рус...дада", MakeTitle("русский текст дада", 10))
+	su := "one_two"
+	sm := MakeTitle(su, 10)
+	assert.Equal(t, "one\u2009\u0332\u2009two", sm)
 }
 
 func TestNotExists(t *testing.T) {

@@ -8,7 +8,7 @@ package main
 import (
 	"fmt"
 	"os"
-	// "os/exec"
+
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,12 +46,12 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 var notifySend func(title, body string)
 
 type menu struct {
-	status *systray.MenuItem
-	size1  *systray.MenuItem
-	size2  *systray.MenuItem
-	last   *systray.MenuItem
-	lastM  [10]*systray.MenuItem
-	lastP  [10]string
+	status *systray.MenuItem     // menu item to show current status
+	size1  *systray.MenuItem     // menu item to show used/total sizes
+	size2  *systray.MenuItem     // menu item to show free anf trash sizes
+	last   *systray.MenuItem     // Sub-menu with last synchronized
+	lastM  [10]*systray.MenuItem // last synchronized menu items
+	lastP  [10]string            // paths to last synchronized
 	start  *systray.MenuItem
 	stop   *systray.MenuItem
 	out    *systray.MenuItem
@@ -81,6 +81,7 @@ func onReady() {
 	llog.Debugf("Local language is: %v", lng)
 	msg = message.NewPrinter(message.MatchLanguage(lng))
 
+	// start new YDisk instanse
 	YD, err := ydisk.NewYDisk(appConfig.Conf)
 	if err != nil {
 		llog.Critical("Fatal error:", err)
@@ -89,6 +90,7 @@ func onReady() {
 	// Initialize icon helper
 	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
 
+	// Initialize notifications
 	notify, err := notify.New(appName, icon.NotifyIcon, true, -1)
 	if err != nil {
 		notifySend = func(title, body string) {}
@@ -109,7 +111,6 @@ func onReady() {
 		"paused": msg.Sprintf("paused"),
 	}
 
-	time.Sleep(30 * time.Millisecond) // wait for D-Bus connection
 	m := new(menu)
 	systray.SetTitle("yd-go indicator")
 	m.status = systray.AddMenuItem("", "")
@@ -193,7 +194,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 		case <-m.site.ClickedCh:
 			tools.XdgOpen("https://disk.yandex.com")
 		case <-m.help.ClickedCh:
-			tools.XdgOpen("https://github.com/slytomcat/YD.go/wiki/FAQ&SUPPORT")
+			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
 			notifySend("yd-go", msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.don.ClickedCh:
@@ -208,7 +209,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 }
 
 func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path string) {
-	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.ShortName(yds.ErrP, 30)}, " ")
+	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30)}, " ")
 	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	if yds.Stat == "error" {
 		m.status.SetTooltip(fmt.Sprintf("%s\nPath: %s", yds.Err, yds.ErrP))
@@ -220,7 +221,7 @@ func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path str
 	if yds.ChLast { // last synchronized list changed
 		for i, p := range yds.Last {
 			m.lastP[i] = filepath.Join(path, p)
-			m.lastM[i].SetTitle(tools.ShortName(p, 40))
+			m.lastM[i].SetTitle(tools.MakeTitle(p, 40))
 			if tools.NotExists(m.lastP[i]) {
 				m.lastM[i].Disable()
 			} else {
