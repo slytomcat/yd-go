@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/slytomcat/llog"
 )
@@ -28,15 +29,21 @@ func XdgOpen(uri string) {
 	}
 }
 
-// ShortName returns the shorten version of its first parameter. The second parameter specifies
-// the maximum number of symbols (runes) in returned string.
-func ShortName(s string, l int) string {
+// MakeTitle returns the shorten version of its first parameter. The second parameter specifies
+// the maximum number of symbols (runes) in returned string. It also replaces underscore symbol with
+// the special unicode symbols sequense that looks very similar to the original underscore
+func MakeTitle(s string, l int) string {
 	r := []rune(s)
 	if len(r) < l {
-		return s
+		return replaceUndescore(s)
 	}
 	b := (l - 3) / 2
-	return string(r[:b]) + "..." + string(r[len(r)-(l-3-b):])
+	return replaceUndescore(string(r[:b])) + "..." + replaceUndescore(string(r[len(r)-(l-3-b):]))
+}
+
+// replaceUndescore replaces underscore (special symbol for menu shortcut) to special unicode symbols which looks like original underscore
+func replaceUndescore(s string) string {
+	return strings.ReplaceAll(s, "_", "\u2009\u0332\u2009") // thin space + combining low line + thin space
 }
 
 // Config is applicatinon configuration

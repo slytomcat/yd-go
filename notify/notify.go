@@ -23,7 +23,7 @@ const (
 // The application is the name of application.
 // The defaultIcon is icon name/path to be used for notification when no icon specified during the Send call.
 // True value of replace means that a new notification will replace the previous one if it is still displayed.
-// The time sets the time in milliseconds after which the notification will desappear.
+// The time sets the time in milliseconds after which the notification will desappear. Set it to -1 to use default.
 func New(application, defailtIcon string, replace bool, time int) (*Notify, error) {
 	conn, err := dbus.ConnectSessionBus()
 	obj := conn.Object(dBusDest, dBusPath)
