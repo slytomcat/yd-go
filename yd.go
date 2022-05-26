@@ -114,23 +114,16 @@ func onReady() {
 	m := new(menu)
 	systray.SetTitle("yd-go indicator")
 	m.status = systray.AddMenuItem("", "")
-	m.status.Disable()
 	m.size1 = systray.AddMenuItem("", "")
-	m.size1.Disable()
 	m.size2 = systray.AddMenuItem("", "")
-	m.size2.Disable()
 	systray.AddSeparator()
 	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
-	m.last.Disable()
 	for i := 0; i < 10; i++ {
 		m.lastM[i] = m.last.AddSubMenuItem("", "")
-		m.lastM[i].Hide()
 	}
 	systray.AddSeparator()
 	m.start = systray.AddMenuItem(msg.Sprintf("Start daemon"), "")
-	m.start.Hide()
 	m.stop = systray.AddMenuItem(msg.Sprintf("Stop daemon"), "")
-	m.stop.Hide()
 	systray.AddSeparator()
 	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
 	m.path = systray.AddMenuItem(msg.Sprintf("Open: %s", YD.Path), "")
@@ -141,6 +134,15 @@ func onReady() {
 	m.don = systray.AddMenuItem(msg.Sprintf("Donations"), "")
 	systray.AddSeparator()
 	m.quit = systray.AddMenuItem(msg.Sprintf("Quit"), "")
+	m.status.Disable()
+	m.size1.Disable()
+	m.size2.Disable()
+	m.last.Disable()
+	m.start.Hide()
+	m.stop.Hide()
+	for i := 0; i < 10; i++ {
+		m.lastM[i].Hide()
+	}
 
 	// Start handler
 	go eventHandler(m, appConfig, YD)
