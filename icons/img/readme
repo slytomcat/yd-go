@@ -7,7 +7,7 @@ Each theme should provide the following set of icons:
  *pause.png - displayed when Yandex.disk daemon not started or synchronization is paused
  *error.png - displayed when some error occurs in synchronization
  *busy[1-5].png - set of icons to indicate the synchronization process. 
-Icons busy[1-5].png are displayed in loop (to provide animated icon):
+Icons *busy[1-5].png are displayed in loop (to provide animated icon):
   *busy1.png -> *busy2.png -> *busy3.png -> *busy4.png -> *busy5.png -> *busy1.png -> *busy2.png ...
 
-yd128.png - big icon for about dialogue
+yd128.png - big icon for about dialogue and notifications 
