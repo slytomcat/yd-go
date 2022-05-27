@@ -1,8 +1,7 @@
 package icons
 
 import (
-	// embed used only here
-	_ "embed"
+	_ "embed" // embed is used only here
 )
 
 var (

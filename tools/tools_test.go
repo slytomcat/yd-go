@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestShortName(t *testing.T) {
+func TestMakeTitle(t *testing.T) {
 	assert.Equal(t, "1234567890", MakeTitle("1234567890", 20))
 	assert.Equal(t, "12...890", MakeTitle("1234567890", 8))
 	assert.Equal(t, "12...123", MakeTitle("1234567890123", 8))
@@ -37,6 +37,7 @@ func TestConfig(t *testing.T) {
 		cfg := NewConfig(testFile)
 		assert.NotNil(t, cfg)
 		assert.Equal(t, &Config{
+			path:          testFile,
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -51,6 +52,7 @@ func TestConfig(t *testing.T) {
 		cfg1 := NewConfig(testFile)
 		assert.NotNil(t, cfg1)
 		assert.Equal(t, &Config{
+			path:          testFile,
 			Conf:          "config.cfg",
 			Theme:         "none",
 			Notifications: false,
@@ -65,6 +67,7 @@ func TestConfig(t *testing.T) {
 		cfg3 := NewConfig(testFile)
 		assert.NotNil(t, cfg3)
 		assert.Equal(t, &Config{
+			path:          testFile,
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -79,6 +82,7 @@ func TestConfig(t *testing.T) {
 		cfg3 := NewConfig(testFile)
 		assert.NotNil(t, cfg3)
 		assert.Equal(t, &Config{
+			path:          testFile,
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // default
 			Theme:         "none",                                               // config
 			Notifications: false,                                                // config
