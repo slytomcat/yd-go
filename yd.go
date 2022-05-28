@@ -25,9 +25,11 @@ import (
 var (
 	version = "local build"
 
-	msg      *message.Printer  // msg is the Localization printer
-	statusTr map[string]string // translated statuses
-	icon     *icons.Icon       // icon helper
+	msg        *message.Printer  // msg is the Localization printer
+	statusTr   map[string]string // translated statuses
+	icon       *icons.Icon       // icon helper
+	notifySend func(title, body string)
+	appConfig  *tools.Config
 )
 
 const (
@@ -43,8 +45,6 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 `
 )
 
-var notifySend func(title, body string)
-
 type menu struct {
 	status *systray.MenuItem     // menu item to show current status
 	size1  *systray.MenuItem     // menu item to show used/total sizes
@@ -56,6 +56,10 @@ type menu struct {
 	stop   *systray.MenuItem
 	out    *systray.MenuItem
 	path   *systray.MenuItem
+	notes  *systray.MenuItem
+	theme  *systray.MenuItem
+	dstart *systray.MenuItem
+	dstop  *systray.MenuItem
 	site   *systray.MenuItem
 	help   *systray.MenuItem
 	about  *systray.MenuItem
@@ -70,7 +74,7 @@ func main() {
 func onReady() {
 	// Initialize application and get the application configuration
 	cfgPath := tools.AppInit(appName, os.Args)
-	appConfig := tools.NewConfig(cfgPath)
+	appConfig = tools.NewConfig(cfgPath)
 
 	// Initialize translations
 	lng := os.Getenv("LANG")
@@ -112,7 +116,7 @@ func onReady() {
 	}
 
 	m := new(menu)
-	systray.SetTitle("yd-go indicator")
+	systray.SetTitle("Yandex.Disk")
 	m.status = systray.AddMenuItem("", "")
 	m.size1 = systray.AddMenuItem("", "")
 	m.size2 = systray.AddMenuItem("", "")
@@ -128,6 +132,11 @@ func onReady() {
 	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
 	m.path = systray.AddMenuItem(msg.Sprintf("Open: %s", YD.Path), "")
 	m.site = systray.AddMenuItem(msg.Sprintf("Open YandexDisk in browser"), "")
+	setup := systray.AddMenuItem(msg.Sprintf("Settings"), "")
+	m.theme = setup.AddSubMenuItemCheckbox(msg.Sprintf("Light theme"), "", appConfig.Theme == "light")
+	m.notes = setup.AddSubMenuItemCheckbox(msg.Sprintf("Notifications"), "", appConfig.Notifications)
+	m.dstart = setup.AddSubMenuItemCheckbox(msg.Sprintf("Start on start"), "", appConfig.StartDaemon)
+	m.dstop = setup.AddSubMenuItemCheckbox(msg.Sprintf("Stop on exit"), "", appConfig.StopDaemon)
 	systray.AddSeparator()
 	m.help = systray.AddMenuItem(msg.Sprintf("Help"), "")
 	m.about = systray.AddMenuItem(msg.Sprintf("About"), "")
@@ -144,7 +153,7 @@ func onReady() {
 		m.lastM[i].Hide()
 	}
 
-	// Start handler
+	// Start events handler
 	go eventHandler(m, appConfig, YD)
 }
 
@@ -195,6 +204,19 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 			tools.XdgOpen(YD.Path)
 		case <-m.site.ClickedCh:
 			tools.XdgOpen("https://disk.yandex.com")
+		case <-m.theme.ClickedCh:
+			if handleCheck(m.theme) {
+				cfg.Theme = "light"
+			} else {
+				cfg.Theme = "dark"
+			}
+			icon.SetTheme(cfg.Theme)
+		case <-m.notes.ClickedCh:
+			cfg.Notifications = handleCheck(m.notes)
+		case <-m.dstart.ClickedCh:
+			cfg.StartDaemon = handleCheck(m.dstart)
+		case <-m.dstop.ClickedCh:
+			cfg.StopDaemon = handleCheck(m.dstop)
 		case <-m.help.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
@@ -205,12 +227,21 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 			llog.Debug("Exit requested.")
 			return
 		case yds := <-YD.Changes: // YDisk change event
-			updateMenu(m, yds, icon, cfg.Notifications, YD.Path)
+			updateMenu(m, yds, icon, YD.Path)
 		}
 	}
 }
 
-func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path string) {
+func handleCheck(mi *systray.MenuItem) bool {
+	if mi.Checked() {
+		mi.Uncheck()
+		return false
+	}
+	mi.Check()
+	return true
+}
+
+func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, path string) {
 	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30)}, " ")
 	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	if yds.Stat == "error" {
@@ -257,7 +288,7 @@ func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, note bool, path str
 				m.out.Enable()
 			}
 		}
-		if note {
+		if appConfig.Notifications {
 			go handleNotifications(yds)
 		}
 	}
@@ -281,6 +312,7 @@ func handleNotifications(yds ydisk.YDvals) {
 }
 
 func onExit() {
+	appConfig.Save()
 	icon.CleanUp()
 	llog.Debug("All done. Bye!")
 }

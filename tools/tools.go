@@ -48,6 +48,7 @@ func replaceUndescore(s string) string {
 
 // Config is applicatinon configuration
 type Config struct {
+	path          string // cofig file path
 	Conf          string // path to daemon config file
 	Theme         string // icons theme name
 	Notifications bool   // display desktop notification
@@ -58,6 +59,7 @@ type Config struct {
 // NewConfig returns the application configeration
 func NewConfig(cfgFilePath string) *Config {
 	cfg := &Config{
+		path: cfgFilePath, // store path for Save method
 		// fill it with default values
 		Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // path to daemon config file
 		Theme:         "dark",                                               // icons theme name
@@ -76,12 +78,7 @@ func NewConfig(cfgFilePath string) *Config {
 	// Check that app configuration file exists
 	if NotExists(cfgFilePath) {
 		//Create and save new configuration file with default values
-		data, _ := json.Marshal(cfg)
-		err := os.WriteFile(cfgFilePath, data, 0766)
-		if err != nil {
-			llog.Critical("Can't save configuration file:", err)
-		}
-		llog.Debugf("cfg saved: %+v", cfgFilePath)
+		cfg.Save()
 	} else {
 		// Read app configuration file
 		data, err := os.ReadFile(cfgFilePath)
@@ -95,6 +92,16 @@ func NewConfig(cfgFilePath string) *Config {
 		llog.Debugf("cfg read: %+v", cfg)
 	}
 	return cfg
+}
+
+// Save stores application configuration to the disk
+func (c *Config) Save() {
+	data, _ := json.Marshal(c)
+	err := os.WriteFile(c.path, data, 0766)
+	if err != nil {
+		llog.Critical("Can't save configuration file:", err)
+	}
+	llog.Debugf("cfg saved: %+v", c.path)
 }
 
 // AppInit handles command line arguments and
