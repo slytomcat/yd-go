@@ -112,9 +112,9 @@ func (i *Icon) loop() {
 
 // CleanUp removes temporary file for notification icon and stops internal loop
 func (i *Icon) CleanUp() {
+	i.ticker.Stop()
+	close(i.exit)
 	if err := os.Remove(i.NotifyIcon); err != nil {
 		llog.Critical(err)
 	}
-	i.ticker.Stop()
-	close(i.exit)
 }

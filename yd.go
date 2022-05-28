@@ -8,6 +8,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"path/filepath"
 	"strings"
@@ -157,7 +159,7 @@ func onReady() {
 	go eventHandler(m, appConfig, YD)
 }
 
-// menuHandler handles UI events
+// eventHandler handles all application lifetime events
 func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 	llog.Debug("event handler started")
 	defer llog.Debug("event handler exited.")
@@ -171,7 +173,9 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 		YD.Close()
 		systray.Quit()
 	}()
-
+	// register interupt signal chan
+	canceled := make(chan os.Signal, 1)
+	signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
 	for {
 		select {
 		case <-m.lastM[0].ClickedCh:
@@ -203,7 +207,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 		case <-m.path.ClickedCh:
 			tools.XdgOpen(YD.Path)
 		case <-m.site.ClickedCh:
-			tools.XdgOpen("https://disk.yandex.com")
+			tools.XdgOpen("https://disk.yandex.ru")
 		case <-m.theme.ClickedCh:
 			if handleCheck(m.theme) {
 				cfg.Theme = "light"
@@ -223,11 +227,14 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
 			notifySend("yd-go", msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.don.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
+		case <-canceled:
+			llog.Warning("Interrupted")
+			return
 		case <-m.quit.ClickedCh:
-			llog.Debug("Exit requested.")
+			llog.Debug("Exit requested")
 			return
 		case yds := <-YD.Changes: // YDisk change event
-			updateMenu(m, yds, icon, YD.Path)
+			updateMenu(m, yds, YD.Path)
 		}
 	}
 }
@@ -241,7 +248,7 @@ func handleCheck(mi *systray.MenuItem) bool {
 	return true
 }
 
-func updateMenu(m *menu, yds ydisk.YDvals, icon *icons.Icon, path string) {
+func updateMenu(m *menu, yds ydisk.YDvals, path string) {
 	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30)}, " ")
 	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	if yds.Stat == "error" {
