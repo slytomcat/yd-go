@@ -71,7 +71,7 @@ func NewConfig(cfgFilePath string) *Config {
 	cfgPath, _ := path.Split(cfgFilePath)
 	// Check that app configuration file path exists
 	if NotExists(cfgPath) {
-		if err := os.MkdirAll(cfgPath, 0766); err != nil {
+		if err := os.MkdirAll(cfgPath, 0700); err != nil {
 			llog.Critical("Can't create application configuration path:", err)
 		}
 	}
@@ -97,7 +97,7 @@ func NewConfig(cfgFilePath string) *Config {
 // Save stores application configuration to the disk
 func (c *Config) Save() {
 	data, _ := json.Marshal(c)
-	err := os.WriteFile(c.path, data, 0766)
+	err := os.WriteFile(c.path, data, 0664)
 	if err != nil {
 		llog.Critical("Can't save configuration file:", err)
 	}
