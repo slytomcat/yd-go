@@ -116,12 +116,12 @@ func TestAppInit(t *testing.T) {
 	appName := "yd-go-test"
 
 	t.Run("start w/o params", func(t *testing.T) {
-		cfgPath := AppInit(appName, []string{appName})
+		cfgPath := AppInit(appName, []string{appName}, "test")
 		assert.Equal(t, os.ExpandEnv("$HOME/.config/yd-go-test/default.cfg"), cfgPath)
 	})
 
 	t.Run("start with -config", func(t *testing.T) {
-		cfgPath := AppInit(appName, []string{appName, "-config=file"})
+		cfgPath := AppInit(appName, []string{appName, "-config=file"}, "test")
 		assert.Equal(t, "file", cfgPath)
 	})
 
@@ -129,7 +129,7 @@ func TestAppInit(t *testing.T) {
 
 		buf := &bytes.Buffer{}
 		llog.SetOutput(buf)
-		cfgPath := AppInit(appName, []string{appName, "-debug", "-config=file"})
+		cfgPath := AppInit(appName, []string{appName, "-debug", "-config=file"}, "test")
 		assert.Equal(t, "file", cfgPath)
 		assert.Contains(t, buf.String(), "Debugging enabled")
 	})
@@ -143,7 +143,7 @@ func TestAppInit(t *testing.T) {
 			os.Stderr = oserr
 		}()
 		// help request will call os.Exit(0) that panics the testing
-		assert.Panics(t, func() { _ = AppInit(appName, []string{appName, "-h"}) })
+		assert.Panics(t, func() { _ = AppInit(appName, []string{appName, "-h"}, "test") })
 		w.Close()
 		b, err := io.ReadAll(r)
 		assert.NoError(t, err)

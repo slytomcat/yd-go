@@ -108,14 +108,14 @@ func (c *Config) Save() {
 // initializes logging facility.
 // Parameter: appName - name of application,
 // Returns: path to config file
-func AppInit(appName string, args []string) string {
+func AppInit(appName string, args []string, version string) string {
 	var debug bool
 	var config string
 	f := flag.NewFlagSet(appName, flag.ExitOnError)
 	f.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
 	f.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
 	f.Usage = func() {
-		_, _ = fmt.Fprintf(f.Output(), "Usage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>]\n\n", appName)
+		_, _ = fmt.Fprintf(f.Output(), "%s ver.: %s\n\nUsage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>]\n\n", appName, version, appName)
 		f.PrintDefaults()
 	}
 	_ = f.Parse(args[1:])

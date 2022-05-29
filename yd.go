@@ -75,7 +75,7 @@ func main() {
 
 func onReady() {
 	// Initialize application and get the application configuration
-	cfgPath := tools.AppInit(appName, os.Args)
+	cfgPath := tools.AppInit(appName, os.Args, version)
 	appConfig = tools.NewConfig(cfgPath)
 
 	// Initialize translations
