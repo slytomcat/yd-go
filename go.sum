@@ -13,6 +13,8 @@ github.com/slytomcat/systray v1.10.1-0.20220529234215-14951b8e6360 h1:eziiml9c1j
 github.com/slytomcat/systray v1.10.1-0.20220529234215-14951b8e6360/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
 github.com/slytomcat/systray v1.10.1-0.20220530000058-ba5cceb0edbd h1:tTdOZ3sX3jdr/BfIO0xlvPRUotpwS72C7hu5daQRznk=
 github.com/slytomcat/systray v1.10.1-0.20220530000058-ba5cceb0edbd/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
+github.com/slytomcat/systray v1.10.1-0.20220530201735-a670a1b6fe36 h1:q49oPY632EwdTDI+oF/QhvPmO12Vgg01J98quSfBWR8=
+github.com/slytomcat/systray v1.10.1-0.20220530201735-a670a1b6fe36/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7 h1:EI1vrgTpx0SJmLOrau1lKOjoQZJgD8nqmsmDo5m2mzc=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7/go.mod h1:HGKn4ml8RTHFmLPT6IvQampuLo0s/pBm6G48J79fBYM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
