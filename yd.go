@@ -75,7 +75,7 @@ func main() {
 
 func onReady() {
 	// Initialize application and get the application configuration
-	cfgPath := tools.AppInit(appName, os.Args)
+	cfgPath := tools.AppInit(appName, os.Args, version)
 	appConfig = tools.NewConfig(cfgPath)
 
 	// Initialize translations
@@ -132,8 +132,8 @@ func onReady() {
 	m.stop = systray.AddMenuItem(msg.Sprintf("Stop daemon"), "")
 	systray.AddSeparator()
 	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
-	m.path = systray.AddMenuItem(msg.Sprintf("Open: %s", YD.Path), "")
-	m.site = systray.AddMenuItem(msg.Sprintf("Open YandexDisk in browser"), "")
+	m.path = systray.AddMenuItem(msg.Sprintf("Open Yandex.Disk folder"), "")
+	m.site = systray.AddMenuItem(msg.Sprintf("Open Yandex.Disk in browser"), "")
 	setup := systray.AddMenuItem(msg.Sprintf("Settings"), "")
 	m.theme = setup.AddSubMenuItemCheckbox(msg.Sprintf("Light theme"), "", appConfig.Theme == "light")
 	m.notes = setup.AddSubMenuItemCheckbox(msg.Sprintf("Notifications"), "", appConfig.Notifications)
