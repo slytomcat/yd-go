@@ -1,6 +1,8 @@
 package notify
 
 import (
+	"sync/atomic"
+
 	"github.com/godbus/dbus/v5"
 )
 
@@ -48,14 +50,14 @@ func (n *Notify) Send(icon, title, message string) {
 	}
 	var last uint32
 	if n.replace {
-		last = n.lastID
+		last = atomic.LoadUint32(&n.lastID)
 	}
 	call := n.connObj.Call(dBusDest+".Notify", dbus.Flags(0),
 		n.app, last, icon, title, message, []string{}, map[string]interface{}{}, n.time)
 	if call.Err != nil {
 		panic(call.Err)
 	}
-	n.lastID = call.Body[0].(uint32)
+	atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
 }
 
 // Cap returns the notification server capabilities
