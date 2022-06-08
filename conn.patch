@@ -1,0 +1,9 @@
+@@ -432,7 +432,7 @@
+ 		case TypeSignal:
+ 			conn.handleSignal(sequence, msg)
+ 		case TypeMethodCall:
+-			go conn.handleCall(msg)
++			conn.handleCall(msg)
+ 		}
+ 
+ 	}
