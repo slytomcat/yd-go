@@ -97,14 +97,14 @@ func onReady() {
 	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
 
 	// Initialize notifications
-	notify, err := notify.New(appName, icon.NotifyIcon, true, -1)
+	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
 	if err != nil {
 		notifySend = func(title, body string) {}
 		llog.Warningf("Notification is not availabe due to D-Bus connection error: %v", err)
 	} else {
 		notifySend = func(title, body string) {
 			llog.Debug("Message:", title, ":", body)
-			notify.Send("", title, body)
+			notifyHandler.Send("", title, body)
 		}
 	}
 
@@ -156,17 +156,18 @@ func onReady() {
 	}
 
 	// Start events handler
-	go eventHandler(m, appConfig, YD)
+	go eventHandler(m, appConfig, YD, notifyHandler)
 }
 
 // eventHandler handles all application lifetime events
-func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk) {
+func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *notify.Notify) {
 	llog.Debug("event handler started")
 	defer llog.Debug("event handler exited.")
 	if cfg.StartDaemon {
 		go YD.Start()
 	}
 	defer func() {
+		notifyHandler.Close()
 		if cfg.StopDaemon {
 			YD.Stop()
 		}
