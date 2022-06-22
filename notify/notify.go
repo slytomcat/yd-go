@@ -12,6 +12,7 @@ type Notify struct {
 	icon    string
 	replace bool
 	time    int
+	conn    *dbus.Conn
 	connObj dbus.BusObject
 	lastID  uint32
 }
@@ -38,8 +39,13 @@ func New(application, defailtIcon string, replace bool, time int) (*Notify, erro
 		icon:    defailtIcon,
 		replace: replace,
 		time:    time,
+		conn:    conn,
 		connObj: obj,
 	}, nil
+}
+
+func (n *Notify) Close() {
+	n.conn.Close()
 }
 
 // Send sends the desktop notification. If icon is not provided ("") then defaultIcon passed to New is used.

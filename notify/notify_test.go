@@ -16,6 +16,7 @@ func TestDBusNotify(t *testing.T) {
 	n, err := New("appname", "", true, -1)
 	require.NoError(t, err)
 	require.NotNil(t, n)
+	defer n.Close()
 
 	cap := n.Cap()
 	require.NotEmpty(t, cap)
