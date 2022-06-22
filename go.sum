@@ -9,12 +9,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/slytomcat/llog v0.0.0-20190104202300-c8978e4fae9a/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b h1:dA052uHDSetWtfSVIhqOQN4mnUN+KqDS2cBt/0UsrwQ=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
-github.com/slytomcat/systray v1.10.1-0.20220529234215-14951b8e6360 h1:eziiml9c1jF+AqjgwhE3nwjZbcVBAiN4Ht0md2WmNPI=
-github.com/slytomcat/systray v1.10.1-0.20220529234215-14951b8e6360/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
-github.com/slytomcat/systray v1.10.1-0.20220530000058-ba5cceb0edbd h1:tTdOZ3sX3jdr/BfIO0xlvPRUotpwS72C7hu5daQRznk=
-github.com/slytomcat/systray v1.10.1-0.20220530000058-ba5cceb0edbd/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
-github.com/slytomcat/systray v1.10.1-0.20220530201735-a670a1b6fe36 h1:q49oPY632EwdTDI+oF/QhvPmO12Vgg01J98quSfBWR8=
-github.com/slytomcat/systray v1.10.1-0.20220530201735-a670a1b6fe36/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
+github.com/slytomcat/systray v1.10.1 h1:vYtzZM+LOLfEwbF+kILr4CXhN2vsszwCEjlnUhZXmK4=
+github.com/slytomcat/systray v1.10.1/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7 h1:EI1vrgTpx0SJmLOrau1lKOjoQZJgD8nqmsmDo5m2mzc=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7/go.mod h1:HGKn4ml8RTHFmLPT6IvQampuLo0s/pBm6G48J79fBYM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
