@@ -87,12 +87,6 @@ func onReady() {
 	llog.Debugf("Local language is: %v", lng)
 	msg = message.NewPrinter(message.MatchLanguage(lng))
 
-	// start new YDisk instanse
-	YD, err := ydisk.NewYDisk(appConfig.Conf)
-	if err != nil {
-		llog.Critical("Fatal error:", err)
-	}
-
 	// Initialize icon helper
 	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
 
@@ -117,6 +111,7 @@ func onReady() {
 		"paused": msg.Sprintf("paused"),
 	}
 
+	// Initialize systray menu
 	m := new(menu)
 	systray.SetTitle("Yandex.Disk")
 	m.status = systray.AddMenuItem("", "")
@@ -153,6 +148,12 @@ func onReady() {
 	m.stop.Hide()
 	for i := 0; i < 10; i++ {
 		m.lastM[i].Hide()
+	}
+
+	// Create new YDisk instanse
+	YD, err := ydisk.NewYDisk(appConfig.Conf)
+	if err != nil {
+		llog.Critical("Fatal error:", err)
 	}
 
 	// Start events handler
@@ -229,7 +230,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.don.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case <-canceled:
-			llog.Warning("Interrupted")
+			llog.Warning("\nExecution is interrupted")
 			return
 		case <-m.quit.ClickedCh:
 			llog.Debug("Exit requested")
