@@ -1,5 +1,5 @@
 {
-    "language": "en",
+    "language": "en-US",
     "messages": [
         {
             "id": "idle",
@@ -65,26 +65,51 @@
             "fuzzy": true
         },
         {
-            "id": "Open: {Path}",
-            "message": "Open: {Path}",
-            "translation": "Open: {Path}",
+            "id": "Open Yandex.Disk folder",
+            "message": "Open Yandex.Disk folder",
+            "translation": "Open Yandex.Disk folder",
             "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Path",
-                    "string": "%[1]s",
-                    "type": "string",
-                    "underlyingType": "string",
-                    "argNum": 1,
-                    "expr": "YD.Path"
-                }
-            ],
             "fuzzy": true
         },
         {
-            "id": "Open YandexDisk in browser",
-            "message": "Open YandexDisk in browser",
-            "translation": "Open YandexDisk in browser",
+            "id": "Open Yandex.Disk in browser",
+            "message": "Open Yandex.Disk in browser",
+            "translation": "Open Yandex.Disk in browser",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Settings",
+            "message": "Settings",
+            "translation": "Settings",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Light theme",
+            "message": "Light theme",
+            "translation": "Light theme",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Notifications",
+            "message": "Notifications",
+            "translation": "Notifications",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Start on start",
+            "message": "Start on start",
+            "translation": "Start on start",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Stop on exit",
+            "message": "Stop on exit",
+            "translation": "Stop on exit",
             "translatorComment": "Copied from source.",
             "fuzzy": true
         },
@@ -126,10 +151,10 @@
         {
             "id": [
                 "about",
-                "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3"
+                "yd-go is the panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3"
             ],
-            "message": "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
-            "translation": "yd-go is the GTK-based panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
+            "message": "yd-go is the panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
+            "translation": "yd-go is the panel indicator for Yandex.Disk daemon.\n\n\tVersion: {Version}\n\nCopyleft 2017-{Format2006} Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
