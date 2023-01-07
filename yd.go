@@ -236,7 +236,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 			llog.Debug("Exit requested")
 			return
 		case yds := <-YD.Changes: // YDisk change event
-			updateMenu(m, yds, YD.Path)
+			handleUpdate(m, &yds, YD.Path)
 		}
 	}
 }
@@ -250,7 +250,7 @@ func handleCheck(mi *systray.MenuItem) bool {
 	return true
 }
 
-func updateMenu(m *menu, yds ydisk.YDvals, path string) {
+func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30)}, " ")
 	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	if yds.Stat == "error" {
@@ -305,7 +305,7 @@ func updateMenu(m *menu, yds ydisk.YDvals, path string) {
 	llog.Debug("Change handled")
 }
 
-func handleNotifications(yds ydisk.YDvals) {
+func handleNotifications(yds *ydisk.YDvals) {
 	switch {
 	case yds.Stat == "none" && yds.Prev != "unknown":
 		notifySend("Yandex.Disk", msg.Sprintf("Daemon stopped"))
