@@ -44,6 +44,7 @@ func New(application, defailtIcon string, replace bool, time int) (*Notify, erro
 	}, nil
 }
 
+// Close closes d-bus connection. Call it on app exit or similar casess.
 func (n *Notify) Close() {
 	n.conn.Close()
 }

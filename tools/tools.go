@@ -3,8 +3,10 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -17,7 +19,7 @@ import (
 // NotExists returns true when specified path does not exists
 func NotExists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
-		return os.IsNotExist(err)
+		return errors.Is(err, fs.ErrNotExist)
 	}
 	return false
 }
