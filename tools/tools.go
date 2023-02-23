@@ -111,16 +111,22 @@ func (c *Config) Save() {
 // Parameter: appName - name of application,
 // Returns: path to config file
 func AppInit(appName string, args []string, version string) string {
+	var pv bool
 	var debug bool
 	var config string
 	f := flag.NewFlagSet(appName, flag.ExitOnError)
 	f.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
 	f.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
+	f.BoolVar(&pv, "version", false, "Print out version information and exit")
 	f.Usage = func() {
-		_, _ = fmt.Fprintf(f.Output(), "%s ver.: %s\n\nUsage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>]\n\n", appName, version, appName)
+		_, _ = fmt.Fprintf(f.Output(), "%s\nUsage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>]\n\n", getVersion(appName, version), appName)
 		f.PrintDefaults()
 	}
 	_ = f.Parse(args[1:])
+	if pv {
+		fmt.Print(getVersion(appName, version))
+		os.Exit(0)
+	}
 	// Initialize logging facility
 	llog.SetPrefix(appName)
 	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
@@ -132,4 +138,8 @@ func AppInit(appName string, args []string, version string) string {
 	}
 
 	return os.ExpandEnv(config)
+}
+
+func getVersion(appName, version string) string {
+	return fmt.Sprintf("%s ver.: %s\n", appName, version)
 }

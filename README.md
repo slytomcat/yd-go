@@ -56,6 +56,8 @@ Or manually copy yd-go to some location listed in the PATH (/usr/local/bin for e
 		Path to the indicator configuration file (default "~/.config/yd.go/default.cfg")
 	-debug
 		Alow debugging messages to be sent to stderr
+  -version
+        Print out version information and exit
 
 
 NOTE: the yandex-disk CLI utility must be installed and configured before starting of the yd-go.
