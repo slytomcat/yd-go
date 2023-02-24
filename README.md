@@ -6,9 +6,19 @@
 
 This version of indicator uses B-Bus for communication to the status notification plugin. Therefore it's fully independent of the desktop environment of Linux distribution.
 
+INPORTANT: 
+
+Indicator responsible only for showing the synchronisation status in the desctop panel. All the synchronisation operations are perfomed by [yandex-disk utility from Yandex](https://yandex.ru/support/disk-desktop-linux/index.html).
+
+WIKI:
+
 Russian wiki: https://github.com/slytomcat/yd-go/wiki
 
+STORY:
+
 I've made it as it is rather well-known task for me: I've made the similar indicator (GTK+ vesion) in YD-tools project in Python language: https://github.com/slytomcat/yandex-disk-indicator.
+
+DESCRIPTION:
 
 Indicator shows current status by different icons in the status notification area. During synchronization the icon is animated. Indicator supports dark and light themes. The current theme can be changed via menu.   
 
