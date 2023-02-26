@@ -18,7 +18,8 @@ func TestDBusNotify(t *testing.T) {
 	require.NotNil(t, n)
 	defer n.Close()
 
-	cap := n.Cap()
+	cap, err := n.Cap()
+	require.NoError(t, err)
 	require.NotEmpty(t, cap)
 
 	n.Send(icon, "title", "message")
