@@ -29,19 +29,22 @@ const (
 // The time sets the time in milliseconds after which the notification will desappear. Set it to -1 to use default.
 func New(application, defailtIcon string, replace bool, time int) (*Notify, error) {
 	conn, err := dbus.ConnectSessionBus()
-	obj := conn.Object(dBusDest, dBusPath)
-
 	if err != nil {
 		return nil, err
 	}
-	return &Notify{
+	notify := &Notify{
 		app:     application,
 		icon:    defailtIcon,
 		replace: replace,
 		time:    time,
 		conn:    conn,
-		connObj: obj,
-	}, nil
+		connObj: conn.Object(dBusDest, dBusPath),
+	}
+	_, err = notify.Cap()
+	if err != nil {
+		return nil, err
+	}
+	return notify, nil
 }
 
 // Close closes d-bus connection. Call it on app exit or similar casess.
@@ -68,10 +71,10 @@ func (n *Notify) Send(icon, title, message string) {
 }
 
 // Cap returns the notification server capabilities
-func (n *Notify) Cap() []string {
+func (n *Notify) Cap() ([]string, error) {
 	call := n.connObj.Call(dBusDest+".GetCapabilities", dbus.Flags(0))
 	if call.Err != nil {
-		panic(call.Err)
+		return nil, call.Err
 	}
-	return call.Body[0].([]string)
+	return call.Body[0].([]string), nil
 }
