@@ -64,10 +64,10 @@ func (n *Notify) Send(icon, title, message string) {
 	}
 	call := n.connObj.Call(dBusDest+".Notify", dbus.Flags(0),
 		n.app, last, icon, title, message, []string{}, map[string]interface{}{}, n.time)
-	if call.Err != nil {
-		panic(call.Err)
+	if call.Err == nil {
+		atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
 	}
-	atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
+	// ignore any error as it can be called even New return error.
 }
 
 // Cap returns the notification server capabilities
