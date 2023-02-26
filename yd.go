@@ -1,7 +1,7 @@
 // Copyleft 2017-2023 Sly_tom_cat (slytomcat@mail.ru)
 // License: GPL v.3
 
-//go:generate gotext -srclang=en update -out=catalog.go -lang=en,ru
+//go:generate gotext update -out catalog.go -lang=en,ru
 
 package main
 
@@ -94,6 +94,7 @@ func onReady() {
 	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
 	if err != nil {
 		notifySend = func(title, body string) {}
+		appConfig.Notifications = false
 		llog.Warningf("Notification is not availabe due to D-Bus connection error: %v", err)
 	} else {
 		notifySend = func(title, body string) {
@@ -149,6 +150,14 @@ func onReady() {
 	for i := 0; i < 10; i++ {
 		m.lastM[i].Hide()
 	}
+	if notifyHandler == nil {
+		m.about.Disable()
+		m.out.Disable()
+		m.notes.Disable()
+		systray.AddSeparator()
+		warn := systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
+		warn.Disable()
+	}
 
 	// Create new YDisk instanse
 	YD, err := ydisk.NewYDisk(appConfig.Conf)
@@ -168,7 +177,9 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		go YD.Start()
 	}
 	defer func() {
-		notifyHandler.Close()
+		if notifyHandler != nil {
+			notifyHandler.Close()
+		}
 		if cfg.StopDaemon {
 			YD.Stop()
 		}
