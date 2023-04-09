@@ -27,11 +27,12 @@ import (
 var (
 	version = "local build"
 
-	msg        *message.Printer  // msg is the Localization printer
-	statusTr   map[string]string // translated statuses
-	icon       *icons.Icon       // icon helper
-	notifySend func(title, body string)
-	appConfig  *tools.Config
+	msg             *message.Printer  // msg is the Localization printer
+	statusTr        map[string]string // translated statuses
+	icon            *icons.Icon       // icon helper
+	notifySend      func(title, body string)
+	notifyAvailable bool
+	appConfig       *tools.Config
 )
 
 const (
@@ -67,6 +68,7 @@ type menu struct {
 	about  *systray.MenuItem
 	don    *systray.MenuItem
 	quit   *systray.MenuItem
+	warn   *systray.MenuItem
 }
 
 func main() {
@@ -93,10 +95,12 @@ func onReady() {
 	// Initialize notifications
 	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
 	if err != nil {
+		notifyAvailable = false
 		notifySend = func(title, body string) {}
 		appConfig.Notifications = false
 		llog.Warningf("Notification is not availabe due to D-Bus connection error: %v", err)
 	} else {
+		notifyAvailable = true
 		notifySend = func(title, body string) {
 			llog.Debug("Message:", title, ":", body)
 			notifyHandler.Send("", title, body)
@@ -150,13 +154,16 @@ func onReady() {
 	for i := 0; i < 10; i++ {
 		m.lastM[i].Hide()
 	}
-	if notifyHandler == nil {
+	if !notifyAvailable { // disable all menu items that are dependant on notification servece
 		m.about.Disable()
 		m.out.Disable()
 		m.notes.Disable()
+		// add meny warning
 		systray.AddSeparator()
-		warn := systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
-		warn.Disable()
+		m.warn = systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
+	} else {
+		m.warn = systray.AddMenuItem("", "")
+		m.warn.Hide()
 	}
 
 	// Create new YDisk instanse
@@ -246,6 +253,8 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.quit.ClickedCh:
 			llog.Debug("Exit requested")
 			return
+		case <-m.warn.ClickedCh:
+			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ")
 		case yds := <-YD.Changes: // YDisk change event
 			handleUpdate(m, &yds, YD.Path)
 		}
@@ -305,7 +314,9 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			} else {
 				m.stop.Show()
 				m.start.Hide()
-				m.out.Enable()
+				if notifyAvailable {
+					m.out.Enable()
+				}
 			}
 		}
 		if appConfig.Notifications {
