@@ -74,7 +74,7 @@
         {
             "id": "Start on start",
             "message": "Start on start",
-            "translation": "Запускать на стрте"
+            "translation": "Запускать на старте"
         },
         {
             "id": "Stop on exit",
@@ -84,12 +84,12 @@
         {
             "id": "Help",
             "message": "Help",
-            "translation": "Помошь"
+            "translation": "Помощь"
         },
         {
             "id": "About",
             "message": "About",
-            "translation": "О индикаторе"
+            "translation": "Об индикаторе"
         },
         {
             "id": "Donations",
