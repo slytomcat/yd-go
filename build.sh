@@ -1,12 +1,6 @@
 #!/bin/bash 
 ### build script
 
-##### temporary path, see https://gitlab.xfce.org/xfce/xfce4-panel/-/issues/582 and https://github.com/godbus/dbus/issues/327
-LIB_TO_PATCH="$(cat go.mod | grep 'github.com/godbus/dbus/v5' | sed 's/\s*\(\S\+\) \(.*\)$/\1@\2/')"
-go install $LIB_TO_PATCH
-PATH_TO_PATCH="$(go env GOMODCACHE)/$LIB_TO_PATCH"
-chmod a+w $PATH_TO_PATCH
-patch <conn.patch -f $PATH_TO_PATCH/conn.go
+CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags "-s -w -X main.version=v.$(git branch --show-current)-$(git rev-parse --short HEAD)"
+upx -qqq --best yd-go
 
-
-CGO_ENABLED=0 go build -ldflags "-X main.version=v.$(git branch --show-current)-$(git rev-parse --short HEAD)"

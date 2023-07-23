@@ -98,7 +98,7 @@ func onReady() {
 		notifyAvailable = false
 		notifySend = func(title, body string) {}
 		appConfig.Notifications = false
-		llog.Warningf("Notification is not availabe due to D-Bus connection error: %v", err)
+		llog.Warningf("Notification is not available due to D-Bus connection error: %v", err)
 	} else {
 		notifyAvailable = true
 		notifySend = func(title, body string) {
@@ -154,7 +154,7 @@ func onReady() {
 	for i := 0; i < 10; i++ {
 		m.lastM[i].Hide()
 	}
-	if !notifyAvailable { // disable all menu items that are dependant on notification servece
+	if !notifyAvailable { // disable all menu items that are dependant on notification service
 		m.about.Disable()
 		m.out.Disable()
 		m.notes.Disable()
