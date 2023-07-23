@@ -1,6 +1,6 @@
 module github.com/slytomcat/yd-go
 
-go 1.18
+go 1.19
 
 require (
 	github.com/godbus/dbus/v5 v5.1.0
@@ -8,7 +8,7 @@ require (
 	github.com/slytomcat/systray v1.10.1
 	github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7
 	github.com/stretchr/testify v1.7.1
-	golang.org/x/text v0.6.0
+	golang.org/x/text v0.7.0
 )
 
 require (

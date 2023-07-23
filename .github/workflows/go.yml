@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: 1.20.5
       - name: Cache
         uses: actions/cache@v3
         with:
@@ -39,7 +39,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: 1.20.5
       - name: Cache
         uses: actions/cache@v3
         with:
@@ -47,6 +47,8 @@ jobs:
             /home/runner/.cache/go-build/
             /home/runner/go/pkg/mod/
           key: GO_MOD_CACHE
+      - name: Requirements
+        run: sudo apt-get install upx-ucl
       - name: Build amd64
         run: |
           GOOS=linux GOARCH=amd64 ./build.sh

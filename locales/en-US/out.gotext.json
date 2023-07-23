@@ -142,6 +142,13 @@
             "fuzzy": true
         },
         {
+            "id": "Notification service unavailable!",
+            "message": "Notification service unavailable!",
+            "translation": "Notification service unavailable!",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
             "id": "Yandex.Disk daemon output",
             "message": "Yandex.Disk daemon output",
             "translation": "Yandex.Disk daemon output",

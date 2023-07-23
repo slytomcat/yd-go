@@ -102,6 +102,11 @@
             "translation": "Выход"
         },
         {
+            "id": "Notification service unavailable!",
+            "message": "Notification service unavailable!",
+            "translation": "Сервис уведомлений недоступен!"
+        },
+        {
             "id": "Yandex.Disk daemon output",
             "message": "Yandex.Disk daemon output",
             "translation": "Вывод утилиты Yandex.Disk"
