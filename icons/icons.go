@@ -26,7 +26,7 @@ type Icon struct {
 	stopper       func()
 }
 
-// NewIcon initializes the icon helper and retuns it.
+// NewIcon initializes the icon helper and returns it.
 // Use icon.CleanUp() for properly utilization of icon helper.
 func NewIcon(theme string, set func([]byte)) *Icon {
 	file, err := os.CreateTemp(os.TempDir(), "yd_notify_icon*.png")
