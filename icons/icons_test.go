@@ -97,9 +97,9 @@ func TestWrongTheme(t *testing.T) {
 	})
 }
 
-func TestDubleCleanUp(t *testing.T) {
+func TestDoubleCleanUp(t *testing.T) {
 	i := NewIcon("dark", mi.set)
 	require.NotNil(t, i)
 	i.CleanUp()
-	require.Panics(t, i.CleanUp)
+	require.NotPanics(t, i.CleanUp)
 }
