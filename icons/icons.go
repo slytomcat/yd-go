@@ -70,7 +70,7 @@ func (i *Icon) SetTheme(theme string) {
 		i.pauseIcon = darkPause
 		i.errorIcon = darkError
 	default:
-		llog.Criticalf("wrong theme: '%s' (should be 'dark' or 'light')", theme)
+		llog.Criticalf("wrong theme name: '%s' (should be 'dark' or 'light')", theme)
 	}
 	if i.currentStatus != "" {
 		i.setIcon(i.currentStatus)
@@ -124,6 +124,6 @@ func (i *Icon) CleanUp() {
 	i.ticker.Stop()
 	i.stopper()
 	if err := os.Remove(i.NotifyIcon); err != nil {
-		llog.Critical(err)
+		llog.Warning(err)
 	}
 }

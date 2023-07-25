@@ -37,28 +37,28 @@ func XdgOpen(uri string) {
 func MakeTitle(s string, l int) string {
 	r := []rune(s)
 	if len(r) < l {
-		return replaceUndescore(s)
+		return replaceUnderscore(s)
 	}
 	b := (l - 3) / 2
-	return replaceUndescore(string(r[:b])) + "..." + replaceUndescore(string(r[len(r)-(l-3-b):]))
+	return replaceUnderscore(string(r[:b])) + "..." + replaceUnderscore(string(r[len(r)-(l-3-b):]))
 }
 
-// replaceUndescore replaces underscore (special symbol for menu shortcut) to special unicode symbols which looks like original underscore
-func replaceUndescore(s string) string {
+// replaceUnderscore replaces underscore (special symbol for menu shortcut) to special unicode symbols which looks like original underscore
+func replaceUnderscore(s string) string {
 	return strings.ReplaceAll(s, "_", "\u2009\u0332\u2009") // thin space + combining low line + thin space
 }
 
 // Config is applicatinon configuration
 type Config struct {
-	path          string // cofig file path
+	path          string // config file path
 	Conf          string // path to daemon config file
 	Theme         string // icons theme name
 	Notifications bool   // display desktop notification
 	StartDaemon   bool   // start daemon on app start
-	StopDaemon    bool
+	StopDaemon    bool   // stop deemon on app exit
 }
 
-// NewConfig returns the application configeration
+// NewConfig returns the application configuration
 func NewConfig(cfgFilePath string) *Config {
 	cfg := &Config{
 		path: cfgFilePath, // store path for Save method
