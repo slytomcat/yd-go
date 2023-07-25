@@ -49,26 +49,26 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 )
 
 type menu struct {
-	status *systray.MenuItem     // menu item to show current status
-	size1  *systray.MenuItem     // menu item to show used/total sizes
-	size2  *systray.MenuItem     // menu item to show free anf trash sizes
-	last   *systray.MenuItem     // Sub-menu with last synchronized
-	lastM  [10]*systray.MenuItem // last synchronized menu items
-	lastP  [10]string            // paths to last synchronized
-	start  *systray.MenuItem
-	stop   *systray.MenuItem
-	out    *systray.MenuItem
-	path   *systray.MenuItem
-	notes  *systray.MenuItem
-	theme  *systray.MenuItem
-	dstart *systray.MenuItem
-	dstop  *systray.MenuItem
-	site   *systray.MenuItem
-	help   *systray.MenuItem
-	about  *systray.MenuItem
-	don    *systray.MenuItem
-	quit   *systray.MenuItem
-	warn   *systray.MenuItem
+	status      *systray.MenuItem     // menu item to show current status
+	size1       *systray.MenuItem     // menu item to show used/total sizes
+	size2       *systray.MenuItem     // menu item to show free anf trash sizes
+	last        *systray.MenuItem     // Sub-menu with last synchronized
+	lastMItem   [10]*systray.MenuItem // last synchronized menu items
+	lastPath    [10]string            // paths to last synchronized
+	start       *systray.MenuItem
+	stop        *systray.MenuItem
+	out         *systray.MenuItem
+	path        *systray.MenuItem
+	notes       *systray.MenuItem
+	theme       *systray.MenuItem
+	daemonStart *systray.MenuItem
+	daemonStop  *systray.MenuItem
+	site        *systray.MenuItem
+	help        *systray.MenuItem
+	about       *systray.MenuItem
+	donate      *systray.MenuItem
+	quit        *systray.MenuItem
+	warning     *systray.MenuItem
 }
 
 func main() {
@@ -125,7 +125,7 @@ func onReady() {
 	systray.AddSeparator()
 	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
 	for i := 0; i < 10; i++ {
-		m.lastM[i] = m.last.AddSubMenuItem("", "")
+		m.lastMItem[i] = m.last.AddSubMenuItem("", "")
 	}
 	systray.AddSeparator()
 	m.start = systray.AddMenuItem(msg.Sprintf("Start daemon"), "")
@@ -137,12 +137,12 @@ func onReady() {
 	setup := systray.AddMenuItem(msg.Sprintf("Settings"), "")
 	m.theme = setup.AddSubMenuItemCheckbox(msg.Sprintf("Light theme"), "", appConfig.Theme == "light")
 	m.notes = setup.AddSubMenuItemCheckbox(msg.Sprintf("Notifications"), "", appConfig.Notifications)
-	m.dstart = setup.AddSubMenuItemCheckbox(msg.Sprintf("Start on start"), "", appConfig.StartDaemon)
-	m.dstop = setup.AddSubMenuItemCheckbox(msg.Sprintf("Stop on exit"), "", appConfig.StopDaemon)
+	m.daemonStart = setup.AddSubMenuItemCheckbox(msg.Sprintf("Start on start"), "", appConfig.StartDaemon)
+	m.daemonStop = setup.AddSubMenuItemCheckbox(msg.Sprintf("Stop on exit"), "", appConfig.StopDaemon)
 	systray.AddSeparator()
 	m.help = systray.AddMenuItem(msg.Sprintf("Help"), "")
 	m.about = systray.AddMenuItem(msg.Sprintf("About"), "")
-	m.don = systray.AddMenuItem(msg.Sprintf("Donations"), "")
+	m.donate = systray.AddMenuItem(msg.Sprintf("Donations"), "")
 	systray.AddSeparator()
 	m.quit = systray.AddMenuItem(msg.Sprintf("Quit"), "")
 	m.status.Disable()
@@ -152,7 +152,7 @@ func onReady() {
 	m.start.Hide()
 	m.stop.Hide()
 	for i := 0; i < 10; i++ {
-		m.lastM[i].Hide()
+		m.lastMItem[i].Hide()
 	}
 	if !notifyAvailable { // disable all menu items that are dependant on notification service
 		m.about.Disable()
@@ -160,13 +160,13 @@ func onReady() {
 		m.notes.Disable()
 		// add meny warning
 		systray.AddSeparator()
-		m.warn = systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
+		m.warning = systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
 	} else {
-		m.warn = systray.AddMenuItem("", "")
-		m.warn.Hide()
+		m.warning = systray.AddMenuItem("", "")
+		m.warning.Hide()
 	}
 
-	// Create new YDisk instanse
+	// Create new YDisk instance
 	YD, err := ydisk.NewYDisk(appConfig.Conf)
 	if err != nil {
 		llog.Critical("Fatal error:", err)
@@ -193,31 +193,31 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		YD.Close()
 		systray.Quit()
 	}()
-	// register interupt signal chan
+	// register interrupt signals chan
 	canceled := make(chan os.Signal, 1)
 	signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
 	for {
 		select {
-		case <-m.lastM[0].ClickedCh:
-			tools.XdgOpen(m.lastP[0])
-		case <-m.lastM[1].ClickedCh:
-			tools.XdgOpen(m.lastP[1])
-		case <-m.lastM[2].ClickedCh:
-			tools.XdgOpen(m.lastP[2])
-		case <-m.lastM[3].ClickedCh:
-			tools.XdgOpen(m.lastP[3])
-		case <-m.lastM[4].ClickedCh:
-			tools.XdgOpen(m.lastP[4])
-		case <-m.lastM[5].ClickedCh:
-			tools.XdgOpen(m.lastP[5])
-		case <-m.lastM[6].ClickedCh:
-			tools.XdgOpen(m.lastP[6])
-		case <-m.lastM[7].ClickedCh:
-			tools.XdgOpen(m.lastP[7])
-		case <-m.lastM[8].ClickedCh:
-			tools.XdgOpen(m.lastP[8])
-		case <-m.lastM[9].ClickedCh:
-			tools.XdgOpen(m.lastP[9])
+		case <-m.lastMItem[0].ClickedCh:
+			tools.XdgOpen(m.lastPath[0])
+		case <-m.lastMItem[1].ClickedCh:
+			tools.XdgOpen(m.lastPath[1])
+		case <-m.lastMItem[2].ClickedCh:
+			tools.XdgOpen(m.lastPath[2])
+		case <-m.lastMItem[3].ClickedCh:
+			tools.XdgOpen(m.lastPath[3])
+		case <-m.lastMItem[4].ClickedCh:
+			tools.XdgOpen(m.lastPath[4])
+		case <-m.lastMItem[5].ClickedCh:
+			tools.XdgOpen(m.lastPath[5])
+		case <-m.lastMItem[6].ClickedCh:
+			tools.XdgOpen(m.lastPath[6])
+		case <-m.lastMItem[7].ClickedCh:
+			tools.XdgOpen(m.lastPath[7])
+		case <-m.lastMItem[8].ClickedCh:
+			tools.XdgOpen(m.lastPath[8])
+		case <-m.lastMItem[9].ClickedCh:
+			tools.XdgOpen(m.lastPath[9])
 		case <-m.start.ClickedCh:
 			go YD.Start()
 		case <-m.stop.ClickedCh:
@@ -237,15 +237,15 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 			icon.SetTheme(cfg.Theme)
 		case <-m.notes.ClickedCh:
 			cfg.Notifications = handleCheck(m.notes)
-		case <-m.dstart.ClickedCh:
-			cfg.StartDaemon = handleCheck(m.dstart)
-		case <-m.dstop.ClickedCh:
-			cfg.StopDaemon = handleCheck(m.dstop)
+		case <-m.daemonStart.ClickedCh:
+			cfg.StartDaemon = handleCheck(m.daemonStart)
+		case <-m.daemonStop.ClickedCh:
+			cfg.StopDaemon = handleCheck(m.daemonStop)
 		case <-m.help.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
 			notifySend("yd-go", msg.Sprintf(about, version, time.Now().Format("2006")))
-		case <-m.don.ClickedCh:
+		case <-m.donate.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case <-canceled:
 			llog.Warning("\nExecution is interrupted")
@@ -253,7 +253,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.quit.ClickedCh:
 			llog.Debug("Exit requested")
 			return
-		case <-m.warn.ClickedCh:
+		case <-m.warning.ClickedCh:
 			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ")
 		case yds := <-YD.Changes: // YDisk change event
 			handleUpdate(m, &yds, YD.Path)
@@ -282,17 +282,17 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 	m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 	if yds.ChLast { // last synchronized list changed
 		for i, p := range yds.Last {
-			m.lastP[i] = filepath.Join(path, p)
-			m.lastM[i].SetTitle(tools.MakeTitle(p, 40))
-			if tools.NotExists(m.lastP[i]) {
-				m.lastM[i].Disable()
+			m.lastPath[i] = filepath.Join(path, p)
+			m.lastMItem[i].SetTitle(tools.MakeTitle(p, 40))
+			if tools.NotExists(m.lastPath[i]) {
+				m.lastMItem[i].Disable()
 			} else {
-				m.lastM[i].Enable()
+				m.lastMItem[i].Enable()
 			}
-			m.lastM[i].Show() // show list items
+			m.lastMItem[i].Show() // show list items
 		}
 		for i := len(yds.Last); i < 10; i++ {
-			m.lastM[i].Hide() // hide the rest of list
+			m.lastMItem[i].Hide() // hide the rest of list
 		}
 		if len(yds.Last) == 0 {
 			m.last.Disable()
