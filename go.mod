@@ -4,7 +4,7 @@ go 1.21.6
 
 require (
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b
+	github.com/slytomcat/llog v0.0.0-20240127233739-55a4e3ac9644
 	github.com/slytomcat/systray v1.10.1
 	github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7
 	github.com/stretchr/testify v1.8.4

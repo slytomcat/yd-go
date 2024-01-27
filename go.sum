@@ -9,6 +9,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/slytomcat/llog v0.0.0-20190104202300-c8978e4fae9a/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b h1:dA052uHDSetWtfSVIhqOQN4mnUN+KqDS2cBt/0UsrwQ=
 github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b/go.mod h1:l0Mcs3u4uKFjQZ1W5luGEPMznBpNtR+AoBJs5/XSp3o=
+github.com/slytomcat/llog v0.0.0-20240127233739-55a4e3ac9644 h1:yLo9pR1rluS+5P0KKzIHm7qOVXBReqmOfCkNRPqyyVU=
+github.com/slytomcat/llog v0.0.0-20240127233739-55a4e3ac9644/go.mod h1:z3jp06GyYYoumhjuq17wcZwJoSICnJ6lRtKCnMwYe2Y=
 github.com/slytomcat/systray v1.10.1 h1:vYtzZM+LOLfEwbF+kILr4CXhN2vsszwCEjlnUhZXmK4=
 github.com/slytomcat/systray v1.10.1/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
 github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7 h1:EI1vrgTpx0SJmLOrau1lKOjoQZJgD8nqmsmDo5m2mzc=
