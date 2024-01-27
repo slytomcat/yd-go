@@ -1,20 +1,20 @@
 module github.com/slytomcat/yd-go
 
-go 1.19
+go 1.21.6
 
 require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/slytomcat/llog v0.0.0-20190608164820-ef109560700b
 	github.com/slytomcat/systray v1.10.1
 	github.com/slytomcat/ydisk v0.0.0-20210515140044-a9cd54f2bbb7
-	github.com/stretchr/testify v1.7.1
-	golang.org/x/text v0.7.0
+	github.com/stretchr/testify v1.8.4
+	golang.org/x/text v0.14.0
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	gopkg.in/yaml.v3 v3.0.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
