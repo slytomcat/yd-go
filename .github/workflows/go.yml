@@ -16,8 +16,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: './go.mod'
+      - name: Prepare similator
+        run: |
+          curl -L https://github.com/slytomcat/yandex-disk-simulator/releases/latest/download/yandex-disk-simulator > yandex-disk 
+          chmod a+x yandex-disk 
       - name: Test
-        run: go test -v --race -coverprofile cover.out ./...
+        run: |
+          export PATH=$(pwd):$PATH
+          go test -v --race -coverprofile cover.out ./...
       - name: Format coverage
         run: go tool cover -html=cover.out -o coverage.html
       - name: Upload coverage to Artifacts
