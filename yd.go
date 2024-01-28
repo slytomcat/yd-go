@@ -1,7 +1,7 @@
 // Copyleft 2017-2023 Sly_tom_cat (slytomcat@mail.ru)
 // License: GPL v.3
 
-//go:generate gotext update -out catalog.go -lang=en,ru
+//go:generate gotext update -out catalog.go
 
 package main
 
@@ -20,7 +20,7 @@ import (
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/notify"
 	"github.com/slytomcat/yd-go/tools"
-	"github.com/slytomcat/ydisk"
+	"github.com/slytomcat/yd-go/ydisk"
 	"golang.org/x/text/message"
 )
 
