@@ -12,6 +12,8 @@ github.com/slytomcat/systray v1.10.1 h1:vYtzZM+LOLfEwbF+kILr4CXhN2vsszwCEjlnUhZX
 github.com/slytomcat/systray v1.10.1/go.mod h1:UyMmnc5TrZp3JdLFS8wGUMSQSnFoliaj4rsO3bZwpis=
 github.com/slytomcat/systray v1.10.2-0.20240128142458-8e5404b2dc86 h1:vsCfJOC5wqdA2e1ezsYNvQ6jT5DXzbTCuKyIfvUWnG4=
 github.com/slytomcat/systray v1.10.2-0.20240128142458-8e5404b2dc86/go.mod h1:NZksLJ0MU7B6UNnrAadj4Qjn2EUrEMj1ZS0kmJw+N74=
+github.com/slytomcat/systray v1.10.2 h1:bXtf219eK6s/UbrShgN6EuZPDe5TsQ1TFZ1S0eteqOo=
+github.com/slytomcat/systray v1.10.2/go.mod h1:NZksLJ0MU7B6UNnrAadj4Qjn2EUrEMj1ZS0kmJw+N74=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=

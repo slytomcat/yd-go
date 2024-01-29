@@ -6,6 +6,7 @@ package ydisk
 
 import (
 	"bytes"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,8 +15,9 @@ import (
 	"unicode"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/slytomcat/llog"
 )
+
+var llog *slog.Logger
 
 // YDvals - Daemon Status structure
 type YDvals struct {
@@ -57,8 +59,11 @@ func setChanged(v *string, val string, c *bool) {
 	}
 }
 
-/* update - Updates Daemon status values from the daemon output string.
-   Returns true if a change detected in any value, otherwise returns false */
+/*
+update - Updates Daemon status values from the daemon output string.
+
+	Returns true if a change detected in any value, otherwise returns false
+*/
 func (val *YDvals) update(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values
@@ -153,7 +158,8 @@ type watcher struct {
 func newwatcher() watcher {
 	watch, err := fsnotify.NewWatcher()
 	if err != nil {
-		llog.Critical(err)
+		llog.Error("file watcher", "error", err)
+		os.Exit(1)
 	}
 	return watcher{
 		watch,
@@ -163,9 +169,10 @@ func newwatcher() watcher {
 
 func (w *watcher) activate(path string) {
 	if !w.active {
-		err := w.Add(filepath.Join(path, ".sync/cli.log"))
+		path := filepath.Join(path, ".sync/cli.log")
+		err := w.Add(path)
 		if err != nil {
-			llog.Debug("Watch path error:", err)
+			llog.Debug("file watcher", "path", path, "error", err)
 			return
 		}
 		llog.Debug("Watch path added")
@@ -187,21 +194,23 @@ type YDisk struct {
 
 // NewYDisk creates new YDisk structure for communication with yandex-disk daemon
 // Parameter:
-//  conf - full path to yandex-disk daemon configuration file
+//
+//	conf - full path to yandex-disk daemon configuration file
 //
 // Checks performed in the beginning:
 //
-//  - check that yandex-disk was installed
-//  - check that yandex-disk was properly configured
+//   - check that yandex-disk was installed
+//   - check that yandex-disk was properly configured
 //
 // When something not good NewYDisk returns not nil error
-func NewYDisk(conf string) (*YDisk, error) {
+func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
+	llog = logger
 	exe, path, err := checkDaemon(conf)
 	if err != nil {
 		return nil, err
 	}
 	watch := newwatcher()
-	llog.Debug("yandex-disk executable is:", exe)
+	llog.Debug("yandex-disk", "executable", exe)
 	yd := YDisk{
 		path,
 		make(chan YDvals, 1), // Output should be buffered
@@ -215,7 +224,7 @@ func NewYDisk(conf string) (*YDisk, error) {
 	// Try to activate watching at the beginning. It may fail but it is not a problem
 	// as it can be activated later (on Start of daemon).
 	yd.activate()
-	llog.Debug("New YDisk created and initialized. Path:", path)
+	llog.Debug("new YDisk created and initialized", "path", path)
 	return &yd, nil
 }
 
@@ -235,15 +244,15 @@ func (yd *YDisk) eventHandler(watch watcher) {
 	for {
 		select {
 		case err := <-watch.Errors:
-			llog.Error("Watcher error:", err)
+			llog.Error("Watcher", "error:", err)
 			return
 		case <-yd.exit:
 			return
 		case event := <-watch.Events:
-			llog.Debug("Watcher event:", event)
+			llog.Debug("Watcher", "event:", event)
 			interval = 1
 		case <-tick.C:
-			llog.Debug("Timer interval:", interval)
+			llog.Debug("Timer", "interval", interval)
 			if yds.Stat == "busy" || yds.Stat == "index" {
 				interval = 2 // keep 2s interval in busy mode
 			} else {
@@ -257,7 +266,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		tick.Reset(time.Duration(interval) * time.Second)
 		//  - check for daemon changes and send changed values in case of change
 		if yds.update(yd.getOutput(false)) {
-			llog.Debug("Change: ", yds.Prev, ">", yds.Stat,
+			llog.Debug("change", "stat", yds.Prev, ">", yds.Stat,
 				"S", len(yds.Total) > 0, "L", len(yds.Last), "E", len(yds.Err) > 0)
 			yd.Changes <- yds
 			// in case of any change reset the timer intrval
@@ -297,10 +306,10 @@ func (yd *YDisk) Start() error {
 	if yd.getOutput(true) == "" {
 		out, err := exec.Command(yd.exe, "start", "-c", yd.conf).Output()
 		if err != nil {
-			llog.Error(err)
+			llog.Error("daemon start", "error", err)
 			return err
 		}
-		llog.Debugf("Daemon start: %s", bytes.TrimRight(out, " \n"))
+		llog.Debug("daemon start", "message", string(bytes.TrimRight(out, " \n")))
 	} else {
 		llog.Debug("Daemon already started")
 	}
@@ -313,12 +322,12 @@ func (yd *YDisk) Stop() error {
 	if yd.getOutput(true) != "" {
 		out, err := exec.Command(yd.exe, "stop", "-c", yd.conf).Output()
 		if err != nil {
-			llog.Error(err)
+			llog.Error("daemon stop", "error", err)
 			return err
 		}
-		llog.Debugf("Daemon stop: %s", bytes.TrimRight(out, " \n"))
+		llog.Debug("daemon stop", "message", string(bytes.TrimRight(out, " \n")))
 	} else {
-		llog.Debug("Daemon already stopped")
+		llog.Debug("daemon already stopped")
 	}
 	return nil
 }

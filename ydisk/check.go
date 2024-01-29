@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/slytomcat/llog"
 )
 
 func notExists(path string) bool {
