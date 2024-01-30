@@ -51,7 +51,7 @@ jobs:
           path: |
             yd-go
   push:
-    needs: build
+    needs: [build, test]
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:

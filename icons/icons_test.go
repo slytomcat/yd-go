@@ -30,7 +30,8 @@ func (m *mockIcon) get() []byte {
 var mi mockIcon
 
 func TestNewIcon(t *testing.T) {
-	i := NewIcon("dark", mi.set)
+	i, err := NewIcon("dark", mi.set)
+	require.NoError(t, err)
 	require.NotNil(t, i)
 	defer i.CleanUp()
 	assert.Equal(t, darkPause, mi.get())
@@ -41,8 +42,8 @@ func TestNewIcon(t *testing.T) {
 }
 
 func TestSetTheme(t *testing.T) {
-	i := NewIcon("dark", mi.set)
-	require.NotNil(t, i)
+	i, err := NewIcon("dark", mi.set)
+	require.NoError(t, err)
 	defer i.CleanUp()
 	assert.Equal(t, darkPause, mi.get())
 	i.SetTheme("light")
@@ -58,7 +59,8 @@ func TestSetTheme(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	i := NewIcon("dark", mi.set)
+	i, err := NewIcon("dark", mi.set)
+	require.NoError(t, err)
 	require.NotNil(t, i)
 	defer i.CleanUp()
 	i.Set("error")
@@ -79,7 +81,8 @@ func TestAnimation(t *testing.T) {
 		return func() bool { return bytes.Equal(mi.get(), i) }
 	}
 
-	i := NewIcon("dark", mi.set)
+	i, err := NewIcon("dark", mi.set)
+	require.NoError(t, err)
 	require.NotNil(t, i)
 	defer i.CleanUp()
 	i.Set("index")
@@ -92,14 +95,15 @@ func TestAnimation(t *testing.T) {
 }
 
 func TestWrongTheme(t *testing.T) {
-	require.Panics(t, func() {
-		_ = NewIcon("wrong", mi.set)
-	})
+	i, err := NewIcon("wrong", mi.set)
+	require.Error(t, err)
+	require.Nil(t, i)
 }
 
 func TestDoubleCleanUp(t *testing.T) {
-	i := NewIcon("dark", mi.set)
+	i, err := NewIcon("dark", mi.set)
+	require.NoError(t, err)
 	require.NotNil(t, i)
-	i.CleanUp()
-	require.NotPanics(t, i.CleanUp)
+	require.NoError(t, i.CleanUp())
+	require.Error(t, i.CleanUp())
 }

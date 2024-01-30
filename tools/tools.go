@@ -7,14 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
-
-	"github.com/slytomcat/llog"
 )
+
+var llog *slog.Logger
 
 // NotExists returns true when specified path does not exists
 func NotExists(path string) bool {
@@ -25,10 +25,11 @@ func NotExists(path string) bool {
 }
 
 // XdgOpen opens the uri via xdg-open command
-func XdgOpen(uri string) {
+func XdgOpen(uri string) error {
 	if err := exec.Command("xdg-open", uri).Start(); err != nil {
-		llog.Error(err)
+		return err
 	}
+	return nil
 }
 
 // MakeTitle returns the shorten version of its first parameter. The second parameter specifies
@@ -59,7 +60,7 @@ type Config struct {
 }
 
 // NewConfig returns the application configuration
-func NewConfig(cfgFilePath string) *Config {
+func NewConfig(cfgFilePath string) (*Config, error) {
 	cfg := &Config{
 		path: cfgFilePath, // store path for Save method
 		// fill it with default values
@@ -74,43 +75,45 @@ func NewConfig(cfgFilePath string) *Config {
 	// Check that app configuration file path exists
 	if NotExists(cfgPath) {
 		if err := os.MkdirAll(cfgPath, 0700); err != nil {
-			llog.Critical("Can't create application configuration path:", err)
+			return nil, fmt.Errorf("Can't create application configuration path: %v", err)
 		}
 	}
 	// Check that app configuration file exists
 	if NotExists(cfgFilePath) {
 		//Create and save new configuration file with default values
-		cfg.Save()
+		err := cfg.Save()
+		if err != nil {
+			return nil, fmt.Errorf("default config saving error: %v", err)
+		}
 	} else {
 		// Read app configuration file
 		data, err := os.ReadFile(cfgFilePath)
 		if err != nil {
-			llog.Criticalf("reading config file error: %v", err)
+			return nil, fmt.Errorf("reading config file error: %v", err)
 		}
 		err = json.Unmarshal(data, cfg)
 		if err != nil {
-			llog.Criticalf("parsing config file error: %v", err)
+			return nil, fmt.Errorf("parsing config file error: %v", err)
 		}
-		llog.Debugf("cfg read: %+v", cfg)
 	}
-	return cfg
+	return cfg, nil
 }
 
 // Save stores application configuration to the disk
-func (c *Config) Save() {
+func (c *Config) Save() error {
 	data, _ := json.Marshal(c)
 	err := os.WriteFile(c.path, data, 0664)
 	if err != nil {
-		llog.Critical("Can't save configuration file:", err)
+		return fmt.Errorf("Can't save configuration file: %v", err)
 	}
-	llog.Debugf("cfg saved: %+v", c.path)
+	return nil
 }
 
 // AppInit handles command line arguments and
 // initializes logging facility.
 // Parameter: appName - name of application,
 // Returns: path to config file
-func AppInit(appName string, args []string, version string) string {
+func AppInit(appName string, args []string, version string) (string, bool) {
 	var pv bool
 	var debug bool
 	var config string
@@ -127,17 +130,7 @@ func AppInit(appName string, args []string, version string) string {
 		fmt.Print(getVersion(appName, version))
 		os.Exit(0)
 	}
-	// Initialize logging facility
-	llog.SetPrefix(appName)
-	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
-	if debug {
-		llog.SetLevel(llog.DEBUG)
-		llog.Info("Debugging enabled")
-	} else {
-		llog.SetLevel(-1)
-	}
-
-	return os.ExpandEnv(config)
+	return os.ExpandEnv(config), debug
 }
 
 func getVersion(appName, version string) string {

@@ -7,6 +7,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/slytomcat/llog"
 	"github.com/slytomcat/systray"
 	"github.com/slytomcat/yd-go/icons"
 	"github.com/slytomcat/yd-go/notify"
@@ -33,6 +33,7 @@ var (
 	notifySend      func(title, body string)
 	notifyAvailable bool
 	appConfig       *tools.Config
+	log             *slog.Logger
 )
 
 const (
@@ -46,6 +47,7 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	License: GPL v.3
 
 `
+	ydURL = "https://disk.yandex.ru"
 )
 
 type menu struct {
@@ -77,20 +79,37 @@ func main() {
 
 func onReady() {
 	// Initialize application and get the application configuration
-	cfgPath := tools.AppInit(appName, os.Args, version)
-	appConfig = tools.NewConfig(cfgPath)
+	cfgPath, debug := tools.AppInit(appName, os.Args, version)
+	logLevel := new(slog.LevelVar)
+	if debug {
+		logLevel.Set(slog.LevelDebug)
+	}
+	log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+	var err error
+	if appConfig, err = tools.NewConfig(cfgPath); err != nil {
+		log.Error("config_reading", "error", err)
+	}
+	// Create new YDisk instance
+	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
+	if err != nil {
+		log.Error("daemon_initialization", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize translations
 	lng := os.Getenv("LANG")
 	if len(lng) > 2 {
 		lng = lng[:2]
 	}
-
-	llog.Debugf("Local language is: %v", lng)
+	log.Debug("language", "LANG", lng)
 	msg = message.NewPrinter(message.MatchLanguage(lng))
 
 	// Initialize icon helper
-	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+	icon, err = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+	if err != nil {
+		log.Error("icons_initialization", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize notifications
 	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
@@ -98,11 +117,11 @@ func onReady() {
 		notifyAvailable = false
 		notifySend = func(title, body string) {}
 		appConfig.Notifications = false
-		llog.Warningf("Notification is not available due to D-Bus connection error: %v", err)
+		log.Warn("notifications", "status", "not_available", "error", err)
 	} else {
 		notifyAvailable = true
 		notifySend = func(title, body string) {
-			llog.Debug("Message:", title, ":", body)
+			log.Debug("sending_message", "title", title, "message", body)
 			notifyHandler.Send("", title, body)
 		}
 	}
@@ -166,20 +185,14 @@ func onReady() {
 		m.warning.Hide()
 	}
 
-	// Create new YDisk instance
-	YD, err := ydisk.NewYDisk(appConfig.Conf)
-	if err != nil {
-		llog.Critical("Fatal error:", err)
-	}
-
 	// Start events handler
 	go eventHandler(m, appConfig, YD, notifyHandler)
 }
 
 // eventHandler handles all application lifetime events
 func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *notify.Notify) {
-	llog.Debug("event handler started")
-	defer llog.Debug("event handler exited.")
+	log.Debug("ui_event_handler", "status", "started")
+	defer log.Debug("ui_event_handler", "status", "exited")
 	if cfg.StartDaemon {
 		go YD.Start()
 	}
@@ -199,25 +212,25 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 	for {
 		select {
 		case <-m.lastMItem[0].ClickedCh:
-			tools.XdgOpen(m.lastPath[0])
+			openPath(m.lastPath[0])
 		case <-m.lastMItem[1].ClickedCh:
-			tools.XdgOpen(m.lastPath[1])
+			openPath(m.lastPath[1])
 		case <-m.lastMItem[2].ClickedCh:
-			tools.XdgOpen(m.lastPath[2])
+			openPath(m.lastPath[2])
 		case <-m.lastMItem[3].ClickedCh:
-			tools.XdgOpen(m.lastPath[3])
+			openPath(m.lastPath[3])
 		case <-m.lastMItem[4].ClickedCh:
-			tools.XdgOpen(m.lastPath[4])
+			openPath(m.lastPath[4])
 		case <-m.lastMItem[5].ClickedCh:
-			tools.XdgOpen(m.lastPath[5])
+			openPath(m.lastPath[5])
 		case <-m.lastMItem[6].ClickedCh:
-			tools.XdgOpen(m.lastPath[6])
+			openPath(m.lastPath[6])
 		case <-m.lastMItem[7].ClickedCh:
-			tools.XdgOpen(m.lastPath[7])
+			openPath(m.lastPath[7])
 		case <-m.lastMItem[8].ClickedCh:
-			tools.XdgOpen(m.lastPath[8])
+			openPath(m.lastPath[8])
 		case <-m.lastMItem[9].ClickedCh:
-			tools.XdgOpen(m.lastPath[9])
+			openPath(m.lastPath[9])
 		case <-m.start.ClickedCh:
 			go YD.Start()
 		case <-m.stop.ClickedCh:
@@ -225,9 +238,9 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.out.ClickedCh:
 			notifySend(msg.Sprintf("Yandex.Disk daemon output"), YD.Output())
 		case <-m.path.ClickedCh:
-			tools.XdgOpen(YD.Path)
+			openPath(YD.Path)
 		case <-m.site.ClickedCh:
-			tools.XdgOpen("https://disk.yandex.ru")
+			openPath(ydURL)
 		case <-m.theme.ClickedCh:
 			if handleCheck(m.theme) {
 				cfg.Theme = "light"
@@ -242,22 +255,28 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.daemonStop.ClickedCh:
 			cfg.StopDaemon = handleCheck(m.daemonStop)
 		case <-m.help.ClickedCh:
-			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
+			openPath("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
 			notifySend("yd-go", msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.donate.ClickedCh:
-			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/Donations")
-		case <-canceled:
-			llog.Warning("\nExecution is interrupted")
+			openPath("https://github.com/slytomcat/yd-go/wiki/Donations")
+		case sig := <-canceled:
+			log.Warn("exit", "signal", sig)
 			return
 		case <-m.quit.ClickedCh:
-			llog.Debug("Exit requested")
+			log.Debug("exit", "status", "requested")
 			return
 		case <-m.warning.ClickedCh:
-			tools.XdgOpen("https://github.com/slytomcat/yd-go/wiki/FAQ")
+			openPath("https://github.com/slytomcat/yd-go/wiki/FAQ")
 		case yds := <-YD.Changes: // YDisk change event
 			handleUpdate(m, &yds, YD.Path)
 		}
+	}
+}
+
+func openPath(path string) {
+	if err := tools.XdgOpen(path); err != nil {
+		log.Error("opening", "path", path, "error", err)
 	}
 }
 
@@ -300,7 +319,7 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			m.last.Enable()
 		}
 		m.last.Show() // to update parent item view
-		llog.Debug("Last synchronized length:", len(yds.Last))
+		log.Debug("last_synchronized", "length", len(yds.Last))
 	}
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
@@ -324,7 +343,7 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 		}
 	}
 	m.last.Show() // to update parent item view
-	llog.Debug("Change handled")
+	log.Debug("ui_change", "status", "handled")
 }
 
 func handleNotifications(yds *ydisk.YDvals) {
@@ -344,6 +363,8 @@ func handleNotifications(yds *ydisk.YDvals) {
 
 func onExit() {
 	appConfig.Save()
-	icon.CleanUp()
-	llog.Debug("All done. Bye!")
+	if err := icon.CleanUp(); err != nil {
+		log.Error("icon_cleanup", "error", err)
+	}
+	log.Debug("exit", "status", "done")
 }

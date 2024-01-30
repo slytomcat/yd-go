@@ -3,7 +3,7 @@ package ydisk
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/slytomcat/llog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,8 +28,6 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	// Initialization
-	llog.SetLevel(llog.DEBUG)
-	llog.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	CfgPath = os.ExpandEnv(ConfigFilePath)
 	Cfg = filepath.Join(CfgPath, "config.cfg")
 	SyncDir = os.ExpandEnv(SyncDirPath)
@@ -38,17 +35,19 @@ func TestMain(m *testing.M) {
 	os.Setenv("Sim_ConfDir", CfgPath)
 	err := os.MkdirAll(CfgPath, 0755)
 	if err != nil {
-		log.Fatal(CfgPath, " creation error:", err)
+		fmt.Print(CfgPath, " creation error:", err)
+		os.Exit(1)
 	}
 
 	SymExe, err = exec.LookPath("yandex-disk")
 	if err != nil {
-		log.Fatal("yandex-disk utility lookup error:", err)
+		fmt.Print("yandex-disk utility lookup error:", err)
+		os.Exit(1)
 	}
 
 	exec.Command(SymExe, "stop").Run()
 	os.RemoveAll(path.Join(os.TempDir(), "yandexdisksimulator.socket"))
-	log.Printf("Tests init completed: yd exe: %v", SymExe)
+	fmt.Printf("Tests init completed: yd exe: %v", SymExe)
 
 	// Run tests
 	e := m.Run()
@@ -58,21 +57,21 @@ func TestMain(m *testing.M) {
 	os.RemoveAll(path.Join(os.TempDir(), "yandexdisksimulator.socket"))
 	os.RemoveAll(CfgPath)
 	os.RemoveAll(SyncDir)
-	log.Println("Tests clearance completed")
+	fmt.Println("Tests clearance completed")
 	os.Exit(e)
 }
 
 func TestNotInstalled(t *testing.T) {
 	t.Setenv("PATH", "")
 	// test not_installed case
-	yd, err := NewYDisk(Cfg)
+	yd, err := NewYDisk(Cfg, slog.Default())
 	require.Error(t, err)
 	require.Nil(t, yd)
 }
 
 func TestWrongConf(t *testing.T) {
 	// test initialization with wrong/not-existing config
-	yd, err := NewYDisk(Cfg + "_bad")
+	yd, err := NewYDisk(Cfg+"_bad", slog.Default())
 	require.Error(t, err)
 	require.Nil(t, yd)
 }
@@ -86,7 +85,7 @@ func TestEmptyConf(t *testing.T) {
 	require.NoError(t, err)
 	file.Close()
 	defer os.Remove(Cfg)
-	_, err = NewYDisk(Cfg)
+	_, err = NewYDisk(Cfg, slog.Default())
 	require.Error(t, err)
 }
 
@@ -97,7 +96,7 @@ func TestFull(t *testing.T) {
 	var YD *YDisk
 	var yds YDvals
 	t.Run("Create", func(t *testing.T) {
-		YD, err = NewYDisk(Cfg)
+		YD, err = NewYDisk(Cfg, slog.Default())
 		require.NoError(t, err)
 	})
 

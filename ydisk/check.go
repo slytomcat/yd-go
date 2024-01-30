@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/slytomcat/llog"
 )
 
 func notExists(path string) bool {
@@ -28,13 +26,11 @@ func checkDaemon(conf string) (string, string, error) {
 	exe, err := exec.LookPath("yandex-disk")
 	if err != nil {
 		msg := "Yandex.Disk CLI utility is not installed. Install it first"
-		llog.Error(msg)
 		return "", "", fmt.Errorf(msg)
 	}
 	f, err := os.Open(conf)
 	if err != nil {
-		llog.Error("Daemon configuration file opening error:", err)
-		return "", "", err
+		return "", "", fmt.Errorf("daemon configuration file open error: %v", err)
 	}
 	defer f.Close()
 	reader := bufio.NewReader(f)
@@ -59,7 +55,6 @@ func checkDaemon(conf string) (string, string, error) {
 	}
 	if notExists(dir) || notExists(auth) {
 		msg := "Daemon is not configured. First run: `yandex-disk setup`"
-		llog.Error(msg)
 		return "", "", fmt.Errorf("%s", msg)
 	}
 	return exe, dir, nil
