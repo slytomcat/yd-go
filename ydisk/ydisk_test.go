@@ -3,7 +3,6 @@ package ydisk
 import (
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -36,17 +35,19 @@ func TestMain(m *testing.M) {
 	os.Setenv("Sim_ConfDir", CfgPath)
 	err := os.MkdirAll(CfgPath, 0755)
 	if err != nil {
-		log.Fatal(CfgPath, " creation error:", err)
+		fmt.Print(CfgPath, " creation error:", err)
+		os.Exit(1)
 	}
 
 	SymExe, err = exec.LookPath("yandex-disk")
 	if err != nil {
-		log.Fatal("yandex-disk utility lookup error:", err)
+		fmt.Print("yandex-disk utility lookup error:", err)
+		os.Exit(1)
 	}
 
 	exec.Command(SymExe, "stop").Run()
 	os.RemoveAll(path.Join(os.TempDir(), "yandexdisksimulator.socket"))
-	log.Printf("Tests init completed: yd exe: %v", SymExe)
+	fmt.Printf("Tests init completed: yd exe: %v", SymExe)
 
 	// Run tests
 	e := m.Run()
@@ -56,7 +57,7 @@ func TestMain(m *testing.M) {
 	os.RemoveAll(path.Join(os.TempDir(), "yandexdisksimulator.socket"))
 	os.RemoveAll(CfgPath)
 	os.RemoveAll(SyncDir)
-	log.Println("Tests clearance completed")
+	fmt.Println("Tests clearance completed")
 	os.Exit(e)
 }
 

@@ -33,7 +33,7 @@ var (
 	notifySend      func(title, body string)
 	notifyAvailable bool
 	appConfig       *tools.Config
-	llog            *slog.Logger
+	log             *slog.Logger
 )
 
 const (
@@ -84,15 +84,15 @@ func onReady() {
 	if debug {
 		logLevel.Set(slog.LevelDebug)
 	}
-	llog = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+	log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	var err error
 	if appConfig, err = tools.NewConfig(cfgPath); err != nil {
-		llog.Error("config reading", "error", err)
+		log.Error("config_reading", "error", err)
 	}
 	// Create new YDisk instance
-	YD, err := ydisk.NewYDisk(appConfig.Conf, llog)
+	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
 	if err != nil {
-		llog.Error("daemon initialization", "error", err)
+		log.Error("daemon_initialization", "error", err)
 		os.Exit(1)
 	}
 
@@ -101,11 +101,15 @@ func onReady() {
 	if len(lng) > 2 {
 		lng = lng[:2]
 	}
-	llog.Debug("language", "LANG", lng)
+	log.Debug("language", "LANG", lng)
 	msg = message.NewPrinter(message.MatchLanguage(lng))
 
 	// Initialize icon helper
-	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+	icon, err = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+	if err != nil {
+		log.Error("icons_initialization", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize notifications
 	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
@@ -113,11 +117,11 @@ func onReady() {
 		notifyAvailable = false
 		notifySend = func(title, body string) {}
 		appConfig.Notifications = false
-		llog.Warn("notifications is not available through to D-Bus connection", "error", err)
+		log.Warn("notifications", "status", "not_available", "error", err)
 	} else {
 		notifyAvailable = true
 		notifySend = func(title, body string) {
-			llog.Debug("sending message", "title", title, "message", body)
+			log.Debug("sending_message", "title", title, "message", body)
 			notifyHandler.Send("", title, body)
 		}
 	}
@@ -187,8 +191,8 @@ func onReady() {
 
 // eventHandler handles all application lifetime events
 func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *notify.Notify) {
-	llog.Debug("event handler started")
-	defer llog.Debug("event handler exited.")
+	log.Debug("ui_event_handler", "status", "started")
+	defer log.Debug("ui_event_handler", "status", "exited")
 	if cfg.StartDaemon {
 		go YD.Start()
 	}
@@ -257,10 +261,10 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.donate.ClickedCh:
 			openPath("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case sig := <-canceled:
-			llog.Warn("execution is interrupted", "signal", sig)
+			log.Warn("exit", "signal", sig)
 			return
 		case <-m.quit.ClickedCh:
-			llog.Debug("exit requested")
+			log.Debug("exit", "status", "requested")
 			return
 		case <-m.warning.ClickedCh:
 			openPath("https://github.com/slytomcat/yd-go/wiki/FAQ")
@@ -272,7 +276,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 
 func openPath(path string) {
 	if err := tools.XdgOpen(path); err != nil {
-		llog.Error("opening", "path", path, "error", err)
+		log.Error("opening", "path", path, "error", err)
 	}
 }
 
@@ -315,7 +319,7 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			m.last.Enable()
 		}
 		m.last.Show() // to update parent item view
-		llog.Debug("Last synchronized", "length", len(yds.Last))
+		log.Debug("last_synchronized", "length", len(yds.Last))
 	}
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
@@ -339,7 +343,7 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 		}
 	}
 	m.last.Show() // to update parent item view
-	llog.Debug("Change handled")
+	log.Debug("ui_change", "status", "handled")
 }
 
 func handleNotifications(yds *ydisk.YDvals) {
@@ -359,6 +363,8 @@ func handleNotifications(yds *ydisk.YDvals) {
 
 func onExit() {
 	appConfig.Save()
-	icon.CleanUp()
-	llog.Debug("All done. Bye!")
+	if err := icon.CleanUp(); err != nil {
+		log.Error("icon_cleanup", "error", err)
+	}
+	log.Debug("exit", "status", "done")
 }

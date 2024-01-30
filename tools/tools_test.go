@@ -161,27 +161,27 @@ func TestAppInit(t *testing.T) {
 			os.Stderr = oserr
 		}()
 		// help request will call os.Exit(0) that panics the testing
-		require.Panics(t, func() { _, _ = AppInit(appName, []string{appName, "-h"}, "test") })
+		require.Panics(t, func() { _, _ = AppInit(appName, []string{appName, "--help"}, "test") })
 		w.Close()
 		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 		require.Contains(t, string(b), "Usage:\n\n\t\t\"yd-go-test")
 	})
-	// t.Run("start with version", func(t *testing.T) {
-	// 	r, w, err := os.Pipe()
-	// 	require.NoError(t, err)
-	// 	oserr := os.Stderr
-	// 	os.Stderr = w
-	// 	defer func() {
-	// 		os.Stderr = oserr
-	// 	}()
-	// 	// help request will call os.Exit(0) that panics the testing
-	// 	require.Panics(t, func() { _, _ = AppInit(appName, []string{appName, "version"}, "test") })
-	// 	w.Close()
-	// 	b, err := io.ReadAll(r)
-	// 	require.NoError(t, err)
-	// 	require.Contains(t, string(b), "Usage:\n\n\t\t\"yd-go-test")
-	// })
+	t.Run("start with version", func(t *testing.T) {
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		osStdOut := os.Stdout
+		os.Stdout = w
+		defer func() {
+			os.Stdout = osStdOut
+		}()
+		// help request will call os.Exit(0) that panics the testing
+		require.Panics(t, func() { _, _ = AppInit(appName, []string{appName, "--version"}, "test") })
+		w.Close()
+		b, err := io.ReadAll(r)
+		require.NoError(t, err)
+		require.Contains(t, string(b), "ver.:")
+	})
 }
 
 // I have no idea how to test XdgOpen...

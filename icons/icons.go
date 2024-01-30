@@ -2,11 +2,10 @@ package icons
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
-
-	"github.com/slytomcat/llog"
 )
 
 var interval = time.Millisecond * 333
@@ -28,14 +27,14 @@ type Icon struct {
 
 // NewIcon initializes the icon helper and returns it.
 // Use icon.CleanUp() for properly utilization of icon helper.
-func NewIcon(theme string, set func([]byte)) *Icon {
+func NewIcon(theme string, set func([]byte)) (*Icon, error) {
 	file, err := os.CreateTemp(os.TempDir(), "yd_notify_icon*.png")
 	if err != nil {
-		llog.Critical(err)
+		return nil, fmt.Errorf("icon store error: %v", err)
 	}
 	_, err = file.Write(yd128)
 	if err != nil {
-		llog.Critical(err)
+		return nil, fmt.Errorf("icon store error: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -48,14 +47,16 @@ func NewIcon(theme string, set func([]byte)) *Icon {
 		stopper:       cancel,
 	}
 	i.ticker.Stop()
-	i.SetTheme(theme)
+	if err = i.SetTheme(theme); err != nil {
+		return nil, err
+	}
 	go i.loop(ctx)
 	i.setFunc(i.pauseIcon)
-	return i
+	return i, nil
 }
 
 // SetTheme select one of the icons' themes
-func (i *Icon) SetTheme(theme string) {
+func (i *Icon) SetTheme(theme string) error {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	switch theme {
@@ -70,11 +71,12 @@ func (i *Icon) SetTheme(theme string) {
 		i.pauseIcon = darkPause
 		i.errorIcon = darkError
 	default:
-		llog.Criticalf("wrong theme name: '%s' (should be 'dark' or 'light')", theme)
+		return fmt.Errorf("wrong theme name: '%s' (should be 'dark' or 'light')", theme)
 	}
 	if i.currentStatus != "" {
 		i.setIcon(i.currentStatus)
 	}
+	return nil
 }
 
 func (i *Icon) setIcon(status string) {
@@ -120,10 +122,11 @@ func (i *Icon) loop(ctx context.Context) {
 }
 
 // CleanUp removes temporary file for notification icon and stops internal loop
-func (i *Icon) CleanUp() {
+func (i *Icon) CleanUp() error {
 	i.ticker.Stop()
 	i.stopper()
 	if err := os.Remove(i.NotifyIcon); err != nil {
-		llog.Warning(err)
+		return fmt.Errorf("icon remove error: %v", err)
 	}
+	return nil
 }

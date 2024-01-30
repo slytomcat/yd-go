@@ -17,7 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-var llog *slog.Logger
+var log *slog.Logger
 
 // YDvals - Daemon Status structure
 type YDvals struct {
@@ -158,7 +158,7 @@ type watcher struct {
 func newwatcher() watcher {
 	watch, err := fsnotify.NewWatcher()
 	if err != nil {
-		llog.Error("file watcher", "error", err)
+		log.Error("file_watcher", "error", err)
 		os.Exit(1)
 	}
 	return watcher{
@@ -172,10 +172,10 @@ func (w *watcher) activate(path string) {
 		path := filepath.Join(path, ".sync/cli.log")
 		err := w.Add(path)
 		if err != nil {
-			llog.Debug("file watcher", "path", path, "error", err)
+			log.Debug("file_watcher", "path", path, "error", err)
 			return
 		}
-		llog.Debug("Watch path added")
+		log.Debug("file_watcher", "status", "added")
 		w.active = true
 	}
 }
@@ -204,13 +204,13 @@ type YDisk struct {
 //
 // When something not good NewYDisk returns not nil error
 func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
-	llog = logger
+	log = logger
 	exe, path, err := checkDaemon(conf)
 	if err != nil {
 		return nil, err
 	}
 	watch := newwatcher()
-	llog.Debug("yandex-disk", "executable", exe)
+	log.Debug("yandex-disk", "executable", exe)
 	yd := YDisk{
 		path,
 		make(chan YDvals, 1), // Output should be buffered
@@ -224,13 +224,13 @@ func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
 	// Try to activate watching at the beginning. It may fail but it is not a problem
 	// as it can be activated later (on Start of daemon).
 	yd.activate()
-	llog.Debug("new YDisk created and initialized", "path", path)
+	log.Debug("YDisk", "status", "initialized", "path", path)
 	return &yd, nil
 }
 
 // eventHandler works in separate goroutine until YDisk.exit channel receives a bool value (any).
 func (yd *YDisk) eventHandler(watch watcher) {
-	llog.Debug("Event handler started")
+	log.Debug("daemon_event_handler", "status", "started")
 	yds := newYDvals()
 	interval := 1
 	tick := time.NewTimer(time.Millisecond * 100) // First time trigger it quickly to update the current status
@@ -238,21 +238,21 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		watch.Close()
 		tick.Stop()
 		close(yd.Changes)
-		llog.Debug("Event handler exited")
+		log.Debug("daemon_event_handler", "status", "exited")
 		yd.exit <- struct{}{} // Report exit completion
 	}()
 	for {
 		select {
 		case err := <-watch.Errors:
-			llog.Error("Watcher", "error:", err)
+			log.Error("file_watcher", "error:", err)
 			return
 		case <-yd.exit:
 			return
 		case event := <-watch.Events:
-			llog.Debug("Watcher", "event:", event)
+			log.Debug("file_watcher", "event:", event)
 			interval = 1
 		case <-tick.C:
-			llog.Debug("Timer", "interval", interval)
+			log.Debug("timer", "interval", interval)
 			if yds.Stat == "busy" || yds.Stat == "index" {
 				interval = 2 // keep 2s interval in busy mode
 			} else {
@@ -266,13 +266,12 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		tick.Reset(time.Duration(interval) * time.Second)
 		//  - check for daemon changes and send changed values in case of change
 		if yds.update(yd.getOutput(false)) {
-			llog.Debug("change", "stat", yds.Prev, ">", yds.Stat,
+			log.Debug("change", "prev", yds.Prev, "new", yds.Stat,
 				"S", len(yds.Total) > 0, "L", len(yds.Last), "E", len(yds.Err) > 0)
 			yd.Changes <- yds
 			// in case of any change reset the timer intrval
 			interval = 1
 		}
-		//llog.Debug("Event processed")
 	}
 }
 
@@ -283,7 +282,7 @@ func (yd YDisk) getOutput(userLang bool) string {
 	}
 	out, err := exec.Command(cmd[0], cmd[1:]...).Output()
 	if err != nil {
-		//llog.Debug("daemon status error:" + err.Error())
+		log.Error("daemon_status", "error", err.Error())
 		return ""
 	}
 	return string(out)
@@ -306,12 +305,12 @@ func (yd *YDisk) Start() error {
 	if yd.getOutput(true) == "" {
 		out, err := exec.Command(yd.exe, "start", "-c", yd.conf).Output()
 		if err != nil {
-			llog.Error("daemon start", "error", err)
+			log.Error("daemon_start", "error", err)
 			return err
 		}
-		llog.Debug("daemon start", "message", string(bytes.TrimRight(out, " \n")))
+		log.Debug("daemon_start", "message", string(bytes.TrimRight(out, " \n")))
 	} else {
-		llog.Debug("Daemon already started")
+		log.Debug("daemon_start", "status", "already_started")
 	}
 	yd.activate() // try to activate watching after daemon start. It shouldn't fail on started daemon
 	return nil
@@ -322,12 +321,12 @@ func (yd *YDisk) Stop() error {
 	if yd.getOutput(true) != "" {
 		out, err := exec.Command(yd.exe, "stop", "-c", yd.conf).Output()
 		if err != nil {
-			llog.Error("daemon stop", "error", err)
+			log.Error("daemon stop", "error", err)
 			return err
 		}
-		llog.Debug("daemon stop", "message", string(bytes.TrimRight(out, " \n")))
+		log.Debug("daemon_stop", "message", string(bytes.TrimRight(out, " \n")))
 	} else {
-		llog.Debug("daemon already stopped")
+		log.Debug("daemon_stop", "status", "already_stopped")
 	}
 	return nil
 }
