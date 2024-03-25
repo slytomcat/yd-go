@@ -58,7 +58,7 @@ You must have Golang v1.20+ installed to build the binary. There is no additiona
 ## Installation
 Run 
 ```bash
-sudo cp yd.go /usr/local/bin/
+sudo cp yd-go /usr/local/bin/
 ```
 
 ## Usage
