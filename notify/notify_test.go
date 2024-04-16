@@ -13,7 +13,7 @@ func TestDBusNotify(t *testing.T) {
 		t.Skip("Skipping testing in CI environment")
 	}
 	icon := "dialog-information"
-	n, err := New("appname", "", true, -1)
+	n, err := New("appName", "", true, -1)
 	require.NoError(t, err)
 	require.NotNil(t, n)
 	defer n.Close()

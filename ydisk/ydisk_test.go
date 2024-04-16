@@ -90,7 +90,7 @@ func TestEmptyConf(t *testing.T) {
 }
 
 func TestFull(t *testing.T) {
-	// prepare for similation
+	// prepare for simulation
 	err := exec.Command(SymExe, "setup").Run()
 	require.NoError(t, err)
 	var YD *YDisk
@@ -100,7 +100,7 @@ func TestFull(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("NotStartedOupput", func(t *testing.T) {
+	t.Run("NotStartedOutput", func(t *testing.T) {
 		output := YD.Output()
 		require.Empty(t, output)
 	})

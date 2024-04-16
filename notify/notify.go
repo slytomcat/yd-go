@@ -26,15 +26,15 @@ const (
 // The application is the name of application.
 // The defaultIcon is icon name/path to be used for notification when no icon specified during the Send call.
 // True value of replace means that a new notification will replace the previous one if it is still displayed.
-// The time sets the time in milliseconds after which the notification will desappear. Set it to -1 to use default.
-func New(application, defailtIcon string, replace bool, time int) (*Notify, error) {
+// The time sets the time in milliseconds after which the notification will disappear. Set it to -1 to use default.
+func New(application, defaultIcon string, replace bool, time int) (*Notify, error) {
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		return nil, err
 	}
 	notify := &Notify{
 		app:     application,
-		icon:    defailtIcon,
+		icon:    defaultIcon,
 		replace: replace,
 		time:    time,
 		conn:    conn,
@@ -47,7 +47,7 @@ func New(application, defailtIcon string, replace bool, time int) (*Notify, erro
 	return notify, nil
 }
 
-// Close closes d-bus connection. Call it on app exit or similar casess.
+// Close closes d-bus connection. Call it on app exit or similar cases.
 func (n *Notify) Close() {
 	n.conn.Close()
 }
