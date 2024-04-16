@@ -34,7 +34,7 @@ func XdgOpen(uri string) error {
 
 // MakeTitle returns the shorten version of its first parameter. The second parameter specifies
 // the maximum number of symbols (runes) in returned string. It also replaces underscore symbol with
-// the special unicode symbols sequense that looks very similar to the original underscore
+// the special unicode symbols sequence that looks very similar to the original underscore
 func MakeTitle(s string, l int) string {
 	r := []rune(s)
 	if len(r) < l {
@@ -49,14 +49,14 @@ func replaceUnderscore(s string) string {
 	return strings.ReplaceAll(s, "_", "\u2009\u0332\u2009") // thin space + combining low line + thin space
 }
 
-// Config is applicatinon configuration
+// Config is application configuration
 type Config struct {
 	path          string // config file path
 	Conf          string // path to daemon config file
 	Theme         string // icons theme name
 	Notifications bool   // display desktop notification
 	StartDaemon   bool   // start daemon on app start
-	StopDaemon    bool   // stop deemon on app exit
+	StopDaemon    bool   // stop daemon on app exit
 }
 
 // NewConfig returns the application configuration

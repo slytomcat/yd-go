@@ -155,10 +155,10 @@ func TestAppInit(t *testing.T) {
 	t.Run("start with -h", func(t *testing.T) {
 		r, w, err := os.Pipe()
 		require.NoError(t, err)
-		oserr := os.Stderr
+		osErr := os.Stderr
 		os.Stderr = w
 		defer func() {
-			os.Stderr = oserr
+			os.Stderr = osErr
 		}()
 		// help request will call os.Exit(0) that panics the testing
 		require.Panics(t, func() { _, _ = AppInit(appName, []string{appName, "--help"}, "test") })

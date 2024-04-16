@@ -34,7 +34,7 @@ type YDvals struct {
 	Prog   string   // Synchronization progress (when in busy status)
 }
 
-/* A new YDvals constsructor */
+/* A new YDvals constructor */
 func newYDvals() YDvals {
 	return YDvals{
 		Stat:   "unknown",
@@ -155,7 +155,7 @@ type watcher struct {
 	active bool // Flag that means that watching path was successfully added
 }
 
-func newwatcher() watcher {
+func newWatcher() watcher {
 	watch, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Error("file_watcher", "error", err)
@@ -209,7 +209,7 @@ func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
 	if err != nil {
 		return nil, err
 	}
-	watch := newwatcher()
+	watch := newWatcher()
 	log.Debug("yandex-disk", "executable", exe)
 	yd := YDisk{
 		path,
@@ -269,7 +269,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 			log.Debug("change", "prev", yds.Prev, "new", yds.Stat,
 				"S", len(yds.Total) > 0, "L", len(yds.Last), "E", len(yds.Err) > 0)
 			yd.Changes <- yds
-			// in case of any change reset the timer intrval
+			// in case of any change reset the timer interval
 			interval = 1
 		}
 	}

@@ -21,7 +21,7 @@ func BenchmarkYDvalUpdateString(b *testing.B) {
 		yd.update(st1)
 	}
 }
-func BenchmarkYDvalUpdatePrecomp(b *testing.B) {
+func BenchmarkYDvalUpdatePreComp(b *testing.B) {
 	st1 := "Sync progress: 139.38 MB/ 139.38 MB (100 %)\nSynchronization core status: index\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'NewFile'\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\n"
 	//st2 := "Synchronization core status: idle\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\tfile: 'n'\n\n"
 	yd := newYDvals()
@@ -39,8 +39,8 @@ func BenchmarkYDvalUpdateOrig(b *testing.B) {
 	}
 }
 
-// func BenchmarkYDiskgetOutput(b *testing.B) {
-// 	// prepare for similation
+// func BenchmarkYDiskGetOutput(b *testing.B) {
+// 	// prepare for simulation
 // 	err := exec.Command(SymExe, "setup").Run()
 // 	if err != nil {
 // 		b.Fatal("simulation prepare error")
@@ -69,8 +69,8 @@ func BenchmarkYDvalUpdateOrig(b *testing.B) {
 // 	}
 // }
 
-// func BenchmarkYDiskgetOutput2(b *testing.B) {
-// 	// prepare for similation
+// func BenchmarkYDiskGetOutput2(b *testing.B) {
+// 	// prepare for simulation
 // 	err := exec.Command(SymExe, "setup").Run()
 // 	if err != nil {
 // 		b.Fatal("simulation prepare error")
@@ -222,7 +222,7 @@ func (val *YDvals) update2(out string) bool {
 	return changed || val.ChLast
 }
 
-// precomppiled regexps
+// precompiled regexps
 func (val *YDvals) update1(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values

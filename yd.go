@@ -177,7 +177,7 @@ func onReady() {
 		m.about.Disable()
 		m.out.Disable()
 		m.notes.Disable()
-		// add meny warning
+		// add menu warning
 		systray.AddSeparator()
 		m.warning = systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
 	} else {
