@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 
 	SymExe, err = exec.LookPath("yandex-disk")
 	if err != nil {
-		fmt.Print("yandex-disk utility lookup error:", err)
+		fmt.Println("yandex-disk utility lookup error:", err)
 		os.Exit(1)
 	}
 
