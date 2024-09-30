@@ -143,7 +143,7 @@ func onReady() {
 	m.size2 = systray.AddMenuItem("", "")
 	systray.AddSeparator()
 	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		m.lastMItem[i] = m.last.AddSubMenuItem("", "")
 	}
 	systray.AddSeparator()
@@ -170,7 +170,7 @@ func onReady() {
 	m.last.Disable()
 	m.start.Hide()
 	m.stop.Hide()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		m.lastMItem[i].Hide()
 	}
 	if !notifyAvailable { // disable all menu items that are dependant on notification service

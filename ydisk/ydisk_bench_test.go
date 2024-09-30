@@ -17,7 +17,7 @@ func BenchmarkYDvalUpdateString(b *testing.B) {
 	st1 := "Sync progress: 139.38 MB/ 139.38 MB (100 %)\nSynchronization core status: index\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'NewFile'\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\n"
 	//st2 := "Synchronization core status: idle\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\tfile: 'n'\n\n"
 	yd := newYDvals()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		yd.update(st1)
 	}
 }
@@ -25,7 +25,7 @@ func BenchmarkYDvalUpdatePreComp(b *testing.B) {
 	st1 := "Sync progress: 139.38 MB/ 139.38 MB (100 %)\nSynchronization core status: index\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'NewFile'\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\n"
 	//st2 := "Synchronization core status: idle\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\tfile: 'n'\n\n"
 	yd := newYDvals()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		yd.update1(st1)
 	}
 }
@@ -34,7 +34,7 @@ func BenchmarkYDvalUpdateOrig(b *testing.B) {
 	st1 := "Sync progress: 139.38 MB/ 139.38 MB (100 %)\nSynchronization core status: index\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'NewFile'\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\n"
 	//st2 := "Synchronization core status: idle\nPath to Yandex.Disk directory: '/home/stc/Yandex.Disk'\n\tTotal: 43.50 GB\n\tUsed: 2.89 GB\n\tAvailable: 40.61 GB\n\tMax file size: 50 GB\n\tTrash size: 0 B\n\nLast synchronized items:\n\tfile: 'File.ods'\n\tfile: 'downloads/file.deb'\n\tfile: 'downloads/setup'\n\tfile: 'download'\n\tfile: 'down'\n\tfile: 'do'\n\tfile: 'd'\n\tfile: 'o'\n\tfile: 'w'\n\tfile: 'n'\n\n"
 	yd := newYDvals()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		yd.update2(st1)
 	}
 }
@@ -57,7 +57,7 @@ func BenchmarkYDvalUpdateOrig(b *testing.B) {
 // 		}
 // 	}()
 
-// 	for i := 0; i < b.N; i++ {
+// 	for range b.N {
 // 		st, err := exec.Command(SymExe, "status").Output()
 // 		if err != nil {
 // 			b.Fatal("simulation prepare error " + SymExe + err.Error())
@@ -86,7 +86,7 @@ func BenchmarkYDvalUpdateOrig(b *testing.B) {
 // 		}
 // 	}()
 
-// 	for i := 0; i < b.N; i++ {
+// 	for range b.N {
 // 		c := exec.Command(SymExe, "status")
 // 		var stdout bytes.Buffer
 // 		//stdout.Grow(256)
@@ -100,7 +100,7 @@ func BenchmarkYDvalUpdateOrig(b *testing.B) {
 // }
 
 func BenchmarkEchoCmdOutput(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		st, err := exec.Command("echo", "test").Output()
 		if err != nil || len(st) == 0 {
 			b.Error(err)
@@ -109,7 +109,7 @@ func BenchmarkEchoCmdOutput(b *testing.B) {
 }
 
 func BenchmarkEchoCmdOutput2(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c := exec.Command("echo", "test")
 		var stdout bytes.Buffer
 		c.Stdout = &stdout
@@ -122,7 +122,7 @@ func BenchmarkEchoCmdOutput2(b *testing.B) {
 }
 
 func BenchmarkSetChanged(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		a := "none"
 		c := false
 		setChanged(&a, "idle", &c)
@@ -144,7 +144,7 @@ func setChanged1(v *string, val string, c *bool) {
 }
 
 func BenchmarkSetChanged1(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		a := "none"
 		c := false
 		setChanged1(&a, "idle", &c)
