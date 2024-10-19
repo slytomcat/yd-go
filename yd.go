@@ -1,4 +1,4 @@
-// Copyleft 2017-2023 Sly_tom_cat (slytomcat@mail.ru)
+// Copyleft 2017 - +Inf Sly_tom_cat (slytomcat@mail.ru)
 // License: GPL v.3
 
 //go:generate gotext update -out catalog.go
