@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - master
-      - dev
   pull_request:
     branches:
       - master
@@ -16,10 +15,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: './go.mod'
-      - name: Prepare similator
+      - name: Prepare simulator
         run: |
-          curl -L https://github.com/slytomcat/yandex-disk-simulator/releases/latest/download/yandex-disk-simulator > yandex-disk 
-          chmod a+x yandex-disk 
+          curl -L https://github.com/slytomcat/yandex-disk-simulator/releases/latest/download/yandex-disk-simulator > yandex-disk
+          chmod a+x yandex-disk
       - name: Test
         run: |
           export PATH=$(pwd):$PATH
@@ -61,7 +60,7 @@ jobs:
         with:
           name: build_artifacts
       - name: draft new release and upload assets
-        env: 
+        env:
           GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
           gh release create "$(git branch --show-current)-$(git rev-parse --short HEAD)" ./yd-go
