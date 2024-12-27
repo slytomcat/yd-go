@@ -28,15 +28,11 @@ type Icon struct {
 // NewIcon initializes the icon helper and returns it.
 // Use icon.CleanUp() for properly utilization of icon helper.
 func NewIcon(theme string, set func([]byte)) (*Icon, error) {
-	file, err := os.CreateTemp(os.TempDir(), "yd_notify_icon*.png")
+	file, err := os.CreateTemp("", "yd_notify_icon*.png")
 	if err != nil {
 		return nil, fmt.Errorf("icon store error: %v", err)
 	}
-	_, err = file.Write(yd128)
-	if err != nil {
-		return nil, fmt.Errorf("icon store error: %v", err)
-	}
-
+	defer file.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	i := &Icon{
 		currentStatus: "",
@@ -50,8 +46,12 @@ func NewIcon(theme string, set func([]byte)) (*Icon, error) {
 	if err = i.SetTheme(theme); err != nil {
 		return nil, err
 	}
-	go i.loop(ctx)
 	i.setFunc(i.pauseIcon)
+	_, err = file.Write(yd128)
+	if err != nil {
+		return nil, fmt.Errorf("icon store error: %v", err)
+	}
+	go i.loop(ctx)
 	return i, nil
 }
 

@@ -35,19 +35,19 @@ func TestMain(m *testing.M) {
 	os.Setenv("Sim_ConfDir", CfgPath)
 	err := os.MkdirAll(CfgPath, 0755)
 	if err != nil {
-		fmt.Print(CfgPath, " creation error:", err)
+		fmt.Printf("Path '%s' creation error: %v\n", CfgPath, err)
 		os.Exit(1)
 	}
 
 	SymExe, err = exec.LookPath("yandex-disk")
 	if err != nil {
-		fmt.Println("yandex-disk utility lookup error:", err)
+		fmt.Printf("yandex-disk utility lookup error: %v\n", err)
 		os.Exit(1)
 	}
 
 	exec.Command(SymExe, "stop").Run()
 	os.RemoveAll(path.Join(os.TempDir(), "yandexdisksimulator.socket"))
-	fmt.Printf("Tests init completed: yd exe: %v", SymExe)
+	fmt.Printf("Tests init completed: yd exe: %v\n", SymExe)
 
 	// Run tests
 	e := m.Run()
@@ -93,12 +93,9 @@ func TestFull(t *testing.T) {
 	// prepare for simulation
 	err := exec.Command(SymExe, "setup").Run()
 	require.NoError(t, err)
-	var YD *YDisk
 	var yds YDvals
-	t.Run("Create", func(t *testing.T) {
-		YD, err = NewYDisk(Cfg, slog.Default())
-		require.NoError(t, err)
-	})
+	YD, err = NewYDisk(Cfg, slog.Default())
+	require.NoError(t, err)
 
 	t.Run("NotStartedOutput", func(t *testing.T) {
 		output := YD.Output()

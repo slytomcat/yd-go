@@ -2,6 +2,7 @@ package notify
 
 import (
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -31,5 +32,10 @@ func TestDBusNotify(t *testing.T) {
 	n.Send(icon, "title3", "message3")
 	time.Sleep(time.Second)
 	n.Send("", "title4", "message4")
-
+	time.Sleep(time.Second)
+	p, err := os.Getwd()
+	require.NoError(t, err)
+	p, _ = path.Split(p)
+	p += "/icons/img/yd128.png"
+	n.Send(p, "cool title", "cool message")
 }

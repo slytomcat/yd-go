@@ -282,7 +282,7 @@ func (yd YDisk) getOutput(userLang bool) string {
 	}
 	out, err := exec.Command(cmd[0], cmd[1:]...).Output()
 	if err != nil {
-		log.Error("daemon_status", "error", err.Error())
+		log.Error("daemon_status", "error", err.Error(), "message", strings.TrimSuffix(string(out), "\n"))
 		return ""
 	}
 	return string(out)
