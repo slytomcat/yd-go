@@ -40,7 +40,7 @@ Application uses settings from the configuration file. The default path to confi
   - `"Theme"` - Icons theme name (default `"dark"`, may be set to `"dark"` or `"light"`). This setting can be changed via indicator menu.
   - `"Notifications"` - Display or not the desktop notifications (default `true`). This setting can be changed via indicator menu.
   - `"StartDaemon"` - Flag that shows that the daemon should be started on app start (default `true`). This setting can be changed via indicator menu.
-  - `"StopDaemon"` - Flag that shows that the daemon should be stopped on app closure (defaul `false`). This setting can be changed via indicator menu.
+  - `"StopDaemon"` - Flag that shows that the daemon should be stopped on app closure (default `false`). This setting can be changed via indicator menu.
 
 ## Get
 Download linux-amd64 binary from [releases](https://github.com/slytomcat/yd-go/releases), copy it to path in PATH (/usr/local/bin for example) and make it executable.
@@ -77,4 +77,4 @@ NOTE: the yandex-disk CLI utility must be installed and configured before starti
 
 ## Icons
 
-All the indicator icons are embedded into binary during the build time. But You can change them and rebuild the indicator. See more details about icons into [icons/img/readme](icons/img/readme)
+All the indicator icons are embedded into binary during the build time. But You can change them and rebuild the indicator. See more details about icons into [icons/img/readme.md](icons/img/readme.md)
