@@ -3,7 +3,6 @@ package icons
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 )
@@ -12,7 +11,7 @@ var interval = time.Millisecond * 333
 
 // Icon is the icon helper
 type Icon struct {
-	NotifyIcon    string     // path to notification icon stored as file on disk
+	NotifyIcon    []byte
 	lock          sync.Mutex // data protection lock
 	currentStatus string
 	currentIcon   int
@@ -28,29 +27,20 @@ type Icon struct {
 // NewIcon initializes the icon helper and returns it.
 // Use icon.CleanUp() for properly utilization of icon helper.
 func NewIcon(theme string, set func([]byte)) (*Icon, error) {
-	file, err := os.CreateTemp("", "yd_notify_icon*.png")
-	if err != nil {
-		return nil, fmt.Errorf("icon store error: %v", err)
-	}
-	defer file.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	i := &Icon{
 		currentStatus: "",
 		currentIcon:   0,
-		NotifyIcon:    file.Name(),
+		NotifyIcon:    yd128,
 		setFunc:       set,
 		ticker:        time.NewTicker(interval),
 		stopper:       cancel,
 	}
 	i.ticker.Stop()
-	if err = i.SetTheme(theme); err != nil {
+	if err := i.SetTheme(theme); err != nil {
 		return nil, err
 	}
 	i.setFunc(i.pauseIcon)
-	_, err = file.Write(yd128)
-	if err != nil {
-		return nil, fmt.Errorf("icon store error: %v", err)
-	}
 	go i.loop(ctx)
 	return i, nil
 }
@@ -121,12 +111,8 @@ func (i *Icon) loop(ctx context.Context) {
 	}
 }
 
-// CleanUp removes temporary file for notification icon and stops internal loop
-func (i *Icon) CleanUp() error {
+// Close stops internal loop
+func (i *Icon) Close() {
 	i.ticker.Stop()
 	i.stopper()
-	if err := os.Remove(i.NotifyIcon); err != nil {
-		return fmt.Errorf("icon remove error: %v", err)
-	}
-	return nil
 }
