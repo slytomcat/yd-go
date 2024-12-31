@@ -122,7 +122,7 @@ func onReady() {
 		notifyAvailable = true
 		notifySend = func(title, body string) {
 			log.Debug("sending_message", "title", title, "message", body)
-			notifyHandler.Send("", title, body)
+			notifyHandler.Send(title, body)
 		}
 	}
 
@@ -197,13 +197,13 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		go YD.Start()
 	}
 	defer func() {
-		if notifyHandler != nil {
-			notifyHandler.Close()
-		}
 		if cfg.StopDaemon {
 			YD.Stop()
 		}
 		YD.Close()
+		if notifyHandler != nil {
+			notifyHandler.Close()
+		}
 		systray.Quit()
 	}()
 	// register interrupt signals chan
@@ -363,8 +363,6 @@ func handleNotifications(yds *ydisk.YDvals) {
 
 func onExit() {
 	appConfig.Save()
-	if err := icon.CleanUp(); err != nil {
-		log.Error("icon_cleanup", "error", err)
-	}
+	icon.Close()
 	log.Debug("exit", "status", "done")
 }

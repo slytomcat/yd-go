@@ -13,8 +13,15 @@ func TestDBusNotify(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping testing in CI environment")
 	}
-	icon := "dialog-information"
-	n, err := New("appName", "", true, -1)
+	// read icon
+	p, err := os.Getwd()
+	require.NoError(t, err)
+	p, _ = path.Split(p)
+	p += "/icons/img/yd128.png"
+	icon, err := os.ReadFile(p)
+	require.NoError(t, err)
+
+	n, err := New("appName", icon, true, -1)
 	require.NoError(t, err)
 	require.NotNil(t, n)
 	defer n.Close()
@@ -23,19 +30,15 @@ func TestDBusNotify(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, cap)
 
-	n.Send(icon, "title", "message")
+	n.Send("title", "message")
 	time.Sleep(time.Second)
-	n.Send("dialog-error", "title1", "message1")
+	n.Send("title1", "message1")
 	time.Sleep(time.Second)
-	n.Send("dialog-warning", "title2", "message2")
+	n.Send("title2", "message2")
 	time.Sleep(time.Second)
-	n.Send(icon, "title3", "message3")
+	n.replace = false
+	n.Send("title3", "message3")
 	time.Sleep(time.Second)
-	n.Send("", "title4", "message4")
+	n.Send("title4", "message4")
 	time.Sleep(time.Second)
-	p, err := os.Getwd()
-	require.NoError(t, err)
-	p, _ = path.Split(p)
-	p += "/icons/img/yd128.png"
-	n.Send(p, "cool title", "cool message")
 }
