@@ -74,6 +74,7 @@ type menu struct {
 }
 
 func main() {
+	systray.SetTitle(appName)
 	systray.Run(onReady, onExit)
 }
 
@@ -137,7 +138,6 @@ func onReady() {
 
 	// Initialize systray menu
 	m := new(menu)
-	systray.SetTitle("Yandex.Disk")
 	m.status = systray.AddMenuItem("", "")
 	m.size1 = systray.AddMenuItem("", "")
 	m.size2 = systray.AddMenuItem("", "")
