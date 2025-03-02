@@ -94,7 +94,11 @@ func TestFull(t *testing.T) {
 	err := exec.Command(SymExe, "setup").Run()
 	require.NoError(t, err)
 	var yds YDvals
-	YD, err = NewYDisk(Cfg, slog.Default())
+	log := slog.Default()
+	// logLevel := new(slog.LevelVar)
+	// logLevel.Set(slog.LevelDebug)
+	// log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+	YD, err = NewYDisk(Cfg, log)
 	require.NoError(t, err)
 
 	t.Run("NotStartedOutput", func(t *testing.T) {
@@ -204,6 +208,20 @@ func TestFull(t *testing.T) {
 
 		}, 2*time.Second, 200*time.Millisecond)
 	})
+	t.Run("Error2Idle", func(t *testing.T) {
+		require.Eventually(t, func() bool {
+			select {
+			case yds = <-YD.Changes:
+				if yds.Stat != "idle" {
+					return false
+				}
+				require.Equal(t,
+					"{idle error 43.50 GB 2.89 GB 40.61 GB 0 B [File.ods downloads/file.deb downloads/setup download down do_it very_very_long_long_file_with_underscore o w n] false   }",
+					fmt.Sprintf("%v", yds))
+				return true
+			}
+		}, 10*time.Second, time.Second)
+	})
 
 	t.Run("Stop", func(t *testing.T) {
 		require.NoError(t, YD.Stop())
@@ -213,7 +231,7 @@ func TestFull(t *testing.T) {
 				if yds.Stat != "none" {
 					return false
 				}
-				require.Equal(t, "{none error     [] true   }", fmt.Sprintf("%v", yds))
+				require.Equal(t, "{none idle     [] true   }", fmt.Sprintf("%v", yds))
 				return true
 			default:
 				return false

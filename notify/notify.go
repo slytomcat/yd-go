@@ -27,9 +27,10 @@ const (
 
 // New creates new Notify component.
 // The application is the name of application.
-// The icon is png/ico image data to use in Send.
+// The icon is png/ico image data to use in Send as notify message icon.
 // True value of replace means that a new notification will replace the previous one if it is still displayed.
 // The time sets the time in milliseconds after which the notification will disappear. Set it to -1 to use Desktop default settings.
+// It returns error in cases of D-BUS connection error or error of getting the notification server capabilities.
 func New(application string, icon []byte, replace bool, time int) (*Notify, error) {
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
@@ -49,7 +50,7 @@ func New(application string, icon []byte, replace bool, time int) (*Notify, erro
 	return notify, nil
 }
 
-// Close closes d-bus connection. Call it on app exit or similar cases.
+// Close closes D-BUS connection. Call it on app exit or similar cases.
 func (n *Notify) Close() {
 	n.conn.Close()
 }
@@ -64,9 +65,10 @@ func (n *Notify) Send(title, message string) {
 	if call.Err == nil {
 		atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
 	}
-	// ignore rest possible errors
+	// ignore the rest possible errors
 }
 
+// ImageData is struct to hold image data into pix-buffer format as it declared into D-BUS specs.
 type ImageData struct {
 	Width, Height, RowStride int32
 	HasAlpha                 bool
@@ -74,6 +76,7 @@ type ImageData struct {
 	ImageData                []byte
 }
 
+// convertToPixels is used to convert png/ico format into pix-buffer as it declared into D-BUS specs.
 func convertToPixels(data []byte) ImageData {
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {

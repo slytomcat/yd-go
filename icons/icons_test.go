@@ -30,8 +30,7 @@ func (m *mockIcon) get() []byte {
 var mi mockIcon
 
 func TestNewIcon(t *testing.T) {
-	i, err := NewIcon("dark", mi.set)
-	require.NoError(t, err)
+	i := NewIcon("dark", mi.set)
 	require.NotNil(t, i)
 	defer i.Close()
 	assert.Equal(t, darkPause, mi.get())
@@ -42,8 +41,7 @@ func TestNewIcon(t *testing.T) {
 }
 
 func TestSetTheme(t *testing.T) {
-	i, err := NewIcon("dark", mi.set)
-	require.NoError(t, err)
+	i := NewIcon("dark", mi.set)
 	defer i.Close()
 	assert.Equal(t, darkPause, mi.get())
 	i.SetTheme("light")
@@ -59,8 +57,7 @@ func TestSetTheme(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	i, err := NewIcon("dark", mi.set)
-	require.NoError(t, err)
+	i := NewIcon("dark", mi.set)
 	require.NotNil(t, i)
 	defer i.Close()
 	i.Set("error")
@@ -81,8 +78,7 @@ func TestAnimation(t *testing.T) {
 		return func() bool { return bytes.Equal(mi.get(), i) }
 	}
 
-	i, err := NewIcon("dark", mi.set)
-	require.NoError(t, err)
+	i := NewIcon("dark", mi.set)
 	require.NotNil(t, i)
 	defer i.Close()
 	i.Set("index")
@@ -92,10 +88,4 @@ func TestAnimation(t *testing.T) {
 	assert.Eventually(t, event(darkBusy4), waitFor, tick)
 	assert.Eventually(t, event(darkBusy5), waitFor, tick)
 	assert.Eventually(t, event(darkBusy1), waitFor, tick)
-}
-
-func TestWrongTheme(t *testing.T) {
-	i, err := NewIcon("wrong", mi.set)
-	require.Error(t, err)
-	require.Nil(t, i)
 }

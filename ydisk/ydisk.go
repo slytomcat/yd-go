@@ -34,7 +34,7 @@ type YDvals struct {
 	Prog   string   // Synchronization progress (when in busy status)
 }
 
-/* A new YDvals constructor */
+// A new YDvals constructor
 func newYDvals() YDvals {
 	return YDvals{
 		Stat:   "unknown",
@@ -51,7 +51,7 @@ func newYDvals() YDvals {
 	}
 }
 
-/* Tool function that controls the change of value in variable */
+// Tool function that controls the change of value in variable
 func setChanged(v *string, val string, c *bool) {
 	if *v != val {
 		*v = val
@@ -59,11 +59,8 @@ func setChanged(v *string, val string, c *bool) {
 	}
 }
 
-/*
-update - Updates Daemon status values from the daemon output string.
-
-	Returns true if a change detected in any value, otherwise returns false
-*/
+// update - Updates Daemon status values from the daemon output string.
+// Returns true if a change detected in any value, otherwise returns false
 func (val *YDvals) update(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values
@@ -108,7 +105,7 @@ func (val *YDvals) update(out string) bool {
 	}
 	// Parse disk values and status
 	// Initialize map with keys that can be missed
-	keys := make(map[string]string, 10)
+	keys := make(map[string]string, 11)
 	keys["Sync progress"] = ""
 	keys["Error"] = ""
 	keys["Path"] = ""
@@ -212,12 +209,12 @@ func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
 	watch := newWatcher()
 	log.Debug("yandex-disk", "executable", exe)
 	yd := YDisk{
-		path,
-		make(chan YDvals, 1), // Output should be buffered
-		conf,
-		exe,
-		make(chan struct{}),
-		func() { watch.activate(path) },
+		Path:     path,
+		Changes:  make(chan YDvals, 1), // Output should be buffered
+		conf:     conf,
+		exe:      exe,
+		exit:     make(chan struct{}),
+		activate: func() { watch.activate(path) },
 	}
 	// start event handler in separate goroutine
 	go yd.eventHandler(watch)
@@ -262,8 +259,6 @@ func (yd *YDisk) eventHandler(watch watcher) {
 			}
 		}
 		// in both cases (Timer or Watcher events):
-		//  - restart timer
-		tick.Reset(time.Duration(interval) * time.Second)
 		//  - check for daemon changes and send changed values in case of change
 		if yds.update(yd.getOutput(false)) {
 			log.Debug("change", "prev", yds.Prev, "new", yds.Stat,
@@ -271,6 +266,12 @@ func (yd *YDisk) eventHandler(watch watcher) {
 			yd.Changes <- yds
 			// in case of any change reset the timer interval
 			interval = 1
+		}
+		//  - restart timer when daemon is running
+		if yds.Stat != "none" {
+			tick.Reset(time.Duration(interval) * time.Second)
+		} else {
+			tick.Stop()
 		}
 	}
 }
