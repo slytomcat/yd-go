@@ -26,7 +26,7 @@ func checkDaemon(conf string) (string, string, error) {
 	exe, err := exec.LookPath("yandex-disk")
 	if err != nil {
 		msg := "Yandex.Disk CLI utility is not installed. Install it first"
-		return "", "", fmt.Errorf(msg)
+		return "", "", fmt.Errorf("%s", msg)
 	}
 	f, err := os.Open(conf)
 	if err != nil {
