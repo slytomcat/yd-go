@@ -60,7 +60,8 @@ func setChanged(v *string, val string, c *bool) {
 }
 
 // update - Updates Daemon status values from the daemon output string.
-// Returns true if a change detected in any value, otherwise returns false
+// Returns true if a change detected in any value, otherwise returns false.
+// It uses only strings operation for parsing.
 func (val *YDvals) update(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values

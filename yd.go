@@ -55,8 +55,8 @@ type menu struct {
 	last        *systray.MenuItem     // Sub-menu with last synchronized
 	lastMItem   [10]*systray.MenuItem // last synchronized menu items
 	lastPath    [10]string            // paths to last synchronized
-	start       *systray.MenuItem
-	stop        *systray.MenuItem
+	start       *systray.MenuItem     // start daemon item
+	stop        *systray.MenuItem     // stop daemon item
 	out         *systray.MenuItem
 	path        *systray.MenuItem
 	notes       *systray.MenuItem
@@ -88,7 +88,7 @@ func onReady() {
 	// Initialize icon helper
 	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
 	// Initialize notifications
-	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
+	notifyHandler, err := notify.New(appName, icon.NotifyIcon, false, -1)
 	if err != nil {
 		notifySend = nil
 		appConfig.Notifications = false

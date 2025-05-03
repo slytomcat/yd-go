@@ -62,7 +62,7 @@ func (n *Notify) Send(title, message string) {
 		last = atomic.LoadUint32(&n.lastID)
 	}
 	call := n.connObj.Call(dBusDest+".Notify", dbus.Flags(0), n.app, last, "", title, message, []string{}, n.iconHints, n.time)
-	if call.Err == nil {
+	if call.Err == nil && n.replace {
 		atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
 	}
 	// ignore the rest possible errors
