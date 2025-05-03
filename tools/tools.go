@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+
+	"golang.org/x/text/message"
 )
 
 var llog *slog.Logger
@@ -72,21 +74,21 @@ func NewConfig(cfgFilePath string) (*Config, error) {
 	}
 
 	cfgPath, _ := path.Split(cfgFilePath)
-	// Check that app configuration file path exists
+	// Check that the configuration file path is exists
 	if NotExists(cfgPath) {
 		if err := os.MkdirAll(cfgPath, 0700); err != nil {
 			return nil, fmt.Errorf("Can't create application configuration path: %v", err)
 		}
 	}
-	// Check that app configuration file exists
+	// Check that the configuration file is exists
 	if NotExists(cfgFilePath) {
-		//Create and save new configuration file with default values
+		// Create and save new configuration file with default values
 		err := cfg.Save()
 		if err != nil {
 			return nil, fmt.Errorf("default config saving error: %v", err)
 		}
 	} else {
-		// Read app configuration file
+		// Read the configuration file
 		data, err := os.ReadFile(cfgFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("reading config file error: %v", err)
@@ -94,6 +96,9 @@ func NewConfig(cfgFilePath string) (*Config, error) {
 		err = json.Unmarshal(data, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("parsing config file error: %v", err)
+		}
+		if cfg.Theme != "dark" && cfg.Theme != "light" {
+			return nil, fmt.Errorf("wrong theme name: '%s' (should be 'dark' or 'light')", cfg.Theme)
 		}
 	}
 	return cfg, nil
@@ -113,7 +118,7 @@ func (c *Config) Save() error {
 // initializes logging facility.
 // Parameter: appName - name of application,
 // Returns: path to config file
-func AppInit(appName string, args []string, version string) (string, bool) {
+func AppInit(appName string, args []string, version string) (*Config, *message.Printer, *slog.Logger) {
 	var pv bool
 	var debug bool
 	var config string
@@ -130,7 +135,24 @@ func AppInit(appName string, args []string, version string) (string, bool) {
 		fmt.Print(getVersion(appName, version))
 		os.Exit(0)
 	}
-	return os.ExpandEnv(config), debug
+	// set logging level
+	logLevel := new(slog.LevelVar)
+	if debug {
+		logLevel.Set(slog.LevelDebug)
+	}
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+	// Initialize translations
+	lng := os.Getenv("LANG")
+	if len(lng) > 2 {
+		lng = lng[:2]
+	}
+	log.Debug("language", "LANG", lng)
+	msg := message.NewPrinter(message.MatchLanguage(lng))
+	appConfig, err := NewConfig(os.ExpandEnv(config))
+	if err != nil {
+		log.Error("getting config error", "error", err)
+	}
+	return appConfig, msg, log
 }
 
 func getVersion(appName, version string) string {

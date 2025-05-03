@@ -2,7 +2,6 @@ package icons
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -11,42 +10,40 @@ var interval = time.Millisecond * 333
 
 // Icon is the icon helper
 type Icon struct {
-	NotifyIcon    []byte
-	lock          sync.Mutex // data protection lock
-	currentStatus string
-	currentIcon   int
-	busyIcons     [5][]byte
-	idleIcon      []byte
-	pauseIcon     []byte
-	errorIcon     []byte
-	setFunc       func([]byte)
-	ticker        *time.Ticker
-	stopper       func()
+	NotifyIcon    []byte       // bytes of icon for notifications (png of ico)
+	lock          sync.Mutex   // data protection lock
+	currentStatus string       // current icon status
+	currentIcon   int          // current icon number for busy animation
+	busyIcons     [5][]byte    // busy icons set for icon animation
+	idleIcon      []byte       // idle icon data
+	pauseIcon     []byte       // pause icon data
+	errorIcon     []byte       // error icon data
+	setFunc       func([]byte) // function to set icon
+	ticker        *time.Ticker // ticker for icon animation
+	stopper       func()       // stop function
 }
 
 // NewIcon initializes the icon helper and returns it.
-// Use icon.CleanUp() for properly utilization of icon helper.
-func NewIcon(theme string, set func([]byte)) (*Icon, error) {
+// Use icon.Close() for properly utilization of icon helper.
+func NewIcon(theme string, setFunc func([]byte)) *Icon {
 	ctx, cancel := context.WithCancel(context.Background())
 	i := &Icon{
 		currentStatus: "",
 		currentIcon:   0,
 		NotifyIcon:    yd128,
-		setFunc:       set,
-		ticker:        time.NewTicker(interval),
+		setFunc:       setFunc,
+		ticker:        time.NewTicker(time.Hour),
 		stopper:       cancel,
 	}
 	i.ticker.Stop()
-	if err := i.SetTheme(theme); err != nil {
-		return nil, err
-	}
+	i.SetTheme(theme)
 	i.setFunc(i.pauseIcon)
 	go i.loop(ctx)
-	return i, nil
+	return i
 }
 
-// SetTheme select one of the icons' themes
-func (i *Icon) SetTheme(theme string) error {
+// SetTheme select one of the icons' themes. The theme name must be "light" or "dark".
+func (i *Icon) SetTheme(theme string) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	switch theme {
@@ -60,15 +57,13 @@ func (i *Icon) SetTheme(theme string) error {
 		i.idleIcon = darkIdle
 		i.pauseIcon = darkPause
 		i.errorIcon = darkError
-	default:
-		return fmt.Errorf("wrong theme name: '%s' (should be 'dark' or 'light')", theme)
 	}
 	if i.currentStatus != "" {
 		i.setIcon(i.currentStatus)
 	}
-	return nil
 }
 
+// setIcon sets the current icon image via i.SetFunc
 func (i *Icon) setIcon(status string) {
 	switch status {
 	case "busy", "index":
@@ -102,7 +97,7 @@ func (i *Icon) loop(ctx context.Context) {
 		select {
 		case <-i.ticker.C:
 			i.lock.Lock()
-			i.currentIcon = (i.currentIcon + 1) % 5
+			i.currentIcon = (i.currentIcon + 1) % len(i.busyIcons)
 			i.setFunc(i.busyIcons[i.currentIcon])
 			i.lock.Unlock()
 		case <-ctx.Done():

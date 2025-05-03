@@ -25,15 +25,13 @@ import (
 )
 
 var (
-	version = "local build"
-
-	msg             *message.Printer  // msg is the Localization printer
-	statusTr        map[string]string // translated statuses
-	icon            *icons.Icon       // icon helper
-	notifySend      func(title, body string)
-	notifyAvailable bool
-	appConfig       *tools.Config
-	log             *slog.Logger
+	version    = "local build"
+	msg        *message.Printer         // msg is the Localization printer
+	statusTr   map[string]string        // translated statuses
+	icon       *icons.Icon              // icon helper
+	notifySend func(title, body string) // function to send notification, nil means that notifications are not available
+	appConfig  *tools.Config            // application configuration
+	log        *slog.Logger             // logger
 )
 
 const (
@@ -57,8 +55,8 @@ type menu struct {
 	last        *systray.MenuItem     // Sub-menu with last synchronized
 	lastMItem   [10]*systray.MenuItem // last synchronized menu items
 	lastPath    [10]string            // paths to last synchronized
-	start       *systray.MenuItem
-	stop        *systray.MenuItem
+	start       *systray.MenuItem     // start daemon item
+	stop        *systray.MenuItem     // stop daemon item
 	out         *systray.MenuItem
 	path        *systray.MenuItem
 	notes       *systray.MenuItem
@@ -79,54 +77,28 @@ func main() {
 }
 
 func onReady() {
-	// Initialize application and get the application configuration
-	cfgPath, debug := tools.AppInit(appName, os.Args, version)
-	logLevel := new(slog.LevelVar)
-	if debug {
-		logLevel.Set(slog.LevelDebug)
-	}
-	log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-	var err error
-	if appConfig, err = tools.NewConfig(cfgPath); err != nil {
-		log.Error("config_reading", "error", err)
-	}
+	// Initialize application and get app config, message translator and logger
+	appConfig, msg, log = tools.AppInit(appName, os.Args, version)
 	// Create new YDisk instance
 	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
 	if err != nil {
 		log.Error("daemon_initialization", "error", err)
 		os.Exit(1)
 	}
-
-	// Initialize translations
-	lng := os.Getenv("LANG")
-	if len(lng) > 2 {
-		lng = lng[:2]
-	}
-	log.Debug("language", "LANG", lng)
-	msg = message.NewPrinter(message.MatchLanguage(lng))
-
 	// Initialize icon helper
-	icon, err = icons.NewIcon(appConfig.Theme, systray.SetIcon)
-	if err != nil {
-		log.Error("icons_initialization", "error", err)
-		os.Exit(1)
-	}
-
+	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
 	// Initialize notifications
-	notifyHandler, err := notify.New(appName, icon.NotifyIcon, true, -1)
+	notifyHandler, err := notify.New(appName, icon.NotifyIcon, false, -1)
 	if err != nil {
-		notifyAvailable = false
-		notifySend = func(title, body string) {}
+		notifySend = nil
 		appConfig.Notifications = false
 		log.Warn("notifications", "status", "not_available", "error", err)
 	} else {
-		notifyAvailable = true
 		notifySend = func(title, body string) {
 			log.Debug("sending_message", "title", title, "message", body)
 			notifyHandler.Send(title, body)
 		}
 	}
-
 	// Initialize status localization
 	statusTr = map[string]string{
 		"idle":   msg.Sprintf("idle"),
@@ -135,7 +107,6 @@ func onReady() {
 		"none":   msg.Sprintf("none"),
 		"paused": msg.Sprintf("paused"),
 	}
-
 	// Initialize systray menu
 	m := new(menu)
 	m.status = systray.AddMenuItem("", "")
@@ -173,7 +144,7 @@ func onReady() {
 	for i := range 10 {
 		m.lastMItem[i].Hide()
 	}
-	if !notifyAvailable { // disable all menu items that are dependant on notification service
+	if notifySend == nil { // disable all menu items that are dependant on notification service
 		m.about.Disable()
 		m.out.Disable()
 		m.notes.Disable()
@@ -184,7 +155,6 @@ func onReady() {
 		m.warning = systray.AddMenuItem("", "")
 		m.warning.Hide()
 	}
-
 	// Start events handler
 	go eventHandler(m, appConfig, YD, notifyHandler)
 }
@@ -192,11 +162,8 @@ func onReady() {
 // eventHandler handles all application lifetime events
 func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *notify.Notify) {
 	log.Debug("ui_event_handler", "status", "started")
-	defer log.Debug("ui_event_handler", "status", "exited")
-	if cfg.StartDaemon {
-		go YD.Start()
-	}
 	defer func() {
+		log.Debug("ui_event_handler", "status", "exited")
 		if cfg.StopDaemon {
 			YD.Stop()
 		}
@@ -206,6 +173,9 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		}
 		systray.Quit()
 	}()
+	if cfg.StartDaemon {
+		go YD.Start()
+	}
 	// register interrupt signals chan
 	canceled := make(chan os.Signal, 1)
 	signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
@@ -260,7 +230,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 			notifySend("yd-go", msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.donate.ClickedCh:
 			openPath("https://github.com/slytomcat/yd-go/wiki/Donations")
-		case sig := <-canceled:
+		case sig := <-canceled: // SIGINT or SIGTERM signal received
 			log.Warn("exit", "signal", sig)
 			return
 		case <-m.quit.ClickedCh:
@@ -333,12 +303,12 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			} else {
 				m.stop.Show()
 				m.start.Hide()
-				if notifyAvailable {
+				if notifySend != nil {
 					m.out.Enable()
 				}
 			}
 		}
-		if appConfig.Notifications {
+		if appConfig.Notifications && notifySend != nil {
 			go handleNotifications(yds)
 		}
 	}
