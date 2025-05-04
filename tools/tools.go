@@ -145,7 +145,7 @@ func GetParams(appName string, args []string, version string) (string, bool) {
 		fmt.Print(getVersion(appName, version))
 		os.Exit(0)
 	}
-	return config, debug
+	return os.ExpandEnv(config), debug
 }
 
 func getVersion(appName, version string) string {
