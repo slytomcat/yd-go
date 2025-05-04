@@ -284,7 +284,9 @@ func (yd YDisk) getOutput(userLang bool) string {
 	}
 	out, err := exec.Command(cmd[0], cmd[1:]...).Output()
 	if err != nil {
-		log.Error("daemon_status", "error", err.Error(), "message", strings.TrimSuffix(string(out), "\n"))
+		if message := strings.TrimSuffix(string(out), "\n"); message != "Error: daemon not started" {
+			log.Error("daemon_status", "error", err.Error(), "message", message)
+		}
 		return ""
 	}
 	return string(out)

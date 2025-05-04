@@ -26,12 +26,13 @@ import (
 
 var (
 	version    = "local build"
-	msg        *message.Printer         // msg is the Localization printer
-	statusTr   map[string]string        // translated statuses
-	icon       *icons.Icon              // icon helper
-	notifySend func(title, body string) // function to send notification, nil means that notifications are not available
-	appConfig  *tools.Config            // application configuration
-	log        *slog.Logger             // logger
+	msg        *message.Printer          // msg is the Localization printer
+	statusTr   map[string]string         // translated statuses
+	icon       *icons.Icon               // icon helper
+	notifySend func(title, msg string)   // function to send notification, nil means that notifications are not available
+	appConfig  *tools.Config             // application configuration
+	log        *slog.Logger              // logger
+	appTitle   = "Yandex.Disk indicator" // application title for icon and notifications
 )
 
 const (
@@ -101,8 +102,6 @@ func main() {
 func onReady() {
 	// setup localization
 	msg = SetupLocalization(log)
-	// set systray title
-	systray.SetTitle(msg.Sprintf("Yandex.Disk indicator"))
 	// Create new YDisk instance
 	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
 	if err != nil {
@@ -111,6 +110,9 @@ func onReady() {
 	}
 	// Initialize icon helper
 	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+	// set systray title
+	appTitle = msg.Sprintf(appTitle)
+	systray.SetTitle(appTitle)
 	// Initialize notifications
 	notifyHandler, err := notify.New(appName, icon.NotifyIcon, false, -1)
 	if err != nil {
@@ -118,9 +120,9 @@ func onReady() {
 		appConfig.Notifications = false
 		log.Warn("notifications", "status", "not_available", "error", err)
 	} else {
-		notifySend = func(title, body string) {
-			log.Debug("sending_message", "title", title, "message", body)
-			notifyHandler.Send(title, body)
+		notifySend = func(title, msg string) {
+			log.Debug("sending_message", "title", title, "message", msg)
+			notifyHandler.Send(title, msg)
 		}
 	}
 	// Initialize status localization
@@ -251,7 +253,7 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.help.ClickedCh:
 			openPath("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
 		case <-m.about.ClickedCh:
-			notifySend("yd-go", msg.Sprintf(about, version, time.Now().Format("2006")))
+			notifySend(msg.Sprintf(appTitle), msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.donate.ClickedCh:
 			openPath("https://github.com/slytomcat/yd-go/wiki/Donations")
 		case sig := <-canceled: // SIGINT or SIGTERM signal received
@@ -343,15 +345,15 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 func handleNotifications(yds *ydisk.YDvals) {
 	switch {
 	case yds.Stat == "none" && yds.Prev != "unknown":
-		notifySend("Yandex.Disk", msg.Sprintf("Daemon stopped"))
+		notifySend(appTitle, msg.Sprintf("Daemon stopped"))
 	case yds.Prev == "none":
-		notifySend("Yandex.Disk", msg.Sprintf("Daemon started"))
+		notifySend(appTitle, msg.Sprintf("Daemon started"))
 	case (yds.Stat == "busy" || yds.Stat == "index") &&
 		(yds.Prev != "busy" && yds.Prev != "index"):
-		notifySend("Yandex.Disk", msg.Sprintf("Synchronization started"))
+		notifySend(appTitle, msg.Sprintf("Synchronization started"))
 	case (yds.Stat == "idle" || yds.Stat == "error") &&
 		(yds.Prev == "busy" || yds.Prev == "index"):
-		notifySend("Yandex.Disk", msg.Sprintf("Synchronization finished"))
+		notifySend(appTitle, msg.Sprintf("Synchronization finished"))
 	}
 }
 

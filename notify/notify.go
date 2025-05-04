@@ -2,6 +2,7 @@ package notify
 
 import (
 	"bytes"
+	"context"
 	"image"
 	_ "image/png"
 	"sync/atomic"
@@ -11,6 +12,8 @@ import (
 
 // Notify holds D-Bus connection and defaults for the notifications.
 type Notify struct {
+	ctx       context.Context
+	cancel    func()
 	app       string
 	iconHints map[string]dbus.Variant
 	replace   bool
@@ -36,7 +39,10 @@ func New(application string, icon []byte, replace bool, time int) (*Notify, erro
 	if err != nil {
 		return nil, err
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	notify := &Notify{
+		ctx:       ctx,
+		cancel:    cancel,
 		app:       application,
 		iconHints: map[string]dbus.Variant{"image-data": dbus.MakeVariant(convertToPixels(icon))},
 		replace:   replace,
@@ -52,6 +58,7 @@ func New(application string, icon []byte, replace bool, time int) (*Notify, erro
 
 // Close closes D-BUS connection. Call it on app exit or similar cases.
 func (n *Notify) Close() {
+	n.cancel()
 	n.conn.Close()
 }
 
@@ -61,7 +68,7 @@ func (n *Notify) Send(title, message string) {
 	if n.replace {
 		last = atomic.LoadUint32(&n.lastID)
 	}
-	call := n.connObj.Call(dBusDest+".Notify", dbus.Flags(0), n.app, last, "", title, message, []string{}, n.iconHints, n.time)
+	call := n.connObj.CallWithContext(n.ctx, dBusDest+".Notify", dbus.Flags(0), n.app, last, "", title, message, []string{}, n.iconHints, n.time)
 	if call.Err == nil && n.replace {
 		atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
 	}
@@ -101,7 +108,7 @@ func convertToPixels(data []byte) ImageData {
 
 // Cap returns the notification server capabilities
 func (n *Notify) Cap() ([]string, error) {
-	call := n.connObj.Call(dBusDest+".GetCapabilities", dbus.Flags(0))
+	call := n.connObj.CallWithContext(n.ctx, dBusDest+".GetCapabilities", dbus.Flags(0))
 	if call.Err != nil {
 		return nil, call.Err
 	}

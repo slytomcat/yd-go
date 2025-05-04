@@ -172,12 +172,12 @@ func TestGetParams(t *testing.T) {
 	tVersion := "test"
 	t.Run("wo_params", func(t *testing.T) {
 		cfgPath, debug := GetParams(tAppName, []string{tAppName}, tVersion)
-		require.Equal(t, "$HOME/.config/"+tAppName+"/default.cfg", cfgPath)
+		require.Equal(t, os.ExpandEnv("$HOME/.config/"+tAppName+"/default.cfg"), cfgPath)
 		require.False(t, debug)
 	})
 	t.Run("with_debug", func(t *testing.T) {
 		cfgPath, debug := GetParams(tAppName, []string{tAppName, "-debug"}, tVersion)
-		require.Equal(t, "$HOME/.config/"+tAppName+"/default.cfg", cfgPath)
+		require.Equal(t, os.ExpandEnv("$HOME/.config/"+tAppName+"/default.cfg"), cfgPath)
 		require.True(t, debug)
 	})
 	t.Run("with_cfg", func(t *testing.T) {
