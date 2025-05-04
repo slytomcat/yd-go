@@ -2,6 +2,11 @@
     "language": "ru",
     "messages": [
         {
+            "id": "Yandex.Disk indicator",
+            "message": "Yandex.Disk indicator",
+            "translation": "Индикатор Yandex.Disk"
+        },
+        {
             "id": "idle",
             "message": "idle",
             "translation": "ожидание"

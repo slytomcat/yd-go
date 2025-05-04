@@ -39,84 +39,86 @@ func init() {
 }
 
 var messageKeyToIndex = map[string]int{
-	"About":                             17,
-	"Daemon started":                    27,
-	"Daemon stopped":                    26,
-	"Donations":                         18,
-	"Free: %s Trash: %s":                25,
-	"Help":                              16,
-	"Last synchronized":                 5,
-	"Light theme":                       12,
-	"Notification service unavailable!": 20,
-	"Notifications":                     13,
-	"Open Yandex.Disk folder":           9,
-	"Open Yandex.Disk in browser":       10,
-	"Quit":                              19,
-	"Settings":                          11,
-	"Show daemon output":                8,
-	"Start daemon":                      6,
-	"Start on start":                    14,
-	"Status: %s":                        23,
-	"Stop daemon":                       7,
-	"Stop on exit":                      15,
-	"Synchronization finished":          29,
-	"Synchronization started":           28,
-	"Used: %s/%s":                       24,
-	"Yandex.Disk daemon output":         21,
-	"busy":                              2,
-	"idle":                              0,
-	"index":                             1,
-	"none":                              3,
-	"paused":                            4,
-	"yd-go is the panel indicator for Yandex.Disk daemon.\n\n\tVersion: %s\n\nCopyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3\n\n": 22,
+	"About":                             18,
+	"Daemon started":                    28,
+	"Daemon stopped":                    27,
+	"Donations":                         19,
+	"Free: %s Trash: %s":                26,
+	"Help":                              17,
+	"Last synchronized":                 6,
+	"Light theme":                       13,
+	"Notification service unavailable!": 21,
+	"Notifications":                     14,
+	"Open Yandex.Disk folder":           10,
+	"Open Yandex.Disk in browser":       11,
+	"Quit":                              20,
+	"Settings":                          12,
+	"Show daemon output":                9,
+	"Start daemon":                      7,
+	"Start on start":                    15,
+	"Status: %s":                        24,
+	"Stop daemon":                       8,
+	"Stop on exit":                      16,
+	"Synchronization finished":          30,
+	"Synchronization started":           29,
+	"Used: %s/%s":                       25,
+	"Yandex.Disk daemon output":         22,
+	"Yandex.Disk indicator":             0,
+	"busy":                              3,
+	"idle":                              1,
+	"index":                             2,
+	"none":                              4,
+	"paused":                            5,
+	"yd-go is the panel indicator for Yandex.Disk daemon.\n\n\tVersion: %s\n\nCopyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)\n\n\tLicense: GPL v.3\n\n": 23,
 }
 
-var en_USIndex = []uint32{ // 31 elements
-	0x00000000, 0x00000005, 0x0000000b, 0x00000010,
-	0x00000015, 0x0000001c, 0x0000002e, 0x0000003b,
-	0x00000047, 0x0000005a, 0x00000072, 0x0000008e,
-	0x00000097, 0x000000a3, 0x000000b1, 0x000000c0,
-	0x000000cd, 0x000000d2, 0x000000d8, 0x000000e2,
-	0x000000e7, 0x00000109, 0x00000123, 0x000001b8,
-	0x000001c6, 0x000001d8, 0x000001f1, 0x00000200,
-	0x0000020f, 0x00000227, 0x00000240,
-} // Size: 148 bytes
+var en_USIndex = []uint32{ // 32 elements
+	0x00000000, 0x00000016, 0x0000001b, 0x00000021,
+	0x00000026, 0x0000002b, 0x00000032, 0x00000044,
+	0x00000051, 0x0000005d, 0x00000070, 0x00000088,
+	0x000000a4, 0x000000ad, 0x000000b9, 0x000000c7,
+	0x000000d6, 0x000000e3, 0x000000e8, 0x000000ee,
+	0x000000f8, 0x000000fd, 0x0000011f, 0x00000139,
+	0x000001ce, 0x000001dc, 0x000001ee, 0x00000207,
+	0x00000216, 0x00000225, 0x0000023d, 0x00000256,
+} // Size: 152 bytes
 
-const en_USData string = "" + // Size: 576 bytes
-	"\x02idle\x02index\x02busy\x02none\x02paused\x02Last synchronized\x02Star" +
-	"t daemon\x02Stop daemon\x02Show daemon output\x02Open Yandex.Disk folder" +
-	"\x02Open Yandex.Disk in browser\x02Settings\x02Light theme\x02Notificati" +
-	"ons\x02Start on start\x02Stop on exit\x02Help\x02About\x02Donations\x02Q" +
-	"uit\x02Notification service unavailable!\x02Yandex.Disk daemon output" +
-	"\x04\x00\x02\x0a\x0a\x8e\x01\x02yd-go is the panel indicator for Yandex." +
-	"Disk daemon.\x0a\x0a\x09Version: %[1]s\x0a\x0aCopyleft 2017-%[2]s Sly_to" +
-	"m_cat (slytomcat@mail.ru)\x0a\x0a\x09License: GPL v.3\x02Status: %[1]s" +
-	"\x02Used: %[1]s/%[2]s\x02Free: %[1]s Trash: %[2]s\x02Daemon stopped\x02D" +
-	"aemon started\x02Synchronization started\x02Synchronization finished"
+const en_USData string = "" + // Size: 598 bytes
+	"\x02Yandex.Disk indicator\x02idle\x02index\x02busy\x02none\x02paused\x02" +
+	"Last synchronized\x02Start daemon\x02Stop daemon\x02Show daemon output" +
+	"\x02Open Yandex.Disk folder\x02Open Yandex.Disk in browser\x02Settings" +
+	"\x02Light theme\x02Notifications\x02Start on start\x02Stop on exit\x02He" +
+	"lp\x02About\x02Donations\x02Quit\x02Notification service unavailable!" +
+	"\x02Yandex.Disk daemon output\x04\x00\x02\x0a\x0a\x8e\x01\x02yd-go is th" +
+	"e panel indicator for Yandex.Disk daemon.\x0a\x0a\x09Version: %[1]s\x0a" +
+	"\x0aCopyleft 2017-%[2]s Sly_tom_cat (slytomcat@mail.ru)\x0a\x0a\x09Licen" +
+	"se: GPL v.3\x02Status: %[1]s\x02Used: %[1]s/%[2]s\x02Free: %[1]s Trash: " +
+	"%[2]s\x02Daemon stopped\x02Daemon started\x02Synchronization started\x02" +
+	"Synchronization finished"
 
-var ruIndex = []uint32{ // 31 elements
-	0x00000000, 0x00000011, 0x00000026, 0x00000041,
-	0x00000056, 0x00000061, 0x00000099, 0x000000bb,
-	0x000000df, 0x0000010a, 0x00000134, 0x00000163,
-	0x00000176, 0x0000018e, 0x000001a5, 0x000001ca,
-	0x000001f3, 0x00000200, 0x0000021a, 0x00000235,
-	0x00000240, 0x0000027a, 0x000002a0, 0x0000035e,
-	0x00000372, 0x00000398, 0x000003c6, 0x000003ec,
-	0x0000040c, 0x00000434, 0x00000462,
-} // Size: 148 bytes
+var ruIndex = []uint32{ // 32 elements
+	0x00000000, 0x0000001f, 0x00000030, 0x00000045,
+	0x00000060, 0x00000075, 0x00000080, 0x000000b8,
+	0x000000da, 0x000000fe, 0x00000129, 0x00000153,
+	0x00000182, 0x00000195, 0x000001ad, 0x000001c4,
+	0x000001e9, 0x00000212, 0x0000021f, 0x00000239,
+	0x00000254, 0x0000025f, 0x00000299, 0x000002bf,
+	0x0000037d, 0x00000391, 0x000003b7, 0x000003e5,
+	0x0000040b, 0x0000042b, 0x00000453, 0x00000481,
+} // Size: 152 bytes
 
-const ruData string = "" + // Size: 1122 bytes
-	"\x02ожидание\x02индексация\x02синхронизация\x02остановлен\x02пауза\x02По" +
-	"следние синхронизированные\x02Запустить утилиту\x02Остановить утилиту" +
-	"\x02Показать вывод утилиты\x02Открыть каталог Yandex.Disk\x02Открыть Yan" +
-	"dex.Disk в браузере\x02Настройки\x02Светлая тема\x02Уведомления\x02Запус" +
-	"кать на старте\x02Остановить при выходе\x02Помощь\x02Об индикаторе\x02П" +
-	"ожертвования\x02Выход\x02Сервис уведомлений недоступен!\x02Вывод утилит" +
-	"ы Yandex.Disk\x04\x00\x02\x0a\x0a\xb7\x01\x02yd-go это индикатор панели" +
-	" для утилиты Yandex.Disk.\x0a\x0a\x09Версия: %[1]s\x0a\x0aCopyleft 2017-" +
-	"%[2]s Sly_tom_cat (slytomcat@mail.ru)\x0a\x0a\x09Лицензия: GPL v.3\x02Ст" +
-	"атус: %[1]s\x02Использовано: %[1]s/%[2]s\x02Свободно: %[1]s Корзина: %[" +
-	"2]s\x02Утилита остановлена\x02Утилита запущена\x02Синхронизация начата" +
-	"\x02Синхронизация закончена"
+const ruData string = "" + // Size: 1153 bytes
+	"\x02Индикатор Yandex.Disk\x02ожидание\x02индексация\x02синхронизация\x02" +
+	"остановлен\x02пауза\x02Последние синхронизированные\x02Запустить утилит" +
+	"у\x02Остановить утилиту\x02Показать вывод утилиты\x02Открыть каталог Ya" +
+	"ndex.Disk\x02Открыть Yandex.Disk в браузере\x02Настройки\x02Светлая тема" +
+	"\x02Уведомления\x02Запускать на старте\x02Остановить при выходе\x02Помощ" +
+	"ь\x02Об индикаторе\x02Пожертвования\x02Выход\x02Сервис уведомлений недо" +
+	"ступен!\x02Вывод утилиты Yandex.Disk\x04\x00\x02\x0a\x0a\xb7\x01\x02yd-" +
+	"go это индикатор панели для утилиты Yandex.Disk.\x0a\x0a\x09Версия: %[1]" +
+	"s\x0a\x0aCopyleft 2017-%[2]s Sly_tom_cat (slytomcat@mail.ru)\x0a\x0a\x09" +
+	"Лицензия: GPL v.3\x02Статус: %[1]s\x02Использовано: %[1]s/%[2]s\x02Своб" +
+	"одно: %[1]s Корзина: %[2]s\x02Утилита остановлена\x02Утилита запущена" +
+	"\x02Синхронизация начата\x02Синхронизация закончена"
 
-	// Total table size 1994 bytes (1KiB); checksum: 993284CE
+	// Total table size 2055 bytes (2KiB); checksum: E6D66B0E

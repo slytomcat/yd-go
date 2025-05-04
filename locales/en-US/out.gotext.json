@@ -2,6 +2,13 @@
     "language": "en-US",
     "messages": [
         {
+            "id": "Yandex.Disk indicator",
+            "message": "Yandex.Disk indicator",
+            "translation": "Yandex.Disk indicator",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
             "id": "idle",
             "message": "idle",
             "translation": "idle",

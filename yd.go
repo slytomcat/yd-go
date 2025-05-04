@@ -71,14 +71,38 @@ type menu struct {
 	warning     *systray.MenuItem
 }
 
+// SetupLocalization initializes translations
+func SetupLocalization(logger *slog.Logger) *message.Printer {
+	lng := os.Getenv("LANG")
+	if len(lng) > 2 {
+		lng = lng[:2]
+	}
+	logger.Debug("language", "LANG", lng)
+	return message.NewPrinter(message.MatchLanguage(lng))
+}
+
+func AppInit() {
+	cfgPath, debug := tools.GetParams(appName, os.Args, version)
+	log = tools.SetupLogger(debug)
+	var err error
+	appConfig, err = tools.NewConfig(cfgPath)
+	if err != nil {
+		log.Error("config_error", "error", err)
+		os.Exit(1)
+	}
+}
+
 func main() {
-	systray.SetTitle(appName)
+	AppInit()
+	systray.SetID(fmt.Sprintf("%s_%s", appName, appConfig.ID))
 	systray.Run(onReady, onExit)
 }
 
 func onReady() {
-	// Initialize application and get app config, message translator and logger
-	appConfig, msg, log = tools.AppInit(appName, os.Args, version)
+	// setup localization
+	msg = SetupLocalization(log)
+	// set systray title
+	systray.SetTitle(msg.Sprintf("Yandex.Disk indicator"))
 	// Create new YDisk instance
 	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
 	if err != nil {

@@ -1,11 +1,11 @@
 module github.com/slytomcat/yd-go
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/slytomcat/systray v1.10.2
+	github.com/slytomcat/systray v1.10.3
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/text v0.21.0
 )
