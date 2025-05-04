@@ -12,8 +12,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-
-	"golang.org/x/text/message"
 )
 
 var llog *slog.Logger
@@ -54,6 +52,7 @@ func replaceUnderscore(s string) string {
 // Config is application configuration
 type Config struct {
 	path          string // config file path
+	ID            string // config file name
 	Conf          string // path to daemon config file
 	Theme         string // icons theme name
 	Notifications bool   // display desktop notification
@@ -73,7 +72,8 @@ func NewConfig(cfgFilePath string) (*Config, error) {
 		StopDaemon:    false,                                                // stop daemon on app closure
 	}
 
-	cfgPath, _ := path.Split(cfgFilePath)
+	cfgPath, cfgFileName := path.Split(cfgFilePath)
+	cfg.ID = cfgFileName
 	// Check that the configuration file path is exists
 	if NotExists(cfgPath) {
 		if err := os.MkdirAll(cfgPath, 0700); err != nil {
@@ -114,20 +114,30 @@ func (c *Config) Save() error {
 	return nil
 }
 
-// AppInit handles command line arguments and
-// initializes logging facility.
-// Parameter: appName - name of application,
-// Returns: path to config file
-func AppInit(appName string, args []string, version string) (*Config, *message.Printer, *slog.Logger) {
+// SetupLogger initializes the logger for application
+func SetupLogger(debug bool) *slog.Logger {
+	// set logging level
+	logLevel := new(slog.LevelVar)
+	if debug {
+		logLevel.Set(slog.LevelDebug)
+	} else {
+		logLevel.Set(slog.LevelInfo)
+	}
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+}
+
+// GetParams read the command line parameters and returns configuration file path and boolean value for debug logging activation.
+// When app is called with -h or -version or with wrong option it will call os.Exit().
+func GetParams(appName string, args []string, version string) (string, bool) {
 	var pv bool
 	var debug bool
 	var config string
 	f := flag.NewFlagSet(appName, flag.ExitOnError)
-	f.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stderr")
+	f.BoolVar(&debug, "debug", false, "Allow debugging messages to be sent to stdout")
 	f.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
 	f.BoolVar(&pv, "version", false, "Print out version information and exit")
 	f.Usage = func() {
-		_, _ = fmt.Fprintf(f.Output(), "%s\nUsage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>]\n\n", getVersion(appName, version), appName)
+		_, _ = fmt.Fprintf(f.Output(), "%s\nUsage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>] [-version]\n\n", getVersion(appName, version), appName)
 		f.PrintDefaults()
 	}
 	_ = f.Parse(args[1:])
@@ -135,24 +145,7 @@ func AppInit(appName string, args []string, version string) (*Config, *message.P
 		fmt.Print(getVersion(appName, version))
 		os.Exit(0)
 	}
-	// set logging level
-	logLevel := new(slog.LevelVar)
-	if debug {
-		logLevel.Set(slog.LevelDebug)
-	}
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-	// Initialize translations
-	lng := os.Getenv("LANG")
-	if len(lng) > 2 {
-		lng = lng[:2]
-	}
-	log.Debug("language", "LANG", lng)
-	msg := message.NewPrinter(message.MatchLanguage(lng))
-	appConfig, err := NewConfig(os.ExpandEnv(config))
-	if err != nil {
-		log.Error("getting config error", "error", err)
-	}
-	return appConfig, msg, log
+	return config, debug
 }
 
 func getVersion(appName, version string) string {

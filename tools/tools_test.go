@@ -35,8 +35,8 @@ func TestNotExists(t *testing.T) {
 	require.True(t, NotExists("/Unreal path+*$"))
 }
 
-func makeTempFile(t *testing.T, content string) string {
-	file := path.Join(t.TempDir(), "cfg")
+func makeTempCfgFile(t *testing.T, content string) string {
+	file := path.Join(t.TempDir(), "default.cfg")
 	if err := os.WriteFile(file, []byte(content), 0766); err != nil {
 		panic(err)
 	}
@@ -45,13 +45,14 @@ func makeTempFile(t *testing.T, content string) string {
 
 func TestConfig(t *testing.T) {
 	t.Run("no config file", func(t *testing.T) {
-		testFile := makeTempFile(t, "")
+		testFile := makeTempCfgFile(t, "")
 		os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
+			ID:            "default.cfg",
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -61,13 +62,14 @@ func TestConfig(t *testing.T) {
 	})
 
 	t.Run("config file exists", func(t *testing.T) {
-		testFile := makeTempFile(t, `{"Conf":"config.cfg","Theme":"dark","Notifications":false,"StartDaemon":false,"StopDaemon":true}`)
+		testFile := makeTempCfgFile(t, `{"Conf":"config.cfg","Theme":"dark","Notifications":false,"StartDaemon":false,"StopDaemon":true}`)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
+			ID:            "default.cfg",
 			Conf:          "config.cfg",
 			Theme:         "dark",
 			Notifications: false,
@@ -77,13 +79,14 @@ func TestConfig(t *testing.T) {
 	})
 
 	t.Run("empty config file", func(t *testing.T) {
-		testFile := makeTempFile(t, `{}`)
+		testFile := makeTempCfgFile(t, `{}`)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
+			ID:            "default.cfg",
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -93,13 +96,14 @@ func TestConfig(t *testing.T) {
 	})
 
 	t.Run("partial config file", func(t *testing.T) {
-		testFile := makeTempFile(t, `{"Theme":"dark","Notifications":false,"StopDaemon":true}`)
+		testFile := makeTempCfgFile(t, `{"Theme":"dark","Notifications":false,"StopDaemon":true}`)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
+			ID:            "default.cfg",
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // default
 			Theme:         "dark",                                               // config
 			Notifications: false,                                                // config
@@ -109,7 +113,7 @@ func TestConfig(t *testing.T) {
 	})
 
 	t.Run("incorrect theme", func(t *testing.T) {
-		testFile := makeTempFile(t, `{"Theme":"incorrect"}`)
+		testFile := makeTempCfgFile(t, `{"Theme":"incorrect"}`)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.Error(t, err)
@@ -117,7 +121,7 @@ func TestConfig(t *testing.T) {
 	})
 
 	t.Run("bad config file", func(t *testing.T) {
-		testFile := makeTempFile(t, `bad,bad,bad`)
+		testFile := makeTempCfgFile(t, `bad,bad,bad`)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.Error(t, err)
@@ -145,81 +149,80 @@ func TestConfig(t *testing.T) {
 	// 100% coverage for Config !!!
 }
 
-func TestAppInit(t *testing.T) {
-	appName := "yd-go-test"
+func readStd(f **os.File) func() string {
+	r, w, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+	out := *f
+	*f = w
+	return func() string {
+		*f = out
+		w.Close()
+		b, err := io.ReadAll(r)
+		if err != nil {
+			panic(err)
+		}
+		return string(b)
+	}
+}
 
-	t.Run("start w/o params", func(t *testing.T) {
-		cfg, msg, log := AppInit(appName, []string{appName}, "test")
-		require.NotNil(t, cfg)
-		require.NotNil(t, msg)
-		require.NotNil(t, log)
-		require.Equal(t, os.ExpandEnv("$HOME/.config/yd-go-test/default.cfg"), cfg.path)
+func TestGetParams(t *testing.T) {
+	tAppName := "testApp"
+	tVersion := "test"
+	t.Run("wo_params", func(t *testing.T) {
+		cfgPath, debug := GetParams(tAppName, []string{tAppName}, tVersion)
+		require.Equal(t, "$HOME/.config/"+tAppName+"/default.cfg", cfgPath)
+		require.False(t, debug)
 	})
-
-	t.Run("start with -config", func(t *testing.T) {
-		cfgFile := makeTempFile(t, "{}")
+	t.Run("with_debug", func(t *testing.T) {
+		cfgPath, debug := GetParams(tAppName, []string{tAppName, "-debug"}, tVersion)
+		require.Equal(t, "$HOME/.config/"+tAppName+"/default.cfg", cfgPath)
+		require.True(t, debug)
+	})
+	t.Run("with_cfg", func(t *testing.T) {
+		cfgFile := makeTempCfgFile(t, "{}")
 		defer os.Remove(cfgFile)
-		cfg, msg, log := AppInit(appName, []string{appName, "-config=" + cfgFile}, "test")
-		require.NotNil(t, cfg)
-		require.NotNil(t, msg)
-		require.NotNil(t, log)
-		require.Equal(t, cfgFile, cfg.path)
+		cfgPath, debug := GetParams(tAppName, []string{tAppName, "-config=" + cfgFile}, tVersion)
+		require.Equal(t, cfgFile, cfgPath)
+		require.False(t, debug)
 	})
-
-	t.Run("start with -debug", func(t *testing.T) {
-		cfgFile := makeTempFile(t, "{}")
-		defer os.Remove(cfgFile)
-		cfg, msg, log := AppInit(appName, []string{appName, "-debug", "-config=" + cfgFile}, "test")
-		require.NotNil(t, cfg)
-		require.NotNil(t, msg)
-		require.NotNil(t, log)
-		require.Equal(t, cfgFile, cfg.path)
-	})
-
-	t.Run("start with -h", func(t *testing.T) {
-		r, w, err := os.Pipe()
-		require.NoError(t, err)
-		osErr := os.Stderr
-		os.Stderr = w
-		defer func() {
-			os.Stderr = osErr
-		}()
+	t.Run("with_-h", func(t *testing.T) {
+		getOut := readStd(&os.Stderr)
 		// help request will call os.Exit(0) that panics the testing
-		require.Panics(t, func() { _, _, _ = AppInit(appName, []string{appName, "--help"}, "test") })
-		w.Close()
-		b, err := io.ReadAll(r)
-		require.NoError(t, err)
-		require.Contains(t, string(b), "Usage:\n\n\t\t\"yd-go-test")
+		require.Panics(t, func() { GetParams(tAppName, []string{tAppName, "-h"}, tVersion) })
+		out := getOut()
+		require.Contains(t, out, "Usage")
 	})
-	t.Run("config reading error", func(t *testing.T) {
-		r, w, err := os.Pipe()
-		require.NoError(t, err)
-		osErr := os.Stdout
-		os.Stdout = w
-		defer func() {
-			os.Stdout = osErr
-		}()
-		require.NotPanics(t, func() { _, _, _ = AppInit(appName, []string{appName, "--config=/dev/"}, "test") })
-		w.Close()
-		b, err := io.ReadAll(r)
-		require.NoError(t, err)
-		require.Contains(t, string(b), "level=ERROR msg=\"getting config error\" error=\"reading config file error: read /dev/: is a directory\"")
+	t.Run("with_-version", func(t *testing.T) {
+		getOut := readStd(&os.Stdout)
+		// version request will call os.Exit(0) that panics the testing
+		require.Panics(t, func() { GetParams(tAppName, []string{tAppName, "-version"}, tVersion) })
+		out := getOut()
+		require.Contains(t, out, tVersion)
 	})
+}
 
-	t.Run("start with version", func(t *testing.T) {
-		r, w, err := os.Pipe()
-		require.NoError(t, err)
-		osStdOut := os.Stdout
-		os.Stdout = w
-		defer func() {
-			os.Stdout = osStdOut
-		}()
-		// help request will call os.Exit(0) that panics the testing
-		require.Panics(t, func() { _, _, _ = AppInit(appName, []string{appName, "--version"}, "test") })
-		w.Close()
-		b, err := io.ReadAll(r)
-		require.NoError(t, err)
-		require.Contains(t, string(b), "ver.:")
+func TestSetupLogger(t *testing.T) {
+	infoMsg := "info_msg"
+	debugMsg := "debug_msg"
+	t.Run("info", func(t *testing.T) {
+		getOut := readStd(&os.Stdout)
+		l := SetupLogger(false)
+		l.Debug(debugMsg)
+		l.Info(infoMsg)
+		out := getOut()
+		require.Contains(t, out, infoMsg)
+		require.NotContains(t, out, debugMsg)
+	})
+	t.Run("debug", func(t *testing.T) {
+		getOut := readStd(&os.Stdout)
+		l := SetupLogger(true)
+		l.Debug(debugMsg)
+		l.Info(infoMsg)
+		out := getOut()
+		require.Contains(t, out, infoMsg)
+		require.Contains(t, out, debugMsg)
 	})
 }
 
