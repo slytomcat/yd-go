@@ -26,10 +26,7 @@ func NotExists(path string) bool {
 
 // XdgOpen opens the uri via xdg-open command
 func XdgOpen(uri string) error {
-	if err := exec.Command("xdg-open", uri).Start(); err != nil {
-		return err
-	}
-	return nil
+	return exec.Command("xdg-open", uri).Start()
 }
 
 // MakeTitle returns the shorten version of its first parameter. The second parameter specifies
@@ -52,7 +49,6 @@ func replaceUnderscore(s string) string {
 // Config is application configuration
 type Config struct {
 	path          string // config file path
-	ID            string // config file name
 	Conf          string // path to daemon config file
 	Theme         string // icons theme name
 	Notifications bool   // display desktop notification
@@ -72,12 +68,11 @@ func NewConfig(cfgFilePath string) (*Config, error) {
 		StopDaemon:    false,                                                // stop daemon on app closure
 	}
 
-	cfgPath, cfgFileName := path.Split(cfgFilePath)
-	cfg.ID = cfgFileName
+	cfgPath, _ := path.Split(cfgFilePath)
 	// Check that the configuration file path is exists
 	if NotExists(cfgPath) {
 		if err := os.MkdirAll(cfgPath, 0700); err != nil {
-			return nil, fmt.Errorf("Can't create application configuration path: %v", err)
+			return nil, fmt.Errorf("can't create application configuration path: %v", err)
 		}
 	}
 	// Check that the configuration file is exists
@@ -109,7 +104,7 @@ func (c *Config) Save() error {
 	data, _ := json.Marshal(c)
 	err := os.WriteFile(c.path, data, 0664)
 	if err != nil {
-		return fmt.Errorf("Can't save configuration file: %v", err)
+		return fmt.Errorf("can't save configuration file: %v", err)
 	}
 	return nil
 }

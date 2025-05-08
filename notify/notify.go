@@ -20,7 +20,7 @@ type Notify struct {
 	time      int
 	conn      *dbus.Conn
 	connObj   dbus.BusObject
-	lastID    uint32
+	lastID    atomic.Uint32
 }
 
 const (
@@ -66,11 +66,11 @@ func (n *Notify) Close() {
 func (n *Notify) Send(title, message string) {
 	var last uint32
 	if n.replace {
-		last = atomic.LoadUint32(&n.lastID)
+		last = n.lastID.Load()
 	}
 	call := n.connObj.CallWithContext(n.ctx, dBusDest+".Notify", dbus.Flags(0), n.app, last, "", title, message, []string{}, n.iconHints, n.time)
 	if call.Err == nil && n.replace {
-		atomic.StoreUint32(&n.lastID, call.Body[0].(uint32))
+		n.lastID.Store(call.Body[0].(uint32))
 	}
 	// ignore the rest possible errors
 }

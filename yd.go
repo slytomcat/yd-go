@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 
 	"path/filepath"
@@ -31,6 +32,7 @@ var (
 	icon       *icons.Icon               // icon helper
 	notifySend func(title, msg string)   // function to send notification, nil means that notifications are not available
 	appConfig  *tools.Config             // application configuration
+	cfgPath    string                    // path to application configuration file
 	log        *slog.Logger              // logger
 	appTitle   = "Yandex.Disk indicator" // application title for icon and notifications
 )
@@ -46,7 +48,10 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	License: GPL v.3
 
 `
-	ydURL = "https://disk.yandex.ru"
+	ydURL     = "https://disk.yandex.ru"
+	faqURL    = "https://github.com/slytomcat/yd-go/wiki/FAQ"
+	helpURL   = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
+	donateUrl = "https://github.com/slytomcat/yd-go/wiki/Donations"
 )
 
 type menu struct {
@@ -72,68 +77,7 @@ type menu struct {
 	warning     *systray.MenuItem
 }
 
-// SetupLocalization initializes translations
-func SetupLocalization(logger *slog.Logger) *message.Printer {
-	lng := os.Getenv("LANG")
-	if len(lng) > 2 {
-		lng = lng[:2]
-	}
-	logger.Debug("language", "LANG", lng)
-	return message.NewPrinter(message.MatchLanguage(lng))
-}
-
-func AppInit() {
-	cfgPath, debug := tools.GetParams(appName, os.Args, version)
-	log = tools.SetupLogger(debug)
-	var err error
-	appConfig, err = tools.NewConfig(cfgPath)
-	if err != nil {
-		log.Error("config_error", "error", err)
-		os.Exit(1)
-	}
-}
-
-func main() {
-	AppInit()
-	systray.SetID(fmt.Sprintf("%s_%s", appName, appConfig.ID))
-	systray.Run(onReady, onExit)
-}
-
-func onReady() {
-	// setup localization
-	msg = SetupLocalization(log)
-	// Create new YDisk instance
-	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
-	if err != nil {
-		log.Error("daemon_initialization", "error", err)
-		os.Exit(1)
-	}
-	// Initialize icon helper
-	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
-	// set systray title
-	appTitle = msg.Sprintf(appTitle)
-	systray.SetTitle(appTitle)
-	// Initialize notifications
-	notifyHandler, err := notify.New(appName, icon.NotifyIcon, false, -1)
-	if err != nil {
-		notifySend = nil
-		appConfig.Notifications = false
-		log.Warn("notifications", "status", "not_available", "error", err)
-	} else {
-		notifySend = func(title, msg string) {
-			log.Debug("sending_message", "title", title, "message", msg)
-			notifyHandler.Send(title, msg)
-		}
-	}
-	// Initialize status localization
-	statusTr = map[string]string{
-		"idle":   msg.Sprintf("idle"),
-		"index":  msg.Sprintf("index"),
-		"busy":   msg.Sprintf("busy"),
-		"none":   msg.Sprintf("none"),
-		"paused": msg.Sprintf("paused"),
-	}
-	// Initialize systray menu
+func newMenu(noNotifications bool) *menu {
 	m := new(menu)
 	m.status = systray.AddMenuItem("", "")
 	m.size1 = systray.AddMenuItem("", "")
@@ -170,7 +114,7 @@ func onReady() {
 	for i := range 10 {
 		m.lastMItem[i].Hide()
 	}
-	if notifySend == nil { // disable all menu items that are dependant on notification service
+	if noNotifications { // disable all menu items that are dependant on notification service
 		m.about.Disable()
 		m.out.Disable()
 		m.notes.Disable()
@@ -181,30 +125,81 @@ func onReady() {
 		m.warning = systray.AddMenuItem("", "")
 		m.warning.Hide()
 	}
-	// Start events handler
-	go eventHandler(m, appConfig, YD, notifyHandler)
+	return m
 }
 
-// eventHandler handles all application lifetime events
-func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *notify.Notify) {
-	log.Debug("ui_event_handler", "status", "started")
-	defer func() {
-		log.Debug("ui_event_handler", "status", "exited")
-		if cfg.StopDaemon {
-			YD.Stop()
+// SetupLocalization initializes translations
+func SetupLocalization(logger *slog.Logger) *message.Printer {
+	lng := os.Getenv("LANG")
+	if len(lng) > 2 {
+		lng = lng[:2]
+	}
+	logger.Debug("language", "LANG", lng)
+	return message.NewPrinter(message.MatchLanguage(lng))
+}
+
+func main() {
+	var debug bool
+	cfgPath, debug = tools.GetParams(appName, os.Args, version)
+	log = tools.SetupLogger(debug)
+	_, id := path.Split(cfgPath)
+	systray.SetID(fmt.Sprintf("%s_%s", appName, id))
+	systray.Run(onReady, nil)
+}
+
+func onReady() {
+	defer systray.Quit() // it releases systray.Run in main()
+	var err error
+	appConfig, err = tools.NewConfig(cfgPath)
+	if err != nil {
+		log.Error("config_error", "error", err)
+		os.Exit(1)
+	}
+	defer appConfig.Save()
+	// setup localization
+	msg = SetupLocalization(log)
+	// create new YDisk instance
+	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
+	if err != nil {
+		log.Error("daemon_initialization", "error", err)
+		os.Exit(1)
+	}
+	defer YD.Close()
+	// Initialize icon helper
+	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
+	defer icon.Close()
+	// Initialize notifications
+	if notifyHandler, err := notify.New(appName, icon.LogoIcon, false, -1); err != nil {
+		notifySend = nil
+		appConfig.Notifications = false
+		log.Warn("notifications", "status", "not_available", "error", err)
+	} else {
+		notifySend = func(title, msg string) {
+			log.Debug("sending_message", "title", title, "message", msg)
+			notifyHandler.Send(title, msg)
 		}
-		YD.Close()
-		if notifyHandler != nil {
-			notifyHandler.Close()
-		}
-		systray.Quit()
-	}()
-	if cfg.StartDaemon {
+		defer notifyHandler.Close()
+	}
+	// handle starting/stopping daemon
+	if appConfig.StartDaemon {
 		go YD.Start()
 	}
+	defer func() {
+		if appConfig.StopDaemon {
+			YD.Stop()
+		}
+		log.Debug("ui_event_handler", "status", "exited")
+	}()
+	// Initialize systray menu
+	m := newMenu(notifySend == nil)
+	// set systray title
+	appTitle = msg.Sprintf(appTitle)
+	systray.SetTitle(appTitle)
 	// register interrupt signals chan
 	canceled := make(chan os.Signal, 1)
 	signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
+	// Start events handler
+	log.Debug("ui_event_handler", "status", "started")
 	for {
 		select {
 		case <-m.lastMItem[0].ClickedCh:
@@ -238,34 +233,30 @@ func eventHandler(m *menu, cfg *tools.Config, YD *ydisk.YDisk, notifyHandler *no
 		case <-m.site.ClickedCh:
 			openPath(ydURL)
 		case <-m.theme.ClickedCh:
-			if handleCheck(m.theme) {
-				cfg.Theme = "light"
-			} else {
-				cfg.Theme = "dark"
-			}
-			icon.SetTheme(cfg.Theme)
+			appConfig.Theme = handleThemeClick(m.theme)
 		case <-m.notes.ClickedCh:
-			cfg.Notifications = handleCheck(m.notes)
+			appConfig.Notifications = handleCheck(m.notes)
 		case <-m.daemonStart.ClickedCh:
-			cfg.StartDaemon = handleCheck(m.daemonStart)
+			appConfig.StartDaemon = handleCheck(m.daemonStart)
 		case <-m.daemonStop.ClickedCh:
-			cfg.StopDaemon = handleCheck(m.daemonStop)
+			appConfig.StopDaemon = handleCheck(m.daemonStop)
 		case <-m.help.ClickedCh:
-			openPath("https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT")
+			openPath(helpURL)
 		case <-m.about.ClickedCh:
-			notifySend(msg.Sprintf(appTitle), msg.Sprintf(about, version, time.Now().Format("2006")))
+			notifySend(appTitle, msg.Sprintf(about, version, time.Now().Format("2006")))
 		case <-m.donate.ClickedCh:
-			openPath("https://github.com/slytomcat/yd-go/wiki/Donations")
+			openPath(donateUrl)
+		case <-m.warning.ClickedCh:
+			openPath(faqURL)
+		case yds := <-YD.Changes: // YDisk change event
+			handleUpdate(m, &yds, YD.Path)
 		case sig := <-canceled: // SIGINT or SIGTERM signal received
+			fmt.Println() // to leave ^C on previous line
 			log.Warn("exit", "signal", sig)
 			return
 		case <-m.quit.ClickedCh:
 			log.Debug("exit", "status", "requested")
 			return
-		case <-m.warning.ClickedCh:
-			openPath("https://github.com/slytomcat/yd-go/wiki/FAQ")
-		case yds := <-YD.Changes: // YDisk change event
-			handleUpdate(m, &yds, YD.Path)
 		}
 	}
 }
@@ -285,14 +276,33 @@ func handleCheck(mi *systray.MenuItem) bool {
 	return true
 }
 
-func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
-	st := strings.Join([]string{statusTr[yds.Stat], yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30)}, " ")
-	m.status.SetTitle(msg.Sprintf("Status: %s", st))
-	if yds.Stat == "error" {
-		m.status.SetTooltip(fmt.Sprintf("%s\nPath: %s", yds.Err, yds.ErrP))
+func handleThemeClick(mi *systray.MenuItem) (theme string) {
+	if handleCheck(mi) {
+		theme = "light"
 	} else {
-		m.status.SetTooltip("")
+		theme = "dark"
 	}
+	icon.SetTheme(theme)
+	return
+}
+
+func joinNonEmpty(items ...string) string {
+	s := strings.Builder{}
+	for _, i := range items {
+		if len(i) > 0 {
+			s.WriteString(i)
+			s.WriteString(" ")
+		}
+	}
+	if s.Len() > 0 {
+		return s.String()[:s.Len()-1]
+	}
+	return s.String()
+}
+
+func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
+	st := joinNonEmpty(msg.Sprintf(yds.Stat), yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30))
+	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	m.size1.SetTitle(msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
 	m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 	if yds.ChLast { // last synchronized list changed
@@ -319,7 +329,7 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 	}
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
-		icon.Set(yds.Stat)
+		icon.Set(convertStatus(yds.Stat))
 		// handle Start/Stop menu items
 		if yds.Stat == "none" || yds.Prev == "none" || yds.Prev == "unknown" {
 			if yds.Stat == "none" {
@@ -338,8 +348,18 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			go handleNotifications(yds)
 		}
 	}
-	m.last.Show() // to update parent item view
 	log.Debug("ui_change", "status", "handled")
+}
+
+// convertStatus converts statuses to icon names
+func convertStatus(status string) string {
+	if status == "index" {
+		return "busy"
+	}
+	if status == "none" {
+		return "paused"
+	}
+	return status
 }
 
 func handleNotifications(yds *ydisk.YDvals) {
@@ -351,14 +371,8 @@ func handleNotifications(yds *ydisk.YDvals) {
 	case (yds.Stat == "busy" || yds.Stat == "index") &&
 		(yds.Prev != "busy" && yds.Prev != "index"):
 		notifySend(appTitle, msg.Sprintf("Synchronization started"))
-	case (yds.Stat == "idle" || yds.Stat == "error") &&
+	case (yds.Stat != "busy" && yds.Stat != "index") &&
 		(yds.Prev == "busy" || yds.Prev == "index"):
 		notifySend(appTitle, msg.Sprintf("Synchronization finished"))
 	}
-}
-
-func onExit() {
-	appConfig.Save()
-	icon.Close()
-	log.Debug("exit", "status", "done")
 }

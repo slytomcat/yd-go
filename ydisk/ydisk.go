@@ -160,8 +160,8 @@ func newWatcher() watcher {
 		os.Exit(1)
 	}
 	return watcher{
-		watch,
-		false,
+		Watcher: watch,
+		active:  false,
 	}
 }
 
@@ -242,12 +242,12 @@ func (yd *YDisk) eventHandler(watch watcher) {
 	for {
 		select {
 		case err := <-watch.Errors:
-			log.Error("file_watcher", "error:", err)
+			log.Error("file_watcher", "error", err)
 			return
 		case <-yd.exit:
 			return
 		case event := <-watch.Events:
-			log.Debug("file_watcher", "event:", event)
+			log.Debug("file_watcher", "event", event.Op.String(), "path", event.Name)
 			interval = 1
 		case <-tick.C:
 			log.Debug("timer", "interval", interval)

@@ -45,7 +45,7 @@ func TestSetTheme(t *testing.T) {
 	defer i.Close()
 	assert.Equal(t, darkPause, mi.get())
 	i.SetTheme("light")
-	assert.Equal(t, darkPause, mi.get()) // current icon should not be changed if Set() was not called after NewIcon() as status is still unknown
+	assert.Equal(t, lightPause, mi.get())
 	assert.Equal(t, lightError, i.errorIcon)
 	assert.Equal(t, lightIdle, i.idleIcon)
 	assert.Equal(t, lightPause, i.pauseIcon)
@@ -64,10 +64,16 @@ func TestSet(t *testing.T) {
 	assert.Equal(t, darkError, mi.get())
 	i.Set("idle")
 	assert.Equal(t, darkIdle, mi.get())
-	i.Set("none")
-	assert.Equal(t, darkPause, mi.get())
 	i.Set("busy")
 	assert.Equal(t, darkBusy1, mi.get())
+	i.Set("paused")
+	assert.Equal(t, darkPause, mi.get())
+	i.SetTheme("light")
+	assert.Equal(t, lightPause, mi.get())
+	i.Set("idle")
+	assert.Equal(t, lightIdle, mi.get())
+	i.Set("error")
+	assert.Equal(t, lightError, mi.get())
 }
 
 func TestAnimation(t *testing.T) {
@@ -81,7 +87,7 @@ func TestAnimation(t *testing.T) {
 	i := NewIcon("dark", mi.set)
 	require.NotNil(t, i)
 	defer i.Close()
-	i.Set("index")
+	i.Set("busy")
 	assert.Equal(t, darkBusy1, mi.get())
 	assert.Eventually(t, event(darkBusy2), waitFor, tick)
 	assert.Eventually(t, event(darkBusy3), waitFor, tick)
