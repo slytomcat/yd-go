@@ -14,4 +14,4 @@ Icons `*Busy[1-5].png` are displayed sequentially in the loop (to simulate anima
 
    `*Busy1.png` -> `*Busy2.png` -> `*Busy3.png` -> `*Busy4.png` -> `*Busy5.png` -> `*Busy1.png` -> `*Busy2.png` ...
 
-The special big icon `yd128.png` is used into about dialogue and into notifications.
+The special icon `logo.png` is used into about and into other notifications.

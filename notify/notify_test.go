@@ -17,7 +17,7 @@ func TestDBusNotify(t *testing.T) {
 	p, err := os.Getwd()
 	require.NoError(t, err)
 	p, _ = path.Split(p)
-	p += "/icons/img/yd128.png"
+	p += "/icons/img/logo.png"
 	icon, err := os.ReadFile(p)
 	require.NoError(t, err)
 

@@ -53,6 +53,6 @@ var (
 	//go:embed img/lightPause.png
 	lightPause []byte
 
-	//go:embed img/yd128.png
-	yd128 []byte
+	//go:embed img/logo.png
+	logo []byte
 )

@@ -23,5 +23,5 @@ func Test_Data(t *testing.T) {
 	assert.NotEmpty(t, darkError)
 	assert.NotEmpty(t, darkIdle)
 	assert.NotEmpty(t, darkPause)
-	assert.NotEmpty(t, yd128)
+	assert.NotEmpty(t, logo)
 }

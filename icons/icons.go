@@ -6,73 +6,88 @@ import (
 	"time"
 )
 
+const busyIconsCnt = 5
+
 var interval = time.Millisecond * 333
+
+// iconSet is set of one theme icons
+type iconsSet struct {
+	busyIcons [busyIconsCnt][]byte // busy icons set for icon animation for index and busy statuses
+	idleIcon  []byte               // idle icon data
+	pauseIcon []byte               // pause icon data
+	errorIcon []byte               // error icon data
+}
+
+var (
+	lightSet = &iconsSet{
+		busyIcons: [busyIconsCnt][]byte{lightBusy1, lightBusy2, lightBusy3, lightBusy4, lightBusy5},
+		idleIcon:  lightIdle,
+		pauseIcon: lightPause,
+		errorIcon: lightError,
+	}
+	darkSet = &iconsSet{
+		busyIcons: [busyIconsCnt][]byte{darkBusy1, darkBusy2, darkBusy3, darkBusy4, darkBusy5},
+		idleIcon:  darkIdle,
+		pauseIcon: darkPause,
+		errorIcon: darkError,
+	}
+)
 
 // Icon is the icon helper
 type Icon struct {
-	NotifyIcon    []byte       // bytes of icon for notifications (png of ico)
-	lock          sync.Mutex   // data protection lock
-	currentStatus string       // current icon status
-	currentIcon   int          // current icon number for busy animation
-	busyIcons     [5][]byte    // busy icons set for icon animation
-	idleIcon      []byte       // idle icon data
-	pauseIcon     []byte       // pause icon data
-	errorIcon     []byte       // error icon data
-	setFunc       func([]byte) // function to set icon
-	ticker        *time.Ticker // ticker for icon animation
-	stopper       func()       // stop function
+	*iconsSet                    // current theme icons set
+	LogoIcon        []byte       // bytes of logo icon
+	lock            sync.Mutex   // data protection lock
+	currentStatus   string       // current icon status
+	currentBusyIcon int          // current icon number for busy animation
+	setFunc         func([]byte) // function to set icon
+	ticker          *time.Ticker // ticker for icon animation
+	stopper         func()       // helper stop function
 }
 
-// NewIcon initializes the icon helper and returns it.
-// Use icon.Close() for properly utilization of icon helper.
+// NewIcon initializes the icon helper, sets 'paused' icon ac initial and returns the helper.
+// Use icon.Close() for properly utilization of the icon helper resources.
+// The helper provides 'paused' 'idle' 'error' icons and animated 'busy' icon. In additional it provides LogoIcon.
+// Icons 'paused' 'idle' 'error' and 'busy' are provided in one of two themes: "light" or "dark" for light or dark DE themes.
 func NewIcon(theme string, setFunc func([]byte)) *Icon {
 	ctx, cancel := context.WithCancel(context.Background())
 	i := &Icon{
-		currentStatus: "",
-		currentIcon:   0,
-		NotifyIcon:    yd128,
-		setFunc:       setFunc,
-		ticker:        time.NewTicker(time.Hour),
-		stopper:       cancel,
+		currentStatus:   "paused",
+		currentBusyIcon: 0,
+		LogoIcon:        logo,
+		setFunc:         setFunc,
+		ticker:          time.NewTicker(time.Hour),
+		stopper:         cancel,
 	}
 	i.ticker.Stop()
 	i.SetTheme(theme)
-	i.setFunc(i.pauseIcon)
 	go i.loop(ctx)
 	return i
 }
 
-// SetTheme select one of the icons' themes. The theme name must be "light" or "dark".
+// SetTheme select one of the icons' themes: "light" or "dark" and update icon from new theme via setFunc.
 func (i *Icon) SetTheme(theme string) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	switch theme {
 	case "light":
-		i.busyIcons = [5][]byte{lightBusy1, lightBusy2, lightBusy3, lightBusy4, lightBusy5}
-		i.idleIcon = lightIdle
-		i.pauseIcon = lightPause
-		i.errorIcon = lightError
+		i.iconsSet = lightSet
 	case "dark":
-		i.busyIcons = [5][]byte{darkBusy1, darkBusy2, darkBusy3, darkBusy4, darkBusy5}
-		i.idleIcon = darkIdle
-		i.pauseIcon = darkPause
-		i.errorIcon = darkError
+		i.iconsSet = darkSet
 	}
-	if i.currentStatus != "" {
-		i.setIcon(i.currentStatus)
-	}
+	i.setIcon()
 }
 
 // setIcon sets the current icon image via i.SetFunc
-func (i *Icon) setIcon(status string) {
-	switch status {
-	case "busy", "index":
-		i.setFunc(i.busyIcons[i.currentIcon])
+func (i *Icon) setIcon() {
+	switch i.currentStatus {
+	case "busy":
+		i.setFunc(i.busyIcons[i.currentBusyIcon])
 	case "idle":
 		i.setFunc(i.idleIcon)
-	case "none", "paused":
+	case "paused":
 		i.setFunc(i.pauseIcon)
-	default:
+	case "error":
 		i.setFunc(i.errorIcon)
 	}
 }
@@ -81,15 +96,14 @@ func (i *Icon) setIcon(status string) {
 func (i *Icon) Set(status string) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
-	if status == "busy" || status == "index" {
-		if i.currentStatus != "busy" && i.currentStatus != "index" {
-			i.ticker.Reset(interval)
-		}
-	} else {
+	if i.currentStatus != "busy" && status == "busy" { // not busy -> busy
+		i.ticker.Reset(interval)
+	}
+	if status != "busy" && i.currentStatus == "busy" { // busy -> not busy
 		i.ticker.Stop()
 	}
 	i.currentStatus = status
-	i.setIcon(status)
+	i.setIcon()
 }
 
 func (i *Icon) loop(ctx context.Context) {
@@ -97,8 +111,8 @@ func (i *Icon) loop(ctx context.Context) {
 		select {
 		case <-i.ticker.C:
 			i.lock.Lock()
-			i.currentIcon = (i.currentIcon + 1) % len(i.busyIcons)
-			i.setFunc(i.busyIcons[i.currentIcon])
+			i.currentBusyIcon = (i.currentBusyIcon + 1) % busyIconsCnt
+			i.setIcon()
 			i.lock.Unlock()
 		case <-ctx.Done():
 			return

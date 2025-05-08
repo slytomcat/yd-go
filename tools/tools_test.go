@@ -52,7 +52,6 @@ func TestConfig(t *testing.T) {
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
-			ID:            "default.cfg",
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -69,7 +68,6 @@ func TestConfig(t *testing.T) {
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
-			ID:            "default.cfg",
 			Conf:          "config.cfg",
 			Theme:         "dark",
 			Notifications: false,
@@ -86,7 +84,6 @@ func TestConfig(t *testing.T) {
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
-			ID:            "default.cfg",
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -103,7 +100,6 @@ func TestConfig(t *testing.T) {
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
-			ID:            "default.cfg",
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // default
 			Theme:         "dark",                                               // config
 			Notifications: false,                                                // config

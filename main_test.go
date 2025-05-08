@@ -20,3 +20,9 @@ func TestSetupLocalization(t *testing.T) {
 		require.Equal(t, "ожидание", p.Sprintf("idle"))
 	})
 }
+
+func TestJoinNonEmpty(t *testing.T) {
+	require.Equal(t, "a b c", joinNonEmpty("", "a", "", "", "b", "", "c", ""))
+	require.Equal(t, "", joinNonEmpty("", "", ""))
+
+}
