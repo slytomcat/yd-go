@@ -325,7 +325,6 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			m.last.Enable()
 		}
 		m.last.Show() // to update parent item view
-		log.Debug("last_synchronized", "length", len(yds.Last))
 	}
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
@@ -348,7 +347,7 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 			go handleNotifications(yds)
 		}
 	}
-	log.Debug("ui_change", "status", "handled")
+	log.Debug("ui_change", "status", "handled", "last", len(yds.Last))
 }
 
 // convertStatus converts statuses to icon names
