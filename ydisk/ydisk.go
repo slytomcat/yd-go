@@ -6,6 +6,7 @@ package ydisk
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -239,6 +240,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		log.Debug("daemon_event_handler", "status", "exited")
 		yd.exit <- struct{}{} // Report exit completion
 	}()
+	var source string
 	for {
 		select {
 		case err := <-watch.Errors:
@@ -246,11 +248,11 @@ func (yd *YDisk) eventHandler(watch watcher) {
 			return
 		case <-yd.exit:
 			return
-		case event := <-watch.Events:
-			log.Debug("file_watcher", "event", event.Op.String(), "path", event.Name)
+		case <-watch.Events:
+			source = "watcher"
 			interval = 1
 		case <-tick.C:
-			log.Debug("timer", "interval", interval)
+			source = fmt.Sprintf("timer%ds", interval)
 			if yds.Stat == "busy" || yds.Stat == "index" {
 				interval = 2 // keep 2s interval in busy mode
 			} else {
@@ -262,7 +264,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		// in both cases (Timer or Watcher events):
 		//  - check for daemon changes and send changed values in case of change
 		if yds.update(yd.getOutput(false)) {
-			log.Debug("change", "prev", yds.Prev, "new", yds.Stat,
+			log.Debug("change", "source", source, "prev", yds.Prev, "new", yds.Stat,
 				"S", len(yds.Total) > 0, "L", len(yds.Last), "E", len(yds.Err) > 0)
 			yd.Changes <- yds
 			// in case of any change reset the timer interval
