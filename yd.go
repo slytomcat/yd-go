@@ -28,7 +28,6 @@ import (
 var (
 	version    = "local build"
 	msg        *message.Printer          // msg is the Localization printer
-	statusTr   map[string]string         // translated statuses
 	icon       *icons.Icon               // icon helper
 	notifySend func(title, msg string)   // function to send notification, nil means that notifications are not available
 	appConfig  *tools.Config             // application configuration
@@ -52,17 +51,18 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	faqURL    = "https://github.com/slytomcat/yd-go/wiki/FAQ"
 	helpURL   = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
 	donateUrl = "https://github.com/slytomcat/yd-go/wiki/Donations"
+	lastLen   = 10
 )
 
 type menu struct {
-	status      *systray.MenuItem     // menu item to show current status
-	size1       *systray.MenuItem     // menu item to show used/total sizes
-	size2       *systray.MenuItem     // menu item to show free anf trash sizes
-	last        *systray.MenuItem     // Sub-menu with last synchronized
-	lastMItem   [10]*systray.MenuItem // last synchronized menu items
-	lastPath    [10]string            // paths to last synchronized
-	start       *systray.MenuItem     // start daemon item
-	stop        *systray.MenuItem     // stop daemon item
+	status      *systray.MenuItem          // menu item to show current status
+	size1       *systray.MenuItem          // menu item to show used/total sizes
+	size2       *systray.MenuItem          // menu item to show free anf trash sizes
+	last        *systray.MenuItem          // Sub-menu with last synchronized
+	lastMItem   [lastLen]*systray.MenuItem // last synchronized menu items
+	lastPath    [lastLen]string            // paths to last synchronized
+	start       *systray.MenuItem          // start daemon item
+	stop        *systray.MenuItem          // stop daemon item
 	out         *systray.MenuItem
 	path        *systray.MenuItem
 	notes       *systray.MenuItem
@@ -84,8 +84,10 @@ func newMenu(noNotifications bool) *menu {
 	m.size2 = systray.AddMenuItem("", "")
 	systray.AddSeparator()
 	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
-	for i := range 10 {
-		m.lastMItem[i] = m.last.AddSubMenuItem("", "")
+	for i := range lastLen {
+		l := m.last.AddSubMenuItem("", "")
+		l.Hide()
+		m.lastMItem[i] = l
 	}
 	systray.AddSeparator()
 	m.start = systray.AddMenuItem(msg.Sprintf("Start daemon"), "")
@@ -111,9 +113,6 @@ func newMenu(noNotifications bool) *menu {
 	m.last.Disable()
 	m.start.Hide()
 	m.stop.Hide()
-	for i := range 10 {
-		m.lastMItem[i].Hide()
-	}
 	if noNotifications { // disable all menu items that are dependant on notification service
 		m.about.Disable()
 		m.out.Disable()
@@ -300,24 +299,27 @@ func joinNonEmpty(items ...string) string {
 	return s.String()
 }
 
+// handleUpdate changes icon/menu and sends notifications if they are enabled
 func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 	st := joinNonEmpty(msg.Sprintf(yds.Stat), yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30))
 	m.status.SetTitle(msg.Sprintf("Status: %s", st))
 	m.size1.SetTitle(msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
 	m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
 	if yds.ChLast { // last synchronized list changed
-		for i, p := range yds.Last {
-			m.lastPath[i] = filepath.Join(path, p)
-			m.lastMItem[i].SetTitle(tools.MakeTitle(p, 40))
-			if tools.NotExists(m.lastPath[i]) {
-				m.lastMItem[i].Disable()
+		for i := range lastLen {
+			if i < len(yds.Last) {
+				p := yds.Last[i]
+				m.lastPath[i] = filepath.Join(path, p)
+				m.lastMItem[i].SetTitle(tools.MakeTitle(p, 40))
+				if tools.NotExists(m.lastPath[i]) {
+					m.lastMItem[i].Disable()
+				} else {
+					m.lastMItem[i].Enable()
+				}
+				m.lastMItem[i].Show() // show list items
 			} else {
-				m.lastMItem[i].Enable()
+				m.lastMItem[i].Hide() // hide the rest of list
 			}
-			m.lastMItem[i].Show() // show list items
-		}
-		for i := len(yds.Last); i < 10; i++ {
-			m.lastMItem[i].Hide() // hide the rest of list
 		}
 		if len(yds.Last) == 0 {
 			m.last.Disable()
@@ -326,9 +328,11 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 		}
 		m.last.Show() // to update parent item view
 	}
+	yds.Stat = index2Busy(yds.Stat) // index and busy statuses are equal in terms of icons and notifications
+	yds.Prev = index2Busy(yds.Prev)
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
-		icon.Set(convertStatus(yds.Stat))
+		icon.Set(none2Paused(yds.Stat)) // index were converted to busy earlier
 		// handle Start/Stop menu items
 		if yds.Stat == "none" || yds.Prev == "none" || yds.Prev == "unknown" {
 			if yds.Stat == "none" {
@@ -350,11 +354,16 @@ func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
 	log.Debug("ui_change", "status", "handled", "last", len(yds.Last))
 }
 
-// convertStatus converts statuses to icon names
-func convertStatus(status string) string {
+// index2Busy converts index to busy
+func index2Busy(status string) string {
 	if status == "index" {
 		return "busy"
 	}
+	return status
+}
+
+// none2Paused converts none to paused
+func none2Paused(status string) string {
 	if status == "none" {
 		return "paused"
 	}
@@ -367,11 +376,9 @@ func handleNotifications(yds *ydisk.YDvals) {
 		notifySend(appTitle, msg.Sprintf("Daemon stopped"))
 	case yds.Prev == "none":
 		notifySend(appTitle, msg.Sprintf("Daemon started"))
-	case (yds.Stat == "busy" || yds.Stat == "index") &&
-		(yds.Prev != "busy" && yds.Prev != "index"):
+	case yds.Prev != "busy" && yds.Stat == "busy":
 		notifySend(appTitle, msg.Sprintf("Synchronization started"))
-	case (yds.Stat != "busy" && yds.Stat != "index") &&
-		(yds.Prev == "busy" || yds.Prev == "index"):
+	case yds.Prev == "busy" && yds.Stat != "busy":
 		notifySend(appTitle, msg.Sprintf("Synchronization finished"))
 	}
 }

@@ -92,7 +92,7 @@ func (i *Icon) setIcon() {
 	}
 }
 
-// Set sets the icon by status
+// Set sets the icon for status "busy" (animated), "idle", "paused" and "error"
 func (i *Icon) Set(status string) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
