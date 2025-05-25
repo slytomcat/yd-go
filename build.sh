@@ -1,7 +1,7 @@
 #!/bin/bash
 ### build script
 
-CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags "-s -w -X main.version=v.$(git branch --show-current)-$(git rev-parse --short HEAD)"
+CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags "-s -w -X main.version=v.$(git branch --show-current)-$(git rev-parse --short=8 HEAD)"
 
 if which upx >/dev/null 2>&1
 then

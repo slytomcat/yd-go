@@ -41,18 +41,19 @@ func New(application string, icon []byte, replace bool, time int) (*Notify, erro
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	notify := &Notify{
-		ctx:       ctx,
-		cancel:    cancel,
-		app:       application,
-		iconHints: map[string]dbus.Variant{"image-data": dbus.MakeVariant(convertToPixels(icon))},
-		replace:   replace,
-		time:      time,
-		conn:      conn,
-		connObj:   conn.Object(dBusDest, dBusPath),
+		ctx:     ctx,
+		cancel:  cancel,
+		app:     application,
+		replace: replace,
+		time:    time,
+		conn:    conn,
+		connObj: conn.Object(dBusDest, dBusPath),
 	}
 	if _, err = notify.Cap(); err != nil {
 		return nil, err
 	}
+	// perform heavy staff only when service is available
+	notify.iconHints = map[string]dbus.Variant{"image-data": dbus.MakeVariant(convertToPixels(icon))}
 	return notify, nil
 }
 

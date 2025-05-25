@@ -26,19 +26,13 @@ import (
 )
 
 var (
-	version    = "local build"
-	msg        *message.Printer          // msg is the Localization printer
-	icon       *icons.Icon               // icon helper
-	notifySend func(title, msg string)   // function to send notification, nil means that notifications are not available
-	appConfig  *tools.Config             // application configuration
-	cfgPath    string                    // path to application configuration file
-	log        *slog.Logger              // logger
-	appTitle   = "Yandex.Disk indicator" // application title for icon and notifications
+	version = "local build"
 )
 
 const (
-	appName = "yd-go"
-	about   = appName + ` is the panel indicator for Yandex.Disk daemon.
+	appName  = "yd-go"                 // app name for systray ID
+	appTitle = "Yandex.Disk indicator" // human readable application title for icon and notifications
+	about    = appName + ` is the panel indicator for Yandex.Disk daemon.
 
 	Version: %s
 
@@ -53,6 +47,15 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	donateUrl = "https://github.com/slytomcat/yd-go/wiki/Donations"
 	lastLen   = 10
 )
+
+type indicator struct {
+	cfg        *tools.Config                          // app config
+	msg        func(message.Reference, ...any) string // msg is the Localization printer func
+	icon       *icons.Icon                            // icon helper
+	notifySend func(title, msg string)                // function to send notification, nil means that notifications are not available
+	log        *slog.Logger                           // logger
+	menu       *menu                                  // app menu
+}
 
 type menu struct {
 	status      *systray.MenuItem          // menu item to show current status
@@ -77,54 +80,53 @@ type menu struct {
 	warning     *systray.MenuItem
 }
 
-func newMenu(noNotifications bool) *menu {
-	m := new(menu)
-	m.status = systray.AddMenuItem("", "")
-	m.size1 = systray.AddMenuItem("", "")
-	m.size2 = systray.AddMenuItem("", "")
+func (i *indicator) makeMenu() {
+	i.menu = new(menu)
+	i.menu.status = systray.AddMenuItem("", "")
+	i.menu.size1 = systray.AddMenuItem("", "")
+	i.menu.size2 = systray.AddMenuItem("", "")
 	systray.AddSeparator()
-	m.last = systray.AddMenuItem(msg.Sprintf("Last synchronized"), "")
-	for i := range lastLen {
-		l := m.last.AddSubMenuItem("", "")
+	i.menu.last = systray.AddMenuItem(i.msg("Last synchronized"), "")
+	for j := range lastLen {
+		l := i.menu.last.AddSubMenuItem("", "")
 		l.Hide()
-		m.lastMItem[i] = l
+		i.menu.lastMItem[j] = l
 	}
 	systray.AddSeparator()
-	m.start = systray.AddMenuItem(msg.Sprintf("Start daemon"), "")
-	m.stop = systray.AddMenuItem(msg.Sprintf("Stop daemon"), "")
+	i.menu.start = systray.AddMenuItem(i.msg("Start daemon"), "")
+	i.menu.stop = systray.AddMenuItem(i.msg("Stop daemon"), "")
 	systray.AddSeparator()
-	m.out = systray.AddMenuItem(msg.Sprintf("Show daemon output"), "")
-	m.path = systray.AddMenuItem(msg.Sprintf("Open Yandex.Disk folder"), "")
-	m.site = systray.AddMenuItem(msg.Sprintf("Open Yandex.Disk in browser"), "")
-	setup := systray.AddMenuItem(msg.Sprintf("Settings"), "")
-	m.theme = setup.AddSubMenuItemCheckbox(msg.Sprintf("Light theme"), "", appConfig.Theme == "light")
-	m.notes = setup.AddSubMenuItemCheckbox(msg.Sprintf("Notifications"), "", appConfig.Notifications)
-	m.daemonStart = setup.AddSubMenuItemCheckbox(msg.Sprintf("Start on start"), "", appConfig.StartDaemon)
-	m.daemonStop = setup.AddSubMenuItemCheckbox(msg.Sprintf("Stop on exit"), "", appConfig.StopDaemon)
+	i.menu.out = systray.AddMenuItem(i.msg("Show daemon output"), "")
+	i.menu.path = systray.AddMenuItem(i.msg("Open Yandex.Disk folder"), "")
+	i.menu.site = systray.AddMenuItem(i.msg("Open Yandex.Disk in browser"), "")
+	setup := systray.AddMenuItem(i.msg("Settings"), "")
+	i.menu.theme = setup.AddSubMenuItemCheckbox(i.msg("Light theme"), "", i.cfg.Theme == "light")
+	i.menu.notes = setup.AddSubMenuItemCheckbox(i.msg("Notifications"), "", i.cfg.Notifications)
+	i.menu.daemonStart = setup.AddSubMenuItemCheckbox(i.msg("Start on start"), "", i.cfg.StartDaemon)
+	i.menu.daemonStop = setup.AddSubMenuItemCheckbox(i.msg("Stop on exit"), "", i.cfg.StopDaemon)
 	systray.AddSeparator()
-	m.help = systray.AddMenuItem(msg.Sprintf("Help"), "")
-	m.about = systray.AddMenuItem(msg.Sprintf("About"), "")
-	m.donate = systray.AddMenuItem(msg.Sprintf("Donations"), "")
+	i.menu.help = systray.AddMenuItem(i.msg("Help"), "")
+	i.menu.about = systray.AddMenuItem(i.msg("About"), "")
+	i.menu.donate = systray.AddMenuItem(i.msg("Donations"), "")
 	systray.AddSeparator()
-	m.quit = systray.AddMenuItem(msg.Sprintf("Quit"), "")
-	m.status.Disable()
-	m.size1.Disable()
-	m.size2.Disable()
-	m.last.Disable()
-	m.start.Hide()
-	m.stop.Hide()
-	if noNotifications { // disable all menu items that are dependant on notification service
-		m.about.Disable()
-		m.out.Disable()
-		m.notes.Disable()
+	i.menu.quit = systray.AddMenuItem(i.msg("Quit"), "")
+	i.menu.status.Disable()
+	i.menu.size1.Disable()
+	i.menu.size2.Disable()
+	i.menu.last.Disable()
+	i.menu.start.Hide()
+	i.menu.stop.Hide()
+	if i.notifySend == nil { // disable all menu items that are dependant on notification service
+		i.menu.about.Disable()
+		i.menu.out.Disable()
+		i.menu.notes.Disable()
 		// add menu warning
 		systray.AddSeparator()
-		m.warning = systray.AddMenuItem(msg.Sprintf("Notification service unavailable!"), "")
+		i.menu.warning = systray.AddMenuItem(i.msg("Notification service unavailable!"), "")
 	} else {
-		m.warning = systray.AddMenuItem("", "")
-		m.warning.Hide()
+		i.menu.warning = systray.AddMenuItem("", "")
+		i.menu.warning.Hide()
 	}
-	return m
 }
 
 // SetupLocalization initializes translations
@@ -138,131 +140,129 @@ func SetupLocalization(logger *slog.Logger) *message.Printer {
 }
 
 func main() {
-	var debug bool
-	cfgPath, debug = tools.GetParams(appName, os.Args, version)
-	log = tools.SetupLogger(debug)
+	cfgPath, debug := tools.GetParams(appName, os.Args, version)
 	_, id := path.Split(cfgPath)
 	systray.SetID(fmt.Sprintf("%s_%s", appName, id))
-	systray.Run(onReady, nil)
-}
-
-func onReady() {
-	defer systray.Quit() // it releases systray.Run in main()
-	var err error
-	appConfig, err = tools.NewConfig(cfgPath)
-	if err != nil {
-		log.Error("config_error", "error", err)
-		os.Exit(1)
-	}
-	defer appConfig.Save()
-	// setup localization
-	msg = SetupLocalization(log)
-	// create new YDisk instance
-	YD, err := ydisk.NewYDisk(appConfig.Conf, log)
-	if err != nil {
-		log.Error("daemon_initialization", "error", err)
-		os.Exit(1)
-	}
-	defer YD.Close()
-	// Initialize icon helper
-	icon = icons.NewIcon(appConfig.Theme, systray.SetIcon)
-	defer icon.Close()
-	// Initialize notifications
-	if notifyHandler, err := notify.New(appName, icon.LogoIcon, false, -1); err != nil {
-		notifySend = nil
-		appConfig.Notifications = false
-		log.Warn("notifications", "status", "not_available", "error", err)
-	} else {
-		notifySend = func(title, msg string) {
-			log.Debug("sending_message", "title", title, "message", msg)
-			notifyHandler.Send(title, msg)
+	systray.Run(func() {
+		defer systray.Quit() // it releases systray.Run in main()
+		log := tools.SetupLogger(debug)
+		cfg, err := tools.NewConfig(cfgPath)
+		if err != nil {
+			log.Error("config_error", "error", err)
+			os.Exit(1)
 		}
-		defer notifyHandler.Close()
-	}
-	// handle starting/stopping daemon
-	if appConfig.StartDaemon {
-		go YD.Start()
-	}
-	defer func() {
-		if appConfig.StopDaemon {
-			YD.Stop()
+		defer cfg.Save()
+		i := &indicator{
+			cfg: cfg,
+			msg: SetupLocalization(log).Sprintf,
+			log: log,
 		}
-		log.Debug("ui_event_handler", "status", "exited")
-	}()
-	// Initialize systray menu
-	m := newMenu(notifySend == nil)
-	// set systray title
-	appTitle = msg.Sprintf(appTitle)
-	systray.SetTitle(appTitle)
-	// register interrupt signals chan
-	canceled := make(chan os.Signal, 1)
-	signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
-	// Start events handler
-	log.Debug("ui_event_handler", "status", "started")
-	for {
-		select {
-		case <-m.lastMItem[0].ClickedCh:
-			openPath(m.lastPath[0])
-		case <-m.lastMItem[1].ClickedCh:
-			openPath(m.lastPath[1])
-		case <-m.lastMItem[2].ClickedCh:
-			openPath(m.lastPath[2])
-		case <-m.lastMItem[3].ClickedCh:
-			openPath(m.lastPath[3])
-		case <-m.lastMItem[4].ClickedCh:
-			openPath(m.lastPath[4])
-		case <-m.lastMItem[5].ClickedCh:
-			openPath(m.lastPath[5])
-		case <-m.lastMItem[6].ClickedCh:
-			openPath(m.lastPath[6])
-		case <-m.lastMItem[7].ClickedCh:
-			openPath(m.lastPath[7])
-		case <-m.lastMItem[8].ClickedCh:
-			openPath(m.lastPath[8])
-		case <-m.lastMItem[9].ClickedCh:
-			openPath(m.lastPath[9])
-		case <-m.start.ClickedCh:
+		// Initialize notifications
+		if notifyHandler, err := notify.New(appName, i.icon.LogoIcon, false, -1); err != nil {
+			i.notifySend = nil
+			cfg.Notifications = false // disable notifications into configuration
+			i.log.Warn("notifications", "status", "not_available", "error", err)
+		} else {
+			i.notifySend = func(title, msg string) {
+				i.log.Debug("sending_message", "title", title, "message", msg)
+				notifyHandler.Send(title, msg)
+			}
+			defer notifyHandler.Close()
+		}
+		// create new YDisk instance
+		YD, err := ydisk.NewYDisk(i.cfg.Conf, i.log)
+		if err != nil {
+			i.log.Error("daemon_initialization", "error", err)
+			os.Exit(1)
+		}
+		defer YD.Close()
+		// handle starting/stopping daemon
+		if i.cfg.StartDaemon {
 			go YD.Start()
-		case <-m.stop.ClickedCh:
-			go YD.Stop()
-		case <-m.out.ClickedCh:
-			notifySend(msg.Sprintf("Yandex.Disk daemon output"), YD.Output())
-		case <-m.path.ClickedCh:
-			openPath(YD.Path)
-		case <-m.site.ClickedCh:
-			openPath(ydURL)
-		case <-m.theme.ClickedCh:
-			appConfig.Theme = handleThemeClick(m.theme)
-		case <-m.notes.ClickedCh:
-			appConfig.Notifications = handleCheck(m.notes)
-		case <-m.daemonStart.ClickedCh:
-			appConfig.StartDaemon = handleCheck(m.daemonStart)
-		case <-m.daemonStop.ClickedCh:
-			appConfig.StopDaemon = handleCheck(m.daemonStop)
-		case <-m.help.ClickedCh:
-			openPath(helpURL)
-		case <-m.about.ClickedCh:
-			notifySend(appTitle, msg.Sprintf(about, version, time.Now().Format("2006")))
-		case <-m.donate.ClickedCh:
-			openPath(donateUrl)
-		case <-m.warning.ClickedCh:
-			openPath(faqURL)
-		case yds := <-YD.Changes: // YDisk change event
-			handleUpdate(m, &yds, YD.Path)
-		case sig := <-canceled: // SIGINT or SIGTERM signal received
-			fmt.Println() // to leave ^C on previous line
-			log.Warn("exit", "signal", sig)
-			return
-		case <-m.quit.ClickedCh:
-			log.Debug("exit", "status", "requested")
-			return
 		}
-	}
+		defer func() {
+			if i.cfg.StopDaemon {
+				YD.Stop()
+			}
+		}()
+		// register interrupt signals chan
+		canceled := make(chan os.Signal, 1)
+		signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
+		// Initialize systray menu
+		i.makeMenu()
+		// set systray title
+		systray.SetTitle(i.msg(appTitle))
+		// initialize icon helper
+		i.icon = icons.NewIcon(cfg.Theme, systray.SetIcon)
+		defer i.icon.Close()
+		// Start events handler
+		i.log.Debug("ui_event_handler", "status", "started")
+		defer i.log.Debug("ui_event_handler", "status", "exited")
+		for {
+			select {
+			case <-i.menu.lastMItem[0].ClickedCh:
+				i.openPath(i.menu.lastPath[0])
+			case <-i.menu.lastMItem[1].ClickedCh:
+				i.openPath(i.menu.lastPath[1])
+			case <-i.menu.lastMItem[2].ClickedCh:
+				i.openPath(i.menu.lastPath[2])
+			case <-i.menu.lastMItem[3].ClickedCh:
+				i.openPath(i.menu.lastPath[3])
+			case <-i.menu.lastMItem[4].ClickedCh:
+				i.openPath(i.menu.lastPath[4])
+			case <-i.menu.lastMItem[5].ClickedCh:
+				i.openPath(i.menu.lastPath[5])
+			case <-i.menu.lastMItem[6].ClickedCh:
+				i.openPath(i.menu.lastPath[6])
+			case <-i.menu.lastMItem[7].ClickedCh:
+				i.openPath(i.menu.lastPath[7])
+			case <-i.menu.lastMItem[8].ClickedCh:
+				i.openPath(i.menu.lastPath[8])
+			case <-i.menu.lastMItem[9].ClickedCh:
+				i.openPath(i.menu.lastPath[9])
+			case <-i.menu.start.ClickedCh:
+				go YD.Start()
+			case <-i.menu.stop.ClickedCh:
+				go YD.Stop()
+			case <-i.menu.out.ClickedCh:
+				i.notifySend(i.msg("Yandex.Disk daemon output"), YD.Output())
+			case <-i.menu.path.ClickedCh:
+				i.openPath(YD.Path)
+			case <-i.menu.site.ClickedCh:
+				i.openPath(ydURL)
+			case <-i.menu.theme.ClickedCh:
+				i.cfg.Theme = i.handleThemeClick(i.menu.theme)
+			case <-i.menu.notes.ClickedCh:
+				i.cfg.Notifications = handleCheck(i.menu.notes)
+			case <-i.menu.daemonStart.ClickedCh:
+				i.cfg.StartDaemon = handleCheck(i.menu.daemonStart)
+			case <-i.menu.daemonStop.ClickedCh:
+				i.cfg.StopDaemon = handleCheck(i.menu.daemonStop)
+			case <-i.menu.help.ClickedCh:
+				i.openPath(helpURL)
+			case <-i.menu.about.ClickedCh:
+				i.notifySend(i.msg(appTitle), i.msg(about, version, time.Now().Format("2006")))
+			case <-i.menu.donate.ClickedCh:
+				i.openPath(donateUrl)
+			case <-i.menu.warning.ClickedCh:
+				i.openPath(faqURL)
+			case yds := <-YD.Changes: // YDisk change event
+				i.handleUpdate(&yds, YD.Path)
+			case sig := <-canceled: // SIGINT or SIGTERM signal received
+				fmt.Println() // to leave ^C on previous line
+				i.log.Warn("exit", "signal", sig)
+				return
+			case <-i.menu.quit.ClickedCh:
+				i.log.Debug("exit", "status", "requested")
+				return
+			}
+		}
+	}, nil)
 }
 
-func openPath(path string) {
+func (i *indicator) openPath(path string) {
 	if err := tools.XdgOpen(path); err != nil {
-		log.Error("opening", "path", path, "error", err)
+		i.log.Error("opening", "path", path, "error", err)
 	}
 }
 
@@ -275,13 +275,13 @@ func handleCheck(mi *systray.MenuItem) bool {
 	return true
 }
 
-func handleThemeClick(mi *systray.MenuItem) (theme string) {
+func (i *indicator) handleThemeClick(mi *systray.MenuItem) (theme string) {
 	if handleCheck(mi) {
 		theme = "light"
 	} else {
 		theme = "dark"
 	}
-	icon.SetTheme(theme)
+	i.icon.SetTheme(theme)
 	return
 }
 
@@ -296,62 +296,62 @@ func joinNonEmpty(items ...string) string {
 	if s.Len() > 0 {
 		return s.String()[:s.Len()-1]
 	}
-	return s.String()
+	return ""
 }
 
 // handleUpdate changes icon/menu and sends notifications if they are enabled
-func handleUpdate(m *menu, yds *ydisk.YDvals, path string) {
-	st := joinNonEmpty(msg.Sprintf(yds.Stat), yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30))
-	m.status.SetTitle(msg.Sprintf("Status: %s", st))
-	m.size1.SetTitle(msg.Sprintf("Used: %s/%s", yds.Used, yds.Total))
-	m.size2.SetTitle(msg.Sprintf("Free: %s Trash: %s", yds.Free, yds.Trash))
+func (i *indicator) handleUpdate(yds *ydisk.YDvals, path string) {
+	st := joinNonEmpty(i.msg(yds.Stat), yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30))
+	i.menu.status.SetTitle(i.msg("Status: %s", st))
+	i.menu.size1.SetTitle(i.msg("Used: %s/%s", yds.Used, yds.Total))
+	i.menu.size2.SetTitle(i.msg("Free: %s Trash: %s", yds.Free, yds.Trash))
 	if yds.ChLast { // last synchronized list changed
-		for i := range lastLen {
-			if i < len(yds.Last) {
-				p := yds.Last[i]
-				m.lastPath[i] = filepath.Join(path, p)
-				m.lastMItem[i].SetTitle(tools.MakeTitle(p, 40))
-				if tools.NotExists(m.lastPath[i]) {
-					m.lastMItem[i].Disable()
+		for l := range lastLen {
+			if l < len(yds.Last) {
+				p := yds.Last[l]
+				i.menu.lastPath[l] = filepath.Join(path, p)
+				i.menu.lastMItem[l].SetTitle(tools.MakeTitle(p, 40))
+				if tools.NotExists(i.menu.lastPath[l]) {
+					i.menu.lastMItem[l].Disable()
 				} else {
-					m.lastMItem[i].Enable()
+					i.menu.lastMItem[l].Enable()
 				}
-				m.lastMItem[i].Show() // show list items
+				i.menu.lastMItem[l].Show() // show list items
 			} else {
-				m.lastMItem[i].Hide() // hide the rest of list
+				i.menu.lastMItem[l].Hide() // hide the rest of list
 			}
 		}
 		if len(yds.Last) == 0 {
-			m.last.Disable()
+			i.menu.last.Disable()
 		} else {
-			m.last.Enable()
+			i.menu.last.Enable()
 		}
-		m.last.Show() // to update parent item view
+		i.menu.last.Show() // to update parent item view
 	}
 	yds.Stat = index2Busy(yds.Stat) // index and busy statuses are equal in terms of icons and notifications
 	yds.Prev = index2Busy(yds.Prev)
 	if yds.Stat != yds.Prev { // status changed
 		// change indicator icon
-		icon.Set(none2Paused(yds.Stat)) // index were converted to busy earlier
+		i.icon.Set(none2Paused(yds.Stat)) // index were converted to busy earlier
 		// handle Start/Stop menu items
 		if yds.Stat == "none" || yds.Prev == "none" || yds.Prev == "unknown" {
 			if yds.Stat == "none" {
-				m.start.Show()
-				m.stop.Hide()
-				m.out.Disable()
+				i.menu.start.Show()
+				i.menu.stop.Hide()
+				i.menu.out.Disable()
 			} else {
-				m.stop.Show()
-				m.start.Hide()
-				if notifySend != nil {
-					m.out.Enable()
+				i.menu.stop.Show()
+				i.menu.start.Hide()
+				if i.notifySend != nil {
+					i.menu.out.Enable()
 				}
 			}
 		}
-		if appConfig.Notifications && notifySend != nil {
-			go handleNotifications(yds)
+		if i.cfg.Notifications && i.notifySend != nil {
+			go i.handleNotifications(yds)
 		}
 	}
-	log.Debug("ui_change", "status", "handled", "last", len(yds.Last))
+	i.log.Debug("ui_change", "status", "handled", "last", len(yds.Last))
 }
 
 // index2Busy converts index to busy
@@ -370,15 +370,15 @@ func none2Paused(status string) string {
 	return status
 }
 
-func handleNotifications(yds *ydisk.YDvals) {
+func (i *indicator) handleNotifications(yds *ydisk.YDvals) {
 	switch {
 	case yds.Stat == "none" && yds.Prev != "unknown":
-		notifySend(appTitle, msg.Sprintf("Daemon stopped"))
+		i.notifySend(i.msg(appTitle), i.msg("Daemon stopped"))
 	case yds.Prev == "none":
-		notifySend(appTitle, msg.Sprintf("Daemon started"))
+		i.notifySend(i.msg(appTitle), i.msg("Daemon started"))
 	case yds.Prev != "busy" && yds.Stat == "busy":
-		notifySend(appTitle, msg.Sprintf("Synchronization started"))
+		i.notifySend(i.msg(appTitle), i.msg("Synchronization started"))
 	case yds.Prev == "busy" && yds.Stat != "busy":
-		notifySend(appTitle, msg.Sprintf("Synchronization finished"))
+		i.notifySend(i.msg(appTitle), i.msg("Synchronization finished"))
 	}
 }
