@@ -157,18 +157,6 @@ func main() {
 			msg: SetupLocalization(log).Sprintf,
 			log: log,
 		}
-		// Initialize notifications
-		if notifyHandler, err := notify.New(appName, i.icon.LogoIcon, false, -1); err != nil {
-			i.notifySend = nil
-			cfg.Notifications = false // disable notifications into configuration
-			i.log.Warn("notifications", "status", "not_available", "error", err)
-		} else {
-			i.notifySend = func(title, msg string) {
-				i.log.Debug("sending_message", "title", title, "message", msg)
-				notifyHandler.Send(title, msg)
-			}
-			defer notifyHandler.Close()
-		}
 		// create new YDisk instance
 		YD, err := ydisk.NewYDisk(i.cfg.Conf, i.log)
 		if err != nil {
@@ -188,13 +176,25 @@ func main() {
 		// register interrupt signals chan
 		canceled := make(chan os.Signal, 1)
 		signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
-		// Initialize systray menu
-		i.makeMenu()
 		// set systray title
 		systray.SetTitle(i.msg(appTitle))
 		// initialize icon helper
 		i.icon = icons.NewIcon(cfg.Theme, systray.SetIcon)
 		defer i.icon.Close()
+		// Initialize notifications
+		if notifyHandler, err := notify.New(appName, i.icon.LogoIcon, false, -1); err != nil {
+			i.notifySend = nil
+			cfg.Notifications = false // disable notifications into configuration
+			i.log.Warn("notifications", "status", "not_available", "error", err)
+		} else {
+			i.notifySend = func(title, msg string) {
+				i.log.Debug("sending_message", "title", title, "message", msg)
+				notifyHandler.Send(title, msg)
+			}
+			defer notifyHandler.Close()
+		}
+		// Initialize systray menu
+		i.makeMenu()
 		// Start events handler
 		i.log.Debug("ui_event_handler", "status", "started")
 		defer i.log.Debug("ui_event_handler", "status", "exited")
