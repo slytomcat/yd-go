@@ -10,6 +10,10 @@ github.com/slytomcat/systray v1.10.3 h1:av8XasQcCBUmK67pP6fsjG65GbtpQ6Py8uccgfDS
 github.com/slytomcat/systray v1.10.3/go.mod h1:3bQ/lBgh62qi5WgCNSv+cq/xTii1LfP35mGH9w7vFG8=
 github.com/slytomcat/systray v1.10.4 h1:ZMhgn86+DAySosrC3zsn5TW8CpMt/3VZuIy9ISznWuU=
 github.com/slytomcat/systray v1.10.4/go.mod h1:3bQ/lBgh62qi5WgCNSv+cq/xTii1LfP35mGH9w7vFG8=
+github.com/slytomcat/systray v1.10.5-0.20250606215122-e06e650379f7 h1:vldgJbxDHHKkhg0gjwCczWQ9XLiZRGWSjKND25lrpZM=
+github.com/slytomcat/systray v1.10.5-0.20250606215122-e06e650379f7/go.mod h1:3bQ/lBgh62qi5WgCNSv+cq/xTii1LfP35mGH9w7vFG8=
+github.com/slytomcat/systray v1.10.5-0.20250607081031-c46e47fac446 h1:ySQi7W40AeBtAx+JGX7ynIizIIY27XxJgevlIqdu+Ns=
+github.com/slytomcat/systray v1.10.5-0.20250607081031-c46e47fac446/go.mod h1:3bQ/lBgh62qi5WgCNSv+cq/xTii1LfP35mGH9w7vFG8=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
