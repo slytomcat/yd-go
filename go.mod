@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/slytomcat/systray v1.10.4
+	github.com/slytomcat/systray v1.10.5-0.20250607081031-c46e47fac446
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/text v0.21.0
 )
