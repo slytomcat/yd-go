@@ -35,7 +35,7 @@ const (
 // The time sets the time in milliseconds after which the notification will disappear. Set it to -1 to use Desktop default settings.
 // It returns error in cases of D-BUS connection error or error of getting the notification server capabilities.
 func New(application string, icon []byte, replace bool, time int) (*Notify, error) {
-	conn, err := dbus.ConnectSessionBus()
+	conn, err := dbus.SessionBus()
 	if err != nil {
 		return nil, err
 	}
