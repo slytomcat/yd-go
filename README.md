@@ -4,7 +4,7 @@
 
 [![Screenshot](https://github.com/slytomcat/yd-go/blob/master/Screenshots/indicator%2Bmenu.png)](https://github.com/slytomcat/yd-go/blob/master/Screenshots/indicator%2Bmenu.png)
 
-This version of indicator uses B-Bus for communication to the status notification plugin. Therefore it's fully independent of the desktop environment of Linux distribution.
+This version of indicator uses D-Bus for communication to the status notification plugin. Therefore it's fully independent of the desktop environment of Linux distribution.
 
 IMPORTANT:
 
