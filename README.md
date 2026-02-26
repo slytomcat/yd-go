@@ -17,7 +17,7 @@ Before strating of the indicator application the yandex-disk CLI utility must be
 
 ### WIKI
 
-Russian wiki: is [hire](https://github.com/slytomcat/yd-go/wiki).
+Russian wiki: is [here](https://github.com/slytomcat/yd-go/wiki).
 
 ### The projesct story
 
@@ -47,7 +47,7 @@ The indicator application uses settings from the configuration file. The default
   - `"StartDaemon"` - Flag that makes the daemon started on application start (default: `true`). This setting can be changed into indicator menu.
   - `"StopDaemon"` - Flag that cause stop the daemon on application closure (default: `false`). This setting can be changed into indicator menu.
 
-## Instalation
+## Installation
 ### Using prebuild binary
 
 Download linux-amd64 binary from [releases](https://github.com/slytomcat/yd-go/releases), make it executable and copy it to directory that is in the PATH (/usr/local/bin for example).
