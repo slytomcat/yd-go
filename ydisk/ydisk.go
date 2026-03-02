@@ -1,7 +1,6 @@
-/*
-Package ydisk implements API for yandex-disk daemon. Logging is organized
-via github.com/slytomcat/llog package.
-*/
+// Package ydisk implements API for yandex-disk daemon.
+// The package provides YDisk structure with methods to interact with yandex-disk daemon (methods: Start, Stop, Output),
+// path of synchronized catalogue (property Path) and channel for receiving yandex-disk status changes (property Changes).
 package ydisk
 
 import (
@@ -20,7 +19,8 @@ import (
 
 var log *slog.Logger
 
-// YDvals - Daemon Status structure
+// YDvals - Daemon Status structure with fields that are updated on each change in the daemon status.
+// It is used for sending changes through YDisk.Changes channel.
 type YDvals struct {
 	Stat   string   // Current Status
 	Prev   string   // Previous Status
@@ -62,7 +62,7 @@ func setChanged(v *string, val string, c *bool) {
 
 // update - Updates Daemon status values from the daemon output string.
 // Returns true if a change detected in any value, otherwise returns false.
-// It uses only strings operation for parsing.
+// It uses only strings operation for speed-up the parsing.
 func (val *YDvals) update(out string) bool {
 	val.Prev = val.Stat // store previous status but don't track changes of val.Prev
 	changed := false    // track changes for values
@@ -197,7 +197,6 @@ type YDisk struct {
 //	conf - full path to yandex-disk daemon configuration file
 //
 // Checks performed in the beginning:
-//
 //   - check that yandex-disk was installed
 //   - check that yandex-disk was properly configured
 //
@@ -227,7 +226,7 @@ func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
 	return &yd, nil
 }
 
-// eventHandler works in separate goroutine until YDisk.exit channel receives a bool value (any).
+// eventHandler works in separate goroutine until YDisk.exit channel receives a struct{} value.
 func (yd *YDisk) eventHandler(watch watcher) {
 	log.Debug("daemon_event_handler", "status", "started")
 	yds := newYDvals()
@@ -257,7 +256,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 				interval = 2 // keep 2s interval in busy mode
 			} else {
 				if interval < 32 {
-					interval <<= 1 // continuously increase timer interval: 2s, 4s, 8s.
+					interval <<= 1 // continuously increase timer interval: 2s, 4s, 8s, 16s, 32s.
 				}
 			}
 		}
@@ -274,6 +273,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		if yds.Stat != "none" {
 			tick.Reset(time.Duration(interval) * time.Second)
 		} else {
+			// stop timer when daemon is not running to avoid unnecessary checks
 			tick.Stop()
 		}
 	}
@@ -282,6 +282,7 @@ func (yd *YDisk) eventHandler(watch watcher) {
 func (yd YDisk) getOutput(userLang bool) string {
 	cmd := []string{yd.exe, "status", "-c", yd.conf}
 	if !userLang {
+		// Run command with empty environment except TEMP variable to avoid localization of output.
 		cmd = append([]string{"env", "-i", "TEMP=" + os.TempDir()}, cmd...)
 	}
 	out, err := exec.Command(cmd[0], cmd[1:]...).Output()

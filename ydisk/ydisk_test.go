@@ -186,6 +186,8 @@ func TestFull(t *testing.T) {
 					"{idle index 43.50 GB 2.89 GB 40.61 GB 0 B [File.ods downloads/file.deb downloads/setup download down do_it very_very_long_long_file_with_underscore o w n] true   }",
 					fmt.Sprintf("%v", yds))
 				return true
+			default:
+				return false
 			}
 		}, 10*time.Second, time.Second)
 	})
@@ -219,6 +221,8 @@ func TestFull(t *testing.T) {
 					"{idle error 43.50 GB 2.89 GB 40.61 GB 0 B [File.ods downloads/file.deb downloads/setup download down do_it very_very_long_long_file_with_underscore o w n] false   }",
 					fmt.Sprintf("%v", yds))
 				return true
+			default:
+				return false
 			}
 		}, 10*time.Second, time.Second)
 	})
