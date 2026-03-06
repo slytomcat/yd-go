@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// notExists checks if the provided path does not exist. It returns true if the path does not exist, otherwise returns false.
 func notExists(path string) bool {
 	_, err := os.Stat(path)
 	if err != nil {

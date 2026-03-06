@@ -80,6 +80,8 @@ type menu struct {
 	warning     *systray.MenuItem
 }
 
+// makeMenu initializes systray menu and sets it to indicator.menu
+// It also sets initial state of menu items and hides some of them.
 func (i *indicator) makeMenu() {
 	i.menu = new(menu)
 	i.menu.status = systray.AddMenuItem("", "")

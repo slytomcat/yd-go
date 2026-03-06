@@ -14,8 +14,6 @@ import (
 	"strings"
 )
 
-var llog *slog.Logger
-
 // NotExists returns true when specified path does not exists
 func NotExists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
