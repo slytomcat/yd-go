@@ -38,7 +38,7 @@ func TestNotExists(t *testing.T) {
 func makeTempCfgFile(t *testing.T, content string) string {
 	file := path.Join(t.TempDir(), "default.cfg")
 	if err := os.WriteFile(file, []byte(content), 0766); err != nil {
-		panic(err)
+		t.FailNow()
 	}
 	return file
 }
@@ -76,8 +76,24 @@ func TestConfig(t *testing.T) {
 		}, cfg)
 	})
 
-	t.Run("empty config file", func(t *testing.T) {
+	t.Run("empty json", func(t *testing.T) {
 		testFile := makeTempCfgFile(t, `{}`)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		require.Equal(t, &Config{
+			path:          testFile,
+			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
+			Theme:         "dark",
+			Notifications: true,
+			StartDaemon:   true,
+			StopDaemon:    false,
+		}, cfg)
+	})
+
+	t.Run("empty config file", func(t *testing.T) {
+		testFile := makeTempCfgFile(t, "")
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile)
 		require.NoError(t, err)
@@ -132,8 +148,18 @@ func TestConfig(t *testing.T) {
 
 	t.Run("config file cat't be written", func(t *testing.T) {
 		cfg, err := NewConfig("/dev/non_existing_device")
-		require.Error(t, err)
-		require.Nil(t, cfg)
+		// In this case config file will be created but can't be written
+		// But since Save method only logs the warning message, NewConfig should return default config without error
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		require.Equal(t, &Config{
+			path:          "/dev/non_existing_device",
+			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
+			Theme:         "dark",
+			Notifications: true,
+			StartDaemon:   true,
+			StopDaemon:    false,
+		}, cfg)
 	})
 
 	t.Run("config file path cat't be created", func(t *testing.T) {
@@ -141,7 +167,6 @@ func TestConfig(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, cfg)
 	})
-
 	// 100% coverage for Config !!!
 }
 

@@ -177,7 +177,7 @@ func main() {
 		}()
 		// register interrupt signals chan
 		canceled := make(chan os.Signal, 1)
-		signal.Notify(canceled, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(canceled, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 		// set systray title
 		systray.SetTitle(i.msg(appTitle))
 		// initialize icon helper
@@ -301,7 +301,7 @@ func joinNonEmpty(items ...string) string {
 	return ""
 }
 
-// handleUpdate changes icon/menu and sends notifications if they are enabled
+// handleUpdate updates the indicator icon, menu state, and sends notifications if they are enabled.
 func (i *indicator) handleUpdate(yds *ydisk.YDvals, path string) {
 	st := joinNonEmpty(i.msg(yds.Stat), yds.Prog, yds.Err, tools.MakeTitle(yds.ErrP, 30))
 	i.menu.status.SetTitle(i.msg("Status: %s", st))

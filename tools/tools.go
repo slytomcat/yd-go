@@ -67,24 +67,26 @@ func NewConfig(cfgFilePath string) (*Config, error) {
 	}
 
 	cfgPath, _ := path.Split(cfgFilePath)
-	// Check that the configuration file path is exists
-	if NotExists(cfgPath) {
+	if cfgPath == "" {
+		cfgPath = "." // if no path is specified, use current directory
+	} else if NotExists(cfgPath) {
 		if err := os.MkdirAll(cfgPath, 0700); err != nil {
 			return nil, fmt.Errorf("can't create application configuration path: %v", err)
 		}
 	}
 	// Check that the configuration file is exists
 	if NotExists(cfgFilePath) {
-		// Create and save new configuration file with default values
-		err := cfg.Save()
-		if err != nil {
-			return nil, fmt.Errorf("default config saving error: %v", err)
-		}
+		// Try to save new configuration file with default values
+		cfg.Save()
 	} else {
 		// Read the configuration file
 		data, err := os.ReadFile(cfgFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("reading config file error: %v", err)
+		}
+		if len(data) == 0 { // empty file
+			cfg.Save()      // try to save default config to the file
+			return cfg, nil // return default config
 		}
 		err = json.Unmarshal(data, cfg)
 		if err != nil {
@@ -97,14 +99,14 @@ func NewConfig(cfgFilePath string) (*Config, error) {
 	return cfg, nil
 }
 
-// Save stores application configuration to the disk
-func (c *Config) Save() error {
+// Save tries to store application configuration to the disk.
+// In case of error it only logs the warning message.
+func (c *Config) Save() {
 	data, _ := json.Marshal(c)
-	err := os.WriteFile(c.path, data, 0664)
+	err := os.WriteFile(c.path, data, 0600)
 	if err != nil {
-		return fmt.Errorf("can't save configuration file: %v", err)
+		slog.Warn("config_save", "error", fmt.Errorf("can't save configuration file '%s': %v", c.path, err))
 	}
-	return nil
 }
 
 // SetupLogger initializes the logger for application
@@ -130,7 +132,7 @@ func GetParams(appName string, args []string, version string) (string, bool) {
 	f.StringVar(&config, "config", "$HOME/.config/"+appName+"/default.cfg", "Path to the indicator configuration file")
 	f.BoolVar(&pv, "version", false, "Print out version information and exit")
 	f.Usage = func() {
-		_, _ = fmt.Fprintf(f.Output(), "%s\nUsage:\n\n\t\t%q [-debug] [-config=<Path to indicator config>] [-version]\n\n", getVersion(appName, version), appName)
+		_, _ = fmt.Fprintf(f.Output(), "%s\nUsage:\n\n\t%s [-debug] [-config=<Path to indicator config>] [-version]\n\n", getVersion(appName, version), appName)
 		f.PrintDefaults()
 	}
 	_ = f.Parse(args[1:])
