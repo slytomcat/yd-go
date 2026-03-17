@@ -47,6 +47,8 @@ The indicator application uses settings from the configuration file. The default
   - `"StartDaemon"` - Flag that makes the daemon started on application start (default: `true`). This setting can be changed into indicator menu.
   - `"StopDaemon"` - Flag that cause stop the daemon on application closure (default: `false`). This setting can be changed into indicator menu.
 
+If the configuration file is not exists then it will be created with default values on indicator startup. If the configuration file is empty or contains only part of settings then the missing settings will be filled with default values. The changes of settings into menu will be saved only on application closure. So if you change some settings into menu and then kill the application the changes will be lost.
+
 ## Installation
 ### Using prebuild binary
 
@@ -85,14 +87,14 @@ When `upx` utility is available then the binary will be additionally compressed.
 
 ## The application usage
 
-		yd-go [-debug] [-config=<Path to indicator config>]
+        yd-go [-debug] [-config=<Path to indicator config>] [-version]
 
-	-config string
-		Path to the indicator configuration file (default "~/.config/yd-go/default.cfg")
-	-debug
-		Allow debugging messages to be sent to stderr
-	-version
-		Print out version information and exit
+  -config string
+        Path to the indicator configuration file (default "$HOME/.config/yd-go/default.cfg")
+  -debug
+        Allow debugging messages to be sent to stdout
+  -version
+        Print out version information and exit
 
 ## Icons
 
