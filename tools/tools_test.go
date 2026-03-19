@@ -4,7 +4,9 @@ import (
 	"io"
 	"os"
 	"path"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,23 +37,91 @@ func TestNotExists(t *testing.T) {
 	require.True(t, NotExists("/Unreal path+*$"))
 }
 
-func makeTempCfgFile(t *testing.T, content string) string {
+// makeTempCfgFile creates temporary config file with specified content and returns its path. If content is nil, the file will not be created,
+// but the path will be returned.
+func makeTempCfgFile(t *testing.T, content *string) string {
 	file := path.Join(t.TempDir(), "default.cfg")
-	if err := os.WriteFile(file, []byte(content), 0766); err != nil {
-		t.FailNow()
+	if content != nil {
+		if err := os.WriteFile(file, []byte(*content), 0766); err != nil {
+			t.FailNow()
+		}
 	}
 	return file
 }
 
+type callChecker struct {
+	called atomic.Bool
+}
+
+func (c *callChecker) Call() {
+	c.called.Store(true)
+}
+
+func (c *callChecker) Called() bool {
+	return c.called.Load()
+}
+
+func TestDelayedActioner(t *testing.T) {
+	t.Run("act with delay", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		da.Act()
+		require.False(t, cc.Called())
+		require.Eventually(t, func() bool {
+			return cc.Called()
+		}, 100*time.Millisecond, 10*time.Millisecond)
+	})
+	t.Run("act again before delay", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		da.Act()
+		require.False(t, cc.Called())
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		da.Act()
+		require.False(t, cc.Called())
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		require.Eventually(t, func() bool {
+			return cc.Called()
+		}, 100*time.Millisecond, 10*time.Millisecond)
+	})
+	t.Run("act now", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		da.Act()
+		require.False(t, cc.Called())
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		da.ActNow()
+		require.True(t, cc.Called())
+	})
+}
+
 func TestConfig(t *testing.T) {
-	t.Run("no config file", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, "")
-		os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
+	defaultConfigContent := `{"Conf":"` + os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg") + `","Theme":"dark","Notifications":true,"StartDaemon":true,"StopDaemon":false}`
+	logger := SetupLogger(false, os.Stdout)
+	t.Run("no file", func(t *testing.T) {
+		testFile := makeTempCfgFile(t, nil)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		require.Eventually(t, func() bool {
+			return !NotExists(testFile)
+		}, 1000*time.Millisecond, 10*time.Millisecond)
+		data, err := os.ReadFile(testFile)
+		require.NoError(t, err)
+		require.Contains(t, string(data), defaultConfigContent)
+	})
+	t.Run("empty config file", func(t *testing.T) {
+		empty := ""
+		testFile := makeTempCfgFile(t, &empty)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
+			da:            cfg.da,
+			log:           logger,
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
 			Notifications: true,
@@ -59,115 +129,122 @@ func TestConfig(t *testing.T) {
 			StopDaemon:    false,
 		}, cfg)
 	})
-
-	t.Run("config file exists", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, `{"Conf":"config.cfg","Theme":"dark","Notifications":false,"StartDaemon":false,"StopDaemon":true}`)
+	t.Run("bad config file", func(t *testing.T) {
+		bad := "bad,bad,bad"
+		testFile := makeTempCfgFile(t, &bad)
 		defer os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
+		cfg, err := NewConfig(testFile, time.Hour, logger)
+		require.Error(t, err)
+		require.Nil(t, cfg)
+	})
+	t.Run("incorrect theme", func(t *testing.T) {
+		bad := `{"Theme":"incorrect"}`
+		testFile := makeTempCfgFile(t, &bad)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile, time.Hour, logger)
+		require.Error(t, err)
+		require.Nil(t, cfg)
+	})
+	t.Run("empty JSON", func(t *testing.T) {
+		emptyJSON := "{}"
+		testFile := makeTempCfgFile(t, &emptyJSON)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile, time.Hour, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		require.Equal(t, &Config{
 			path:          testFile,
-			Conf:          "config.cfg",
+			da:            cfg.da,
+			log:           logger,
+			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
+			Notifications: true,
+			StartDaemon:   true,
+			StopDaemon:    false,
+		}, cfg)
+	})
+	t.Run("correct config", func(t *testing.T) {
+		content := `{"Theme":"light","StopDaemon":true,"Notifications":false,"StartDaemon":false,"Conf":"config.cfg"}`
+		testFile := makeTempCfgFile(t, &content)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		require.Equal(t, &Config{
+			path:          testFile,
+			da:            cfg.da,
+			log:           logger,
+			Conf:          "config.cfg",
+			Theme:         "light",
 			Notifications: false,
 			StartDaemon:   false,
 			StopDaemon:    true,
 		}, cfg)
 	})
-
-	t.Run("empty json", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, `{}`)
+	t.Run("save changed now", func(t *testing.T) {
+		content := "{}"
+		testFile := makeTempCfgFile(t, &content)
 		defer os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
+		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		require.Equal(t, &Config{
-			path:          testFile,
-			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
-			Theme:         "dark",
-			Notifications: true,
-			StartDaemon:   true,
-			StopDaemon:    false,
-		}, cfg)
+		os.Remove(testFile) // remove the file to check that it will be created again on saving
+		cfg.Save()
+		require.Never(t, func() bool {
+			return !NotExists(testFile)
+		}, 20*time.Millisecond, 10*time.Millisecond)
+		cfg.SaveChangedNow()
+		require.Eventually(t, func() bool {
+			return !NotExists(testFile)
+		}, 10*time.Millisecond, 2*time.Millisecond)
+		data, err := os.ReadFile(testFile)
+		require.NoError(t, err)
+		require.Contains(t, string(data), defaultConfigContent)
 	})
-
-	t.Run("empty config file", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, "")
-		defer os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
+	t.Run("file can't be read", func(t *testing.T) {
+		cfg, err := NewConfig("./", time.Hour, logger)
+		require.Error(t, err)
+		require.EqualError(t, err, "reading config file error: read ./: is a directory")
+		require.Nil(t, cfg)
+	})
+	t.Run("file path can't be created", func(t *testing.T) {
+		cfg, err := NewConfig("/dev/non_existing_device/file", time.Hour, logger)
+		require.Error(t, err)
+		require.EqualError(t, err, "can't create application configuration path: mkdir /dev/non_existing_device/: permission denied")
+		require.Nil(t, cfg)
+	})
+	t.Run("file can't be written", func(t *testing.T) {
+		testFile := "/dev/non_existing_file"
+		// catch the output of logger to check that error message is logged
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		defer r.Close()
+		defer w.Close()
+		log := SetupLogger(false, w)
+		cfg, err := NewConfig(testFile, time.Hour, log)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		require.Equal(t, &Config{
-			path:          testFile,
-			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
-			Theme:         "dark",
-			Notifications: true,
-			StartDaemon:   true,
-			StopDaemon:    false,
-		}, cfg)
+		cfg.SaveChangedNow() // try to save config to the file with wrong permissions
+		w.Close()            // close the writer to allow reading the output
+		out, err := io.ReadAll(r)
+		require.NoError(t, err)
+		require.Contains(t, string(out), "can't save config file")
+		require.Contains(t, string(out), "permission denied")
 	})
-
-	t.Run("partial config file", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, `{"Theme":"dark","Notifications":false,"StopDaemon":true}`)
+	t.Run("file in current directory", func(t *testing.T) {
+		testFile := "default.cfg"
 		defer os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
+		cfg, err := NewConfig(testFile, 500*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		require.Equal(t, &Config{
-			path:          testFile,
-			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"), // default
-			Theme:         "dark",                                               // config
-			Notifications: false,                                                // config
-			StartDaemon:   true,                                                 // default
-			StopDaemon:    true,                                                 // config
-		}, cfg)
-	})
-
-	t.Run("incorrect theme", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, `{"Theme":"incorrect"}`)
-		defer os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
-		require.Error(t, err)
-		require.Nil(t, cfg)
-	})
-
-	t.Run("bad config file", func(t *testing.T) {
-		testFile := makeTempCfgFile(t, `bad,bad,bad`)
-		defer os.Remove(testFile)
-		cfg, err := NewConfig(testFile)
-		require.Error(t, err)
-		require.Nil(t, cfg)
-	})
-
-	t.Run("config file cat't be read", func(t *testing.T) {
-		cfg, err := NewConfig("/dev/")
-		require.Error(t, err)
-		require.Nil(t, cfg)
-	})
-
-	t.Run("config file cat't be written", func(t *testing.T) {
-		cfg, err := NewConfig("/dev/non_existing_device")
-		// In this case config file will be created but can't be written
-		// But since Save method only logs the warning message, NewConfig should return default config without error
+		cfg.SaveChangedNow()
+		require.Eventually(t, func() bool {
+			return !NotExists(testFile)
+		}, 10*time.Millisecond, 2*time.Millisecond)
+		data, err := os.ReadFile(testFile)
 		require.NoError(t, err)
-		require.NotNil(t, cfg)
-		require.Equal(t, &Config{
-			path:          "/dev/non_existing_device",
-			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
-			Theme:         "dark",
-			Notifications: true,
-			StartDaemon:   true,
-			StopDaemon:    false,
-		}, cfg)
+		require.Contains(t, string(data), defaultConfigContent)
 	})
-
-	t.Run("config file path cat't be created", func(t *testing.T) {
-		cfg, err := NewConfig("/dev/non_existing_device/file")
-		require.Error(t, err)
-		require.Nil(t, cfg)
-	})
-	// 100% coverage for Config !!!
 }
 
 func readStd(f **os.File) func() string {
@@ -202,7 +279,8 @@ func TestGetParams(t *testing.T) {
 		require.True(t, debug)
 	})
 	t.Run("with_cfg", func(t *testing.T) {
-		cfgFile := makeTempCfgFile(t, "{}")
+		emptyJSON := "{}"
+		cfgFile := makeTempCfgFile(t, &emptyJSON)
 		defer os.Remove(cfgFile)
 		cfgPath, debug := GetParams(tAppName, []string{tAppName, "-config=" + cfgFile}, tVersion)
 		require.Equal(t, cfgFile, cfgPath)
@@ -229,7 +307,7 @@ func TestSetupLogger(t *testing.T) {
 	debugMsg := "debug_msg"
 	t.Run("info", func(t *testing.T) {
 		getOut := readStd(&os.Stdout)
-		l := SetupLogger(false)
+		l := SetupLogger(false, os.Stdout)
 		l.Debug(debugMsg)
 		l.Info(infoMsg)
 		out := getOut()
@@ -238,7 +316,7 @@ func TestSetupLogger(t *testing.T) {
 	})
 	t.Run("debug", func(t *testing.T) {
 		getOut := readStd(&os.Stdout)
-		l := SetupLogger(true)
+		l := SetupLogger(true, os.Stdout)
 		l.Debug(debugMsg)
 		l.Info(infoMsg)
 		out := getOut()
@@ -247,4 +325,30 @@ func TestSetupLogger(t *testing.T) {
 	})
 }
 
-// I have no idea how to test XdgOpen...
+func TestXdgOpen(t *testing.T) {
+	resultPath := path.Join(t.TempDir(), "xdg-open-result.txt")
+	// mock xdg-open by setting xdgOpenCmd variable to a script that writes its arguments to a file
+	script := `#!/bin/sh
+echo "$@" > "` + resultPath + `"`
+	scriptPath := path.Join(t.TempDir(), "xdg-open-mock.sh")
+	if err := os.WriteFile(scriptPath, []byte(script), 0766); err != nil {
+		t.FailNow()
+	}
+	xdgOpenCmd = scriptPath
+	defer func() {
+		xdgOpenCmd = "xdg-open" // restore xdgOpenCmd after test
+		os.Remove(scriptPath)
+		os.Remove(resultPath)
+	}()
+	url := "https://example.com"
+	err := XdgOpen(url)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return !NotExists(resultPath)
+	}, 100*time.Millisecond, 10*time.Millisecond)
+	data, err := os.ReadFile(resultPath)
+	require.NoError(t, err)
+	require.Equal(t, string(data), url+"\n")
+}
+
+// 100% test coverage!

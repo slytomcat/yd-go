@@ -46,6 +46,7 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	helpURL   = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
 	donateUrl = "https://github.com/slytomcat/yd-go/wiki/Donations"
 	lastLen   = 10
+	saveDelay = 90 * time.Second // delay for saving configuration file after changes
 )
 
 type indicator struct {
@@ -147,13 +148,13 @@ func main() {
 	systray.SetID(fmt.Sprintf("%s_%s", appName, id))
 	systray.Run(func() {
 		defer systray.Quit() // it releases systray.Run in main()
-		log := tools.SetupLogger(debug)
-		cfg, err := tools.NewConfig(cfgPath)
+		log := tools.SetupLogger(debug, os.Stdout)
+		cfg, err := tools.NewConfig(cfgPath, saveDelay, log)
 		if err != nil {
 			log.Error("config_error", "error", err)
 			os.Exit(1)
 		}
-		defer cfg.Save()
+		defer cfg.SaveChangedNow() // save config on exit if it was changed
 		i := &indicator{
 			cfg: cfg,
 			msg: SetupLocalization(log).Sprintf,
@@ -234,12 +235,16 @@ func main() {
 				i.openPath(ydURL)
 			case <-i.menu.theme.ClickedCh:
 				i.cfg.Theme = i.handleThemeClick(i.menu.theme)
+				i.cfg.Save()
 			case <-i.menu.notes.ClickedCh:
 				i.cfg.Notifications = handleCheck(i.menu.notes)
+				i.cfg.Save()
 			case <-i.menu.daemonStart.ClickedCh:
 				i.cfg.StartDaemon = handleCheck(i.menu.daemonStart)
+				i.cfg.Save()
 			case <-i.menu.daemonStop.ClickedCh:
 				i.cfg.StopDaemon = handleCheck(i.menu.daemonStop)
+				i.cfg.Save()
 			case <-i.menu.help.ClickedCh:
 				i.openPath(helpURL)
 			case <-i.menu.about.ClickedCh:
