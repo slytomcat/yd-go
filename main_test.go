@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/slytomcat/yd-go/tools"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestSetupLocalization(t *testing.T) {
-	log := tools.SetupLogger(false)
+	log := tools.SetupLogger(false, os.Stdout)
 	t.Run("en", func(t *testing.T) {
 		t.Setenv("LANG", "en_US.UTF-8")
 		p := SetupLocalization(log)

@@ -47,7 +47,7 @@ The indicator application uses settings from the configuration file. The default
   - `"StartDaemon"` - Flag that makes the daemon started on application start (default: `true`). This setting can be changed into indicator menu.
   - `"StopDaemon"` - Flag that cause stop the daemon on application closure (default: `false`). This setting can be changed into indicator menu.
 
-If the configuration file is not exists then it will be created with default values on indicator startup. If the configuration file is empty or contains only part of settings then the missing settings will be filled with default values. The changes of settings into menu will be saved only on application closure. So if you change some settings into menu and then kill the application the changes will be lost.
+If the configuration file is not exists then it will be created with default values on indicator startup. If the configuration file is empty or contains only part of settings then the missing settings will be filled with default values. The changes of settings into menu will be saved with 1.5 minutes delay after last change or on application closure. So if you change some settings into menu and kill the application in less than 1.5 minutes the changes will be lost. If you don't change settings into menu nothing will be saved. The delay in configuration saving is made to avoid the too many disk writes when user makes several changes of settings into menu.
 
 ## Installation
 ### Using prebuild binary
