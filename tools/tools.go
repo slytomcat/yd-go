@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
@@ -54,10 +54,10 @@ func replaceUnderscore(s string) string {
 // DelayedActioner is a helper struct for perform actions with delay.
 // It allows to avoid multiple actions when action called several times in a short period of time.
 type DelayedActioner struct {
-	delay     time.Duration
-	timer     *time.Timer
-	scheduled atomic.Bool
-	action    func()
+	lock   sync.Mutex
+	delay  time.Duration
+	timer  *time.Timer
+	action func()
 }
 
 // NewDelayedActioner returns new DelayedActioner with specified action and delay
@@ -71,23 +71,30 @@ func NewDelayedActioner(action func(), delay time.Duration) *DelayedActioner {
 // Act tries to perform the action after timeout.
 // If next call of Act happens before the previous timeout, the timeout will start from beginning.
 func (ds *DelayedActioner) Act() {
-	if !ds.scheduled.CompareAndSwap(false, true) {
-		ds.timer.Stop() // stop previous timer
+	ds.lock.Lock()
+	defer ds.lock.Unlock()
+	if ds.timer != nil {
+		ds.timer.Stop()
 	}
-	ds.timer = time.AfterFunc(ds.delay, ds.action)
+	ds.timer = time.AfterFunc(ds.delay, ds.ActNowIfScheduled)
 }
 
-// ActNow triggers an immediate execution of the action.
-// It can be used to execute the action before application exit without waiting for timeout.
-func (ds *DelayedActioner) ActNow() {
-	if ds.scheduled.CompareAndSwap(true, false) {
-		ds.timer.Stop() // stop previous timer
+// ActNowIfScheduled triggers an immediate execution of the action if it is scheduled.
+// If the action is not scheduled, it does nothing.
+// It can be used to execute the scheduled action before timeout on application exit.
+func (ds *DelayedActioner) ActNowIfScheduled() {
+	ds.lock.Lock()
+	defer ds.lock.Unlock()
+	if ds.timer != nil {
+		ds.timer.Stop()
+		ds.timer = nil
 		ds.action()
 	}
 }
 
 // Config is application configuration
 type Config struct {
+	lock          sync.Mutex       // lock for configuration fields
 	path          string           // path to configuration file
 	da            *DelayedActioner // delayed actioner for saving configuration to the disk
 	log           *slog.Logger     // logger for logging configuration saving errors
@@ -146,25 +153,83 @@ func NewConfig(cfgFilePath string, delay time.Duration, log *slog.Logger) (*Conf
 }
 
 // save writes the configuration to the disk. It is used as action for DelayedActioner and should not be called directly.
+// In case of error it logs the error message but does not return it.
 func (c *Config) save() {
+	c.lock.Lock()
 	data, _ := json.Marshal(c)
+	c.lock.Unlock()
 	err := os.WriteFile(c.path, data, 0600)
 	if err != nil {
 		c.log.Warn("can't save config file", "error", err)
 	}
 }
 
-// Save tries to store application configuration to the disk after timeout.
-// If next call of Save happens before the previous timeout, the timeout will start from beginning.
-// In case of error it only logs the warning message.
-func (c *Config) Save() {
-	c.da.Act()
-}
-
 // SaveChangedNow saves the configuration to the disk immediately if it was changed earlier.
 // It can be used to save configuration before application exit without waiting for timeout.
 func (c *Config) SaveChangedNow() {
-	c.da.ActNow()
+	c.da.ActNowIfScheduled()
+}
+
+// Getters and setters for configuration fields. Setters trigger delayed saving of configuration to the disk.
+
+// GetTheme returns the current theme name
+func (c *Config) GetTheme() string {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.Theme
+}
+
+// SetTheme sets the theme name and triggers delayed saving of configuration to the disk
+func (c *Config) SetTheme(theme string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.Theme = theme
+	c.da.Act()
+}
+
+// GetNotifications returns the current value of Notifications field
+func (c *Config) GetNotifications() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.Notifications
+}
+
+// SetNotifications sets the value of Notifications field and triggers delayed saving of configuration to the disk
+func (c *Config) SetNotifications(notifications bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.Notifications = notifications
+	c.da.Act()
+}
+
+// GetStartDaemon returns the current value of StartDaemon field
+func (c *Config) GetStartDaemon() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.StartDaemon
+}
+
+// SetStartDaemon sets the value of StartDaemon field and triggers delayed saving of configuration to the disk
+func (c *Config) SetStartDaemon(startDaemon bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.StartDaemon = startDaemon
+	c.da.Act()
+}
+
+// GetStopDaemon returns the current value of StopDaemon field
+func (c *Config) GetStopDaemon() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.StopDaemon
+}
+
+// SetStopDaemon sets the value of StopDaemon field and triggers delayed saving of configuration to the disk
+func (c *Config) SetStopDaemon(stopDaemon bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.StopDaemon = stopDaemon
+	c.da.Act()
 }
 
 // SetupLogger initializes the logger for application
