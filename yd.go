@@ -103,10 +103,10 @@ func (i *indicator) makeMenu() {
 	i.menu.path = systray.AddMenuItem(i.msg("Open Yandex.Disk folder"), "")
 	i.menu.site = systray.AddMenuItem(i.msg("Open Yandex.Disk in browser"), "")
 	setup := systray.AddMenuItem(i.msg("Settings"), "")
-	i.menu.theme = setup.AddSubMenuItemCheckbox(i.msg("Light theme"), "", i.cfg.Theme == "light")
-	i.menu.notes = setup.AddSubMenuItemCheckbox(i.msg("Notifications"), "", i.cfg.Notifications)
-	i.menu.daemonStart = setup.AddSubMenuItemCheckbox(i.msg("Start on start"), "", i.cfg.StartDaemon)
-	i.menu.daemonStop = setup.AddSubMenuItemCheckbox(i.msg("Stop on exit"), "", i.cfg.StopDaemon)
+	i.menu.theme = setup.AddSubMenuItemCheckbox(i.msg("Light theme"), "", i.cfg.GetTheme() == "light")
+	i.menu.notes = setup.AddSubMenuItemCheckbox(i.msg("Notifications"), "", i.cfg.GetNotifications())
+	i.menu.daemonStart = setup.AddSubMenuItemCheckbox(i.msg("Start on start"), "", i.cfg.GetStartDaemon())
+	i.menu.daemonStop = setup.AddSubMenuItemCheckbox(i.msg("Stop on exit"), "", i.cfg.GetStopDaemon())
 	systray.AddSeparator()
 	i.menu.help = systray.AddMenuItem(i.msg("Help"), "")
 	i.menu.about = systray.AddMenuItem(i.msg("About"), "")
@@ -234,17 +234,13 @@ func main() {
 			case <-i.menu.site.ClickedCh:
 				i.openPath(ydURL)
 			case <-i.menu.theme.ClickedCh:
-				i.cfg.Theme = i.handleThemeClick(i.menu.theme)
-				i.cfg.Save()
+				i.cfg.SetTheme(i.handleThemeClick(i.menu.theme))
 			case <-i.menu.notes.ClickedCh:
-				i.cfg.Notifications = handleCheck(i.menu.notes)
-				i.cfg.Save()
+				i.cfg.SetNotifications(handleCheck(i.menu.notes))
 			case <-i.menu.daemonStart.ClickedCh:
-				i.cfg.StartDaemon = handleCheck(i.menu.daemonStart)
-				i.cfg.Save()
+				i.cfg.SetStartDaemon(handleCheck(i.menu.daemonStart))
 			case <-i.menu.daemonStop.ClickedCh:
-				i.cfg.StopDaemon = handleCheck(i.menu.daemonStop)
-				i.cfg.Save()
+				i.cfg.SetStopDaemon(handleCheck(i.menu.daemonStop))
 			case <-i.menu.help.ClickedCh:
 				i.openPath(helpURL)
 			case <-i.menu.about.ClickedCh:
@@ -292,6 +288,8 @@ func (i *indicator) handleThemeClick(mi *systray.MenuItem) (theme string) {
 	return
 }
 
+// joinNonEmpty joins non-empty strings with space and returns the result.
+// If all strings are empty, it returns an empty string.
 func joinNonEmpty(items ...string) string {
 	s := strings.Builder{}
 	for _, i := range items {

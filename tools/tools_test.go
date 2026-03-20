@@ -61,10 +61,30 @@ func (c *callChecker) Called() bool {
 	return c.called.Load()
 }
 
+func (c *callChecker) Reset() {
+	c.called.Store(false)
+}
+
 func TestDelayedActioner(t *testing.T) {
 	t.Run("act with delay", func(t *testing.T) {
 		cc := &callChecker{}
 		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		da.Act()
+		require.False(t, cc.Called())
+		require.Eventually(t, func() bool {
+			return cc.Called()
+		}, 100*time.Millisecond, 10*time.Millisecond)
+
+	})
+	t.Run("two acts", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		da.Act()
+		require.False(t, cc.Called())
+		require.Eventually(t, func() bool {
+			return cc.Called()
+		}, 100*time.Millisecond, 10*time.Millisecond)
+		cc.Reset()
 		da.Act()
 		require.False(t, cc.Called())
 		require.Eventually(t, func() bool {
@@ -90,7 +110,7 @@ func TestDelayedActioner(t *testing.T) {
 		da.Act()
 		require.False(t, cc.Called())
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		da.ActNow()
+		da.ActNowIfScheduled()
 		require.True(t, cc.Called())
 	})
 }
@@ -188,12 +208,24 @@ func TestConfig(t *testing.T) {
 		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		os.Remove(testFile) // remove the file to check that it will be created again on saving
-		cfg.Save()
+		os.Remove(testFile)          // remove the file to check that it will be created again on saving
+		cfg.SetTheme(cfg.GetTheme()) // change config to mark it as changed and trigger saving after timeout
 		require.Never(t, func() bool {
 			return !NotExists(testFile)
 		}, 20*time.Millisecond, 10*time.Millisecond)
-		cfg.SaveChangedNow()
+		cfg.SetNotifications(cfg.GetNotifications()) // change another field to reschedule saving
+		require.Never(t, func() bool {
+			return !NotExists(testFile)
+		}, 20*time.Millisecond, 10*time.Millisecond)
+		cfg.SetStopDaemon(cfg.GetStopDaemon()) // change another field to reschedule saving
+		require.Never(t, func() bool {
+			return !NotExists(testFile)
+		}, 20*time.Millisecond, 10*time.Millisecond)
+		cfg.SetStartDaemon(cfg.GetStartDaemon()) // change another field to reschedule saving
+		require.Never(t, func() bool {
+			return !NotExists(testFile)
+		}, 20*time.Millisecond, 10*time.Millisecond)
+		cfg.SaveChangedNow() // save config immediately without waiting for timeout
 		require.Eventually(t, func() bool {
 			return !NotExists(testFile)
 		}, 10*time.Millisecond, 2*time.Millisecond)
