@@ -50,11 +50,15 @@ func makeTempCfgFile(t *testing.T, content *string) string {
 }
 
 type callChecker struct {
+	delay  time.Duration
 	called atomic.Bool
 }
 
 func (c *callChecker) Call() {
 	c.called.Store(true)
+	if c.delay > 0 {
+		time.Sleep(c.delay) // simulate long-running action
+	}
 }
 
 func (c *callChecker) Called() bool {
@@ -65,68 +69,170 @@ func (c *callChecker) Reset() {
 	c.called.Store(false)
 }
 
+func executionTime(f func()) time.Duration {
+	start := time.Now()
+	f()
+	return time.Since(start)
+}
+
 func TestDelayedActioner(t *testing.T) {
+	t.Run("create and stop", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		da.Stop() // should stop the actioner without calling the action
+		require.False(t, cc.Called())
+	})
+	t.Run("stop before action", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
+		da.Act()
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		da.Stop() // stop have to execute the action immediately if it was scheduled
+		require.True(t, cc.Called())
+	})
+	t.Run("stop before action with flush", func(t *testing.T) {
+		execTime := 60 * time.Millisecond
+		cc := &callChecker{delay: execTime}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
+		da.Act()
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		require.InDelta(t, execTime, executionTime(da.Flush), float64(5*time.Millisecond))
+		require.True(t, cc.Called())
+	})
+
 	t.Run("act with delay", func(t *testing.T) {
 		cc := &callChecker{}
 		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
 		da.Act()
-		require.False(t, cc.Called())
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, func() bool {
 			return cc.Called()
-		}, 100*time.Millisecond, 10*time.Millisecond)
+		}, 50*time.Millisecond, 5*time.Millisecond)
 
 	})
 	t.Run("two acts", func(t *testing.T) {
 		cc := &callChecker{}
 		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
 		da.Act()
-		require.False(t, cc.Called())
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, func() bool {
 			return cc.Called()
-		}, 100*time.Millisecond, 10*time.Millisecond)
+		}, 50*time.Millisecond, 5*time.Millisecond)
 		cc.Reset()
 		da.Act()
-		require.False(t, cc.Called())
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, func() bool {
 			return cc.Called()
-		}, 100*time.Millisecond, 10*time.Millisecond)
+		}, 50*time.Millisecond, 5*time.Millisecond)
 	})
 	t.Run("act again before delay", func(t *testing.T) {
 		cc := &callChecker{}
 		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
 		da.Act()
-		require.False(t, cc.Called())
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		da.Act()
-		require.False(t, cc.Called())
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		require.Eventually(t, func() bool {
-			return cc.Called()
-		}, 100*time.Millisecond, 10*time.Millisecond)
+		require.Eventually(t, cc.Called, 50*time.Millisecond, 5*time.Millisecond)
 	})
-	t.Run("act now", func(t *testing.T) {
+	t.Run("flush", func(t *testing.T) {
 		cc := &callChecker{}
 		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
+		da.Act()
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		da.Flush()
+		require.True(t, cc.Called())
+	})
+	t.Run("flush without act", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop()
+		require.InDelta(t, time.Millisecond, executionTime(da.Flush), float64(5*time.Millisecond))
+		require.False(t, cc.Called())
+	})
+	t.Run("multiple flushes", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop() // stop the actioner after the test to avoid scheduling actions after test completion
+		da.Act()
+		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
+		da.Flush()
+		require.True(t, cc.Called())
+		cc.Reset()
+		da.Flush()
+		da.Flush()
+		da.Flush()
+		require.False(t, cc.Called())
+	})
+	t.Run("multiple acts", func(t *testing.T) {
+		cc := &callChecker{}
+		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
+		defer da.Stop() // stop the actioner after the test to avoid scheduling actions after test completion
 		da.Act()
 		require.False(t, cc.Called())
-		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		da.ActNowIfScheduled()
-		require.True(t, cc.Called())
+		require.Eventually(t, cc.Called, 100*time.Millisecond, 10*time.Millisecond)
+		cc.Reset()
+		da.Act()
+		da.Act()
+		da.Act()
+		da.Act() // should not schedule the action several times
+		require.False(t, cc.Called())
+		require.Eventually(t, cc.Called, 100*time.Millisecond, 10*time.Millisecond)
+		cc.Reset()
+		require.Never(t, cc.Called, 60*time.Millisecond, 5*time.Millisecond)
 	})
 }
 
 func TestConfig(t *testing.T) {
 	defaultConfigContent := `{"Conf":"` + os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg") + `","Theme":"dark","Notifications":true,"StartDaemon":true,"StopDaemon":false}`
+	emptyJSONContent := "{}"
 	logger := SetupLogger(false, os.Stdout)
+	t.Run("no save on exit without changes", func(t *testing.T) {
+		testFile := makeTempCfgFile(t, &emptyJSONContent)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig("", 50*time.Millisecond, logger)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		defer cfg.Flush()
+		os.Remove(testFile) // remove the file to check that it will not be created on exit
+		cfg.Flush()
+		require.Never(t, func() bool {
+			return !NotExists(testFile)
+		}, 100*time.Millisecond, 5*time.Millisecond)
+	})
+	t.Run("save on exit with changes", func(t *testing.T) {
+		testFile := makeTempCfgFile(t, &emptyJSONContent)
+		defer os.Remove(testFile)
+		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		defer cfg.Flush()
+		os.Remove(testFile)   // remove the file to check that it will be created again on saving
+		cfg.SetTheme("light") // change config to mark it as changed and trigger saving on exit
+		require.Never(t, func() bool {
+			return !NotExists(testFile)
+		}, 20*time.Millisecond, 5*time.Millisecond)
+		cfg.Flush() // save config immediately without waiting for timeout
+		require.FileExists(t, testFile)
+		data, err := os.ReadFile(testFile)
+		require.NoError(t, err)
+		require.Contains(t, string(data), `"Theme":"light"`)
+	})
 	t.Run("no file", func(t *testing.T) {
 		testFile := makeTempCfgFile(t, nil)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
+		defer cfg.Flush()
 		require.Eventually(t, func() bool {
 			return !NotExists(testFile)
-		}, 1000*time.Millisecond, 10*time.Millisecond)
+		}, 100*time.Millisecond, 10*time.Millisecond)
 		data, err := os.ReadFile(testFile)
 		require.NoError(t, err)
 		require.Contains(t, string(data), defaultConfigContent)
@@ -138,6 +244,7 @@ func TestConfig(t *testing.T) {
 		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
+		defer cfg.Flush()
 		require.Equal(t, &Config{
 			path:          testFile,
 			da:            cfg.da,
@@ -166,12 +273,12 @@ func TestConfig(t *testing.T) {
 		require.Nil(t, cfg)
 	})
 	t.Run("empty JSON", func(t *testing.T) {
-		emptyJSON := "{}"
-		testFile := makeTempCfgFile(t, &emptyJSON)
+		testFile := makeTempCfgFile(t, &emptyJSONContent)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile, time.Hour, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
+		defer cfg.Flush()
 		require.Equal(t, &Config{
 			path:          testFile,
 			da:            cfg.da,
@@ -190,6 +297,7 @@ func TestConfig(t *testing.T) {
 		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
+		defer cfg.Flush()
 		require.Equal(t, &Config{
 			path:          testFile,
 			da:            cfg.da,
@@ -202,12 +310,12 @@ func TestConfig(t *testing.T) {
 		}, cfg)
 	})
 	t.Run("save changed now", func(t *testing.T) {
-		content := "{}"
-		testFile := makeTempCfgFile(t, &content)
+		testFile := makeTempCfgFile(t, &emptyJSONContent)
 		defer os.Remove(testFile)
 		cfg, err := NewConfig(testFile, 50*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
+		defer cfg.Flush()
 		os.Remove(testFile)          // remove the file to check that it will be created again on saving
 		cfg.SetTheme(cfg.GetTheme()) // change config to mark it as changed and trigger saving after timeout
 		require.Never(t, func() bool {
@@ -225,10 +333,8 @@ func TestConfig(t *testing.T) {
 		require.Never(t, func() bool {
 			return !NotExists(testFile)
 		}, 20*time.Millisecond, 10*time.Millisecond)
-		cfg.SaveChangedNow() // save config immediately without waiting for timeout
-		require.Eventually(t, func() bool {
-			return !NotExists(testFile)
-		}, 10*time.Millisecond, 2*time.Millisecond)
+		cfg.Flush() // save config immediately without waiting for timeout
+		require.FileExists(t, testFile)
 		data, err := os.ReadFile(testFile)
 		require.NoError(t, err)
 		require.Contains(t, string(data), defaultConfigContent)
@@ -256,8 +362,8 @@ func TestConfig(t *testing.T) {
 		cfg, err := NewConfig(testFile, time.Hour, log)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		cfg.SaveChangedNow() // try to save config to the file with wrong permissions
-		w.Close()            // close the writer to allow reading the output
+		cfg.Flush() // try to save config to the file with wrong permissions
+		w.Close()   // close the writer to allow reading the output
 		out, err := io.ReadAll(r)
 		require.NoError(t, err)
 		require.Contains(t, string(out), "can't save config file")
@@ -269,7 +375,7 @@ func TestConfig(t *testing.T) {
 		cfg, err := NewConfig(testFile, 500*time.Millisecond, logger)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		cfg.SaveChangedNow()
+		cfg.Flush()
 		require.Eventually(t, func() bool {
 			return !NotExists(testFile)
 		}, 10*time.Millisecond, 2*time.Millisecond)

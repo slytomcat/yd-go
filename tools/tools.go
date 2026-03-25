@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -54,42 +55,93 @@ func replaceUnderscore(s string) string {
 // DelayedActioner is a helper struct for perform actions with delay.
 // It allows to avoid multiple actions when action called several times in a short period of time.
 type DelayedActioner struct {
-	lock   sync.Mutex
-	delay  time.Duration
-	timer  *time.Timer
-	action func()
+	action  func()        // action to be performed after the delay
+	chAct   chan struct{} // channel for scheduling the action to be performed after the delay
+	chFlush chan func()   // channel for scheduling the flush of the scheduled action and waiting for its finish (if action was scheduled)
+	finish  func()        // function for stopping the DelayedActioner and performing action if it was scheduled before to avoid data loss
 }
 
-// NewDelayedActioner returns new DelayedActioner with specified action and delay
-func NewDelayedActioner(action func(), delay time.Duration) *DelayedActioner {
-	return &DelayedActioner{
-		delay:  delay,
-		action: action,
+// NewDelayedActioner returns new DelayedActioner with specified action and delay.
+// The action will be performed after the delay after call of Act method.
+// If Act is called several times before the delay, the action will be performed only once after delay after the last call of Act.
+// The Flush method allows to immediately execute the action if it was scheduled before. It waits for finish of the action execution.
+// If the action was not scheduled, Flush does nothing and returns immediately.
+// The Stop method stops the DelayedActioner and performs and waits for finish of the action execution if it was scheduled before.
+// It should be called when the DelayedActioner is no longer needed to avoid goroutine leaks.
+func NewDelayedActioner(action func(), delay time.Duration) (da *DelayedActioner) {
+	ctx, cancel := context.WithCancel(context.Background())
+	da = &DelayedActioner{
+		action:  action,
+		chAct:   make(chan struct{}, 1), // unbuffered channel for action scheduling to avoid second scheduling before the first one is processed
+		chFlush: make(chan func()),      // unbuffered channel for flush scheduling to avoid multiple flush waiting for the same action
+		finish:  cancel,
+	}
+	go da.loop(ctx, delay)
+	return
+}
+
+// Stop stops the DelayedActioner and performs action if it was scheduled.
+// if Flush was called before Stop but not finished yet, it will be released (after finish of the action if it was scheduled).
+// It should be called when the DelayedActioner is no longer needed to avoid goroutine leaks.
+func (da *DelayedActioner) Stop() {
+	da.Flush()
+	da.finish()
+}
+
+// loop is a main loop for DelayedActioner. It is used to execute the action when the timer is triggered and control the execution and timer rescheduling.
+// It also organizes the flush of the scheduled action when it is required or Stop is called.
+func (da *DelayedActioner) loop(ctx context.Context, delay time.Duration) {
+	var (
+		flush    <-chan time.Time // channel for flushing the scheduled action
+		callBack func()           // callback function for inform the caller about action finish (if it is required)
+	)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-da.chAct:
+			flush = time.NewTimer(delay).C // rewrite the flush channel to reschedule the action execution after the delay
+			continue
+		case <-flush:
+			callBack = func() {} // if the action is triggered by timer, reset the callback
+		case callBack = <-da.chFlush:
+			if flush == nil {
+				// nothing to do
+				callBack() // if no action is scheduled, the callback have to be called immediately
+				continue
+			}
+		}
+		// we are here when the action is triggered by timer or the caller of Flush is waiting for action finish i.e. for callBack call
+		go func(cb func()) { // as the action may be long-running, it have to be executed in a separate goroutine to avoid blocking the main loop
+			da.action()
+			cb()
+		}(callBack)
+		flush = nil // as the action is executed right now
 	}
 }
 
-// Act tries to perform the action after timeout.
+// Act schedules the action to be performed after timeout.
 // If next call of Act happens before the previous timeout, the timeout will start from beginning.
-func (ds *DelayedActioner) Act() {
-	ds.lock.Lock()
-	defer ds.lock.Unlock()
-	if ds.timer != nil {
-		ds.timer.Stop()
+func (da *DelayedActioner) Act() {
+	select {
+	case da.chAct <- struct{}{}:
+	default: // if the channel is full, it means that the previous action is not yet scheduled, so we do nothing
 	}
-	ds.timer = time.AfterFunc(ds.delay, ds.ActNowIfScheduled)
 }
 
-// ActNowIfScheduled triggers an immediate execution of the action if it is scheduled.
-// If the action is not scheduled, it does nothing.
-// It can be used to execute the scheduled action before timeout on application exit.
-func (ds *DelayedActioner) ActNowIfScheduled() {
-	ds.lock.Lock()
-	defer ds.lock.Unlock()
-	if ds.timer != nil {
-		ds.timer.Stop()
-		ds.timer = nil
-		ds.action()
+// Flush immediately executes the action if it was scheduled before and waits for its finish.
+// If the action was not scheduled, it does nothing anr returns immediately.
+func (da *DelayedActioner) Flush() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	select {
+	case da.chFlush <- cancel:
+	default:
+		// if the channel is full, it means that the flush is already waiting for action finish,
+		// so we do nothing to avoid multiple waiting for the same action
+		return
 	}
+	<-ctx.Done() // wait for action finish or return quickly if no action was scheduled
 }
 
 // Config is application configuration
@@ -118,13 +170,16 @@ func NewConfig(cfgFilePath string, delay time.Duration, log *slog.Logger) (*Conf
 		StopDaemon:    false,                                                // stop daemon on app closure
 	}
 	cfg.da = NewDelayedActioner(cfg.save, delay)
-
+	returnError := func(err error) (*Config, error) {
+		cfg.da.Stop() // stop the delayed actioner to avoid goroutine leak
+		return nil, err
+	}
 	cfgPath, _ := path.Split(cfgFilePath)
 	if cfgPath == "" {
 		cfgPath = "." // if no path is specified, use current directory
 	} else if NotExists(cfgPath) {
 		if err := os.MkdirAll(cfgPath, 0700); err != nil {
-			return nil, fmt.Errorf("can't create application configuration path: %v", err)
+			return returnError(fmt.Errorf("can't create application configuration path: %v", err))
 		}
 	}
 	// Check that the configuration file is exists
@@ -135,7 +190,7 @@ func NewConfig(cfgFilePath string, delay time.Duration, log *slog.Logger) (*Conf
 		// Read the configuration file
 		data, err := os.ReadFile(cfgFilePath)
 		if err != nil {
-			return nil, fmt.Errorf("reading config file error: %v", err)
+			return returnError(fmt.Errorf("reading config file error: %v", err))
 		}
 		if len(data) == 0 { // empty file
 			cfg.save()      // try to save default config to the file
@@ -143,10 +198,10 @@ func NewConfig(cfgFilePath string, delay time.Duration, log *slog.Logger) (*Conf
 		}
 		err = json.Unmarshal(data, cfg)
 		if err != nil {
-			return nil, fmt.Errorf("parsing config file error: %v", err)
+			return returnError(fmt.Errorf("parsing config file error: %v", err))
 		}
 		if cfg.Theme != "dark" && cfg.Theme != "light" {
-			return nil, fmt.Errorf("wrong theme name: '%s' (should be 'dark' or 'light')", cfg.Theme)
+			return returnError(fmt.Errorf("wrong theme name: '%s' (should be 'dark' or 'light')", cfg.Theme))
 		}
 	}
 	return cfg, nil
@@ -164,10 +219,11 @@ func (c *Config) save() {
 	}
 }
 
-// SaveChangedNow saves the configuration to the disk immediately if it was changed earlier.
+// Flush saves the configuration to the disk immediately if it was changed earlier.
 // It can be used to save configuration before application exit without waiting for timeout.
-func (c *Config) SaveChangedNow() {
-	c.da.ActNowIfScheduled()
+// if waits for save finish if the configuration was changed and scheduled for saving, otherwise it returns immediately.
+func (c *Config) Flush() {
+	c.da.Stop() // stop the delayed actioner and perform save if it was scheduled before to avoid data loss
 }
 
 // Getters and setters for configuration fields. Setters trigger delayed saving of configuration to the disk.
