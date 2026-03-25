@@ -154,7 +154,7 @@ func main() {
 			log.Error("config_error", "error", err)
 			os.Exit(1)
 		}
-		defer cfg.SaveChangedNow() // save config on exit if it was changed
+		defer cfg.Flush() // save config on exit if it was changed
 		i := &indicator{
 			cfg: cfg,
 			msg: SetupLocalization(log).Sprintf,
@@ -168,11 +168,11 @@ func main() {
 		}
 		defer YD.Close()
 		// handle starting/stopping daemon
-		if i.cfg.StartDaemon {
+		if i.cfg.GetStartDaemon() {
 			go YD.Start()
 		}
 		defer func() {
-			if i.cfg.StopDaemon {
+			if i.cfg.GetStopDaemon() {
 				YD.Stop()
 			}
 		}()
@@ -182,12 +182,12 @@ func main() {
 		// set systray title
 		systray.SetTitle(i.msg(appTitle))
 		// initialize icon helper
-		i.icon = icons.NewIcon(cfg.Theme, systray.SetIcon)
+		i.icon = icons.NewIcon(i.cfg.GetTheme(), systray.SetIcon)
 		defer i.icon.Close()
 		// Initialize notifications
 		if notifyHandler, err := notify.New(appName, i.icon.LogoIcon, false, -1); err != nil {
 			i.notifySend = nil
-			cfg.Notifications = false // disable notifications into configuration
+			i.cfg.SetNotifications(false) // disable notifications into configuration
 			i.log.Warn("notifications", "status", "not_available", "error", err)
 		} else {
 			i.notifySend = func(title, msg string) {
@@ -352,7 +352,7 @@ func (i *indicator) handleUpdate(yds *ydisk.YDvals, path string) {
 				}
 			}
 		}
-		if i.cfg.Notifications && i.notifySend != nil {
+		if i.cfg.GetNotifications() && i.notifySend != nil {
 			go i.handleNotifications(yds)
 		}
 	}
