@@ -78,35 +78,35 @@ func executionTime(f func()) time.Duration {
 func TestDelayedActioner(t *testing.T) {
 	t.Run("create and stop", func(t *testing.T) {
 		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		da.Stop() // should stop the actioner without calling the action
+		d := NewDelayer(cc.Call, 50*time.Millisecond)
+		d.Stop() // should stop the actioner without calling the action
 		require.False(t, cc.Called())
 	})
 	t.Run("stop before action", func(t *testing.T) {
-		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		da.Act()
+		exTime := 30 * time.Millisecond
+		cc := &callChecker{delay: exTime}
+		d := NewDelayer(cc.Call, 50*time.Millisecond)
+		d.Act()
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		da.Stop() // stop have to execute the action immediately if it was scheduled
+		require.InDelta(t, executionTime(d.Stop), exTime, float64(3*time.Millisecond)) // stop have to execute the action immediately if it was scheduled
 		require.True(t, cc.Called())
 	})
-	t.Run("stop before action with flush", func(t *testing.T) {
-		execTime := 60 * time.Millisecond
-		cc := &callChecker{delay: execTime}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		da.Act()
-		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		require.InDelta(t, execTime, executionTime(da.Flush), float64(5*time.Millisecond))
-		require.True(t, cc.Called())
+
+	t.Run("stop while action execution", func(t *testing.T) {
+		exTime := 60 * time.Millisecond
+		cc := &callChecker{delay: exTime}
+		d := NewDelayer(cc.Call, 10*time.Millisecond)
+		defer d.Stop()
+		d.Act()
+		time.Sleep(20 * time.Millisecond)
+		require.InDelta(t, executionTime(d.Stop), 50*time.Millisecond, float64(3*time.Millisecond))
 	})
 
 	t.Run("act with delay", func(t *testing.T) {
 		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		da.Act()
+		d := NewDelayer(cc.Call, 50*time.Millisecond)
+		defer d.Stop()
+		d.Act()
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, func() bool {
 			return cc.Called()
@@ -115,15 +115,15 @@ func TestDelayedActioner(t *testing.T) {
 	})
 	t.Run("two acts", func(t *testing.T) {
 		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		da.Act()
+		d := NewDelayer(cc.Call, 50*time.Millisecond)
+		defer d.Stop()
+		d.Act()
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, func() bool {
 			return cc.Called()
 		}, 50*time.Millisecond, 5*time.Millisecond)
 		cc.Reset()
-		da.Act()
+		d.Act()
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, func() bool {
 			return cc.Called()
@@ -131,60 +131,41 @@ func TestDelayedActioner(t *testing.T) {
 	})
 	t.Run("act again before delay", func(t *testing.T) {
 		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		da.Act()
+		d := NewDelayer(cc.Call, 50*time.Millisecond)
+		defer d.Stop()
+		d.Act()
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		da.Act()
+		d.Act()
 		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
 		require.Eventually(t, cc.Called, 50*time.Millisecond, 5*time.Millisecond)
 	})
-	t.Run("flush", func(t *testing.T) {
-		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		da.Act()
-		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		da.Flush()
-		require.True(t, cc.Called())
-	})
-	t.Run("flush without act", func(t *testing.T) {
-		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop()
-		require.InDelta(t, time.Millisecond, executionTime(da.Flush), float64(5*time.Millisecond))
-		require.False(t, cc.Called())
-	})
-	t.Run("multiple flushes", func(t *testing.T) {
-		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop() // stop the actioner after the test to avoid scheduling actions after test completion
-		da.Act()
-		require.Never(t, cc.Called, 20*time.Millisecond, 5*time.Millisecond)
-		da.Flush()
-		require.True(t, cc.Called())
-		cc.Reset()
-		da.Flush()
-		da.Flush()
-		da.Flush()
-		require.False(t, cc.Called())
-	})
 	t.Run("multiple acts", func(t *testing.T) {
 		cc := &callChecker{}
-		da := NewDelayedActioner(cc.Call, 50*time.Millisecond)
-		defer da.Stop() // stop the actioner after the test to avoid scheduling actions after test completion
-		da.Act()
+		d := NewDelayer(cc.Call, 50*time.Millisecond)
+		defer d.Stop() // stop the actioner after the test to avoid scheduling actions after test completion
+		d.Act()
 		require.False(t, cc.Called())
 		require.Eventually(t, cc.Called, 100*time.Millisecond, 10*time.Millisecond)
 		cc.Reset()
-		da.Act()
-		da.Act()
-		da.Act()
-		da.Act() // should not schedule the action several times
+		d.Act()
+		d.Act()
+		d.Act()
+		d.Act() // should not schedule the action several times
 		require.False(t, cc.Called())
 		require.Eventually(t, cc.Called, 100*time.Millisecond, 10*time.Millisecond)
 		cc.Reset()
 		require.Never(t, cc.Called, 60*time.Millisecond, 5*time.Millisecond)
+	})
+	t.Run("no panic on second Stop", func(t *testing.T) {
+		d := NewDelayer(func() {}, 50*time.Millisecond)
+		d.Stop()
+		d.Stop()
+	})
+
+	t.Run("Act after Stop", func(t *testing.T) {
+		d := NewDelayer(func() {}, 50*time.Millisecond)
+		d.Stop()
+		require.InDelta(t, executionTime(d.Act), 0, float64(time.Millisecond))
 	})
 }
 
@@ -247,7 +228,7 @@ func TestConfig(t *testing.T) {
 		defer cfg.Flush()
 		require.Equal(t, &Config{
 			path:          testFile,
-			da:            cfg.da,
+			delayer:       cfg.delayer,
 			log:           logger,
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
@@ -281,7 +262,7 @@ func TestConfig(t *testing.T) {
 		defer cfg.Flush()
 		require.Equal(t, &Config{
 			path:          testFile,
-			da:            cfg.da,
+			delayer:       cfg.delayer,
 			log:           logger,
 			Conf:          os.ExpandEnv("$HOME/.config/yandex-disk/config.cfg"),
 			Theme:         "dark",
@@ -300,7 +281,7 @@ func TestConfig(t *testing.T) {
 		defer cfg.Flush()
 		require.Equal(t, &Config{
 			path:          testFile,
-			da:            cfg.da,
+			delayer:       cfg.delayer,
 			log:           logger,
 			Conf:          "config.cfg",
 			Theme:         "light",
