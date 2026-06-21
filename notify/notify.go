@@ -24,8 +24,9 @@ type Notify struct {
 }
 
 const (
-	dBusDest = "org.freedesktop.Notifications"
-	dBusPath = "/org/freedesktop/Notifications"
+	dBusDest   = "org.freedesktop.Notifications"
+	dBusPath   = "/org/freedesktop/Notifications"
+	ToolTipMsg = "Check the support of org.freedesktop.Notifications in your DE/OS. See FAQ for details."
 )
 
 // New creates new Notify component.

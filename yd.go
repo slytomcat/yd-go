@@ -41,12 +41,12 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	License: GPL v.3
 
 `
-	ydURL     = "https://disk.yandex.ru"
-	faqURL    = "https://github.com/slytomcat/yd-go/wiki/FAQ"
-	helpURL   = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
-	donateUrl = "https://github.com/slytomcat/yd-go/wiki/Donations"
-	lastLen   = 10
-	saveDelay = 90 * time.Second // delay for saving configuration file after changes
+	ydURL                = "https://disk.yandex.ru"
+	faqURL               = "https://github.com/slytomcat/yd-go/wiki/FAQ"
+	helpURL              = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
+	donateUrl            = "https://github.com/slytomcat/yd-go/wiki/Donations"
+	lastLen              = 10
+	saveDelay            = 90 * time.Second // delay for saving configuration file after changes
 )
 
 type indicator struct {
@@ -125,7 +125,7 @@ func (i *indicator) makeMenu() {
 		i.menu.notes.Disable()
 		// add menu warning
 		systray.AddSeparator()
-		i.menu.warning = systray.AddMenuItem(i.msg("Notification service unavailable!"), "")
+		i.menu.warning = systray.AddMenuItem(i.msg("Notification service unavailable!"), notify.ToolTipMsg)
 	} else {
 		i.menu.warning = systray.AddMenuItem("", "")
 		i.menu.warning.Hide()
@@ -188,7 +188,7 @@ func main() {
 		if notifyHandler, err := notify.New(appName, i.icon.LogoIcon, false, -1); err != nil {
 			i.notifySend = nil
 			i.cfg.SetNotifications(false) // disable notifications into configuration
-			i.log.Warn("notifications", "status", "not_available", "error", err)
+			i.log.Warn("notifications", "status", "not_available", "error", err, "recommendation", notify.ToolTipMsg)
 		} else {
 			i.notifySend = func(title, msg string) {
 				i.log.Debug("sending_message", "title", title, "message", msg)
