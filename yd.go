@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -41,12 +42,12 @@ Copyleft 2017-%s Sly_tom_cat (slytomcat@mail.ru)
 	License: GPL v.3
 
 `
-	ydURL                = "https://disk.yandex.ru"
-	faqURL               = "https://github.com/slytomcat/yd-go/wiki/FAQ"
-	helpURL              = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
-	donateUrl            = "https://github.com/slytomcat/yd-go/wiki/Donations"
-	lastLen              = 10
-	saveDelay            = 90 * time.Second // delay for saving configuration file after changes
+	ydURL     = "https://disk.yandex.ru"
+	faqURL    = "https://github.com/slytomcat/yd-go/wiki/FAQ"
+	helpURL   = "https://github.com/slytomcat/yd-go/wiki/FAQ&SUPPORT"
+	donateUrl = "https://github.com/slytomcat/yd-go/wiki/Donations"
+	lastLen   = 10
+	saveDelay = 90 * time.Second // delay for saving configuration file after changes
 )
 
 type indicator struct {
@@ -155,19 +156,20 @@ func main() {
 			os.Exit(1)
 		}
 		defer cfg.Flush() // save config on exit if it was changed
+		// register interrupt signals context
+		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
+		defer cancel()
 		i := &indicator{
 			cfg: cfg,
 			msg: SetupLocalization(log).Sprintf,
 			log: log,
 		}
 		// create new YDisk instance
-		YD, err := ydisk.NewYDisk(i.cfg.Conf, i.log)
+		YD, err := ydisk.NewYDisk(ctx, i.cfg.Conf, i.log)
 		if err != nil {
 			i.log.Error("daemon_initialization", "error", err)
 			os.Exit(1)
 		}
-		defer YD.Close()
-		// handle starting/stopping daemon
 		if i.cfg.GetStartDaemon() {
 			go YD.Start()
 		}
@@ -176,9 +178,6 @@ func main() {
 				YD.Stop()
 			}
 		}()
-		// register interrupt signals chan
-		canceled := make(chan os.Signal, 1)
-		signal.Notify(canceled, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 		// set systray title
 		systray.SetTitle(i.msg(appTitle))
 		// initialize icon helper
@@ -251,11 +250,12 @@ func main() {
 				i.openPath(faqURL)
 			case yds := <-YD.Changes: // YDisk change event
 				i.handleUpdate(&yds, YD.Path)
-			case sig := <-canceled: // SIGINT or SIGTERM signal received
+			case <-ctx.Done(): // interrupt signal
 				fmt.Println() // to leave ^C on previous line
-				i.log.Warn("exit", "signal", sig)
+				i.log.Warn("exit", "reason", "interrupt_signal")
 				return
 			case <-i.menu.quit.ClickedCh:
+				cancel() // cancel context to stop YDisk
 				i.log.Debug("exit", "status", "requested")
 				return
 			}

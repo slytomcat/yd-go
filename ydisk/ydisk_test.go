@@ -1,6 +1,7 @@
 package ydisk
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -61,17 +62,26 @@ func TestMain(m *testing.M) {
 	os.Exit(e)
 }
 
+func newYDiskForTest(cfg string) (*YDisk, error, func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	yd, err := NewYDisk(ctx, cfg, slog.Default())
+	return yd, err, cancel
+}
+
 func TestNotInstalled(t *testing.T) {
 	t.Setenv("PATH", "")
 	// test not_installed case
-	yd, err := NewYDisk(Cfg, slog.Default())
-	require.Error(t, err)
+	yd, err, stop := newYDiskForTest(Cfg)
+	defer stop()
 	require.Nil(t, yd)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not installed")
 }
 
 func TestWrongConf(t *testing.T) {
 	// test initialization with wrong/not-existing config
-	yd, err := NewYDisk(Cfg+"_bad", slog.Default())
+	yd, err, stop := newYDiskForTest("/no/such/path/config.cfg")
+	defer stop()
 	require.Error(t, err)
 	require.Nil(t, yd)
 }
@@ -85,7 +95,8 @@ func TestEmptyConf(t *testing.T) {
 	require.NoError(t, err)
 	file.Close()
 	defer os.Remove(Cfg)
-	_, err = NewYDisk(Cfg, slog.Default())
+	_, err, stop := newYDiskForTest(Cfg)
+	defer stop()
 	require.Error(t, err)
 }
 
@@ -94,11 +105,8 @@ func TestFull(t *testing.T) {
 	err := exec.Command(SymExe, "setup").Run()
 	require.NoError(t, err)
 	var yds YDvals
-	log := slog.Default()
-	// logLevel := new(slog.LevelVar)
-	// logLevel.Set(slog.LevelDebug)
-	// log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-	YD, err = NewYDisk(Cfg, log)
+	YD, err, stop := newYDiskForTest(Cfg)
+	defer stop()
 	require.NoError(t, err)
 
 	t.Run("NotStartedOutput", func(t *testing.T) {
@@ -256,7 +264,7 @@ func TestFull(t *testing.T) {
 	})
 
 	t.Run("Close", func(t *testing.T) {
-		YD.Close()
+		stop()
 		require.Eventually(t, func() bool {
 			select {
 			case _, ok := <-YD.Changes:
