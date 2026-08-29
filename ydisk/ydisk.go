@@ -5,6 +5,7 @@ package ydisk
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -81,14 +82,14 @@ func (val *YDvals) update(out string) bool {
 		f := make([]string, 0, 10)
 		files := out[n+24:]
 		for {
-			if p := strings.Index(files, "\n"); p < 0 {
+			p := strings.Index(files, "\n")
+			if p < 0 {
 				break
-			} else {
-				if p > 8 {
-					f = append(f, files[strings.Index(files, ":")+3:p-1])
-				}
-				files = files[p+len("\n"):]
 			}
+			if p > 8 {
+				f = append(f, files[strings.Index(files, ":")+3:p-1])
+			}
+			files = files[p+len("\n"):]
 		}
 		if len(f) != len(val.Last) {
 			val.ChLast = true
@@ -183,25 +184,25 @@ func (w *watcher) activate(path string) {
 // of synchronized catalogue (property Path) and channel for receiving yandex-disk status
 // changes (property Changes).
 type YDisk struct {
-	Path     string        // Path to synchronized folder (obtained from yandex-disk conf. file)
-	Changes  chan YDvals   // Output channel for detected changes in daemon status
-	conf     string        // Path to yandex-disc configuration file
-	exe      string        // Path to yandex-disk executable
-	exit     chan struct{} // Stop signal/replay channel for Event handler routine
-	activate func()        // Function to activate watcher after daemon creation
+	Path     string      // Path to synchronized folder (obtained from yandex-disk conf. file)
+	Changes  chan YDvals // Output channel for detected changes in daemon status
+	conf     string      // Path to yandex-disc configuration file
+	exe      string      // Path to yandex-disk executable
+	activate func()      // Function to activate watcher after daemon creation
 }
 
 // NewYDisk creates new YDisk structure for communication with yandex-disk daemon
-// Parameter:
+// Parameters:
 //
-//	conf - full path to yandex-disk daemon configuration file
+//	 ctx - context for cancellation of eventHandler goroutine
+//		conf - full path to yandex-disk daemon configuration file
 //
-// Checks performed in the beginning:
+// Checks performed at the beginning:
 //   - check that yandex-disk was installed
 //   - check that yandex-disk was properly configured
 //
 // When something not good NewYDisk returns not nil error
-func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
+func NewYDisk(ctx context.Context, conf string, logger *slog.Logger) (*YDisk, error) {
 	log = logger
 	exe, path, err := checkDaemon(conf)
 	if err != nil {
@@ -214,11 +215,10 @@ func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
 		Changes:  make(chan YDvals, 1), // Output should be buffered
 		conf:     conf,
 		exe:      exe,
-		exit:     make(chan struct{}),
 		activate: func() { watch.activate(path) },
 	}
 	// start event handler in separate goroutine
-	go yd.eventHandler(watch)
+	go yd.eventHandler(ctx, watch)
 	// Try to activate watching at the beginning. It may fail but it is not a problem
 	// as it can be activated later (on Start of daemon).
 	yd.activate()
@@ -227,7 +227,7 @@ func NewYDisk(conf string, logger *slog.Logger) (*YDisk, error) {
 }
 
 // eventHandler works in separate goroutine until YDisk.exit channel receives a struct{} value.
-func (yd *YDisk) eventHandler(watch watcher) {
+func (yd *YDisk) eventHandler(ctx context.Context, watch watcher) {
 	log.Debug("daemon_event_handler", "status", "started")
 	yds := newYDvals()
 	interval := 1
@@ -237,16 +237,15 @@ func (yd *YDisk) eventHandler(watch watcher) {
 		tick.Stop()
 		close(yd.Changes)
 		log.Debug("daemon_event_handler", "status", "exited")
-		yd.exit <- struct{}{} // Report exit completion
 	}()
 	var source string
 	for {
 		select {
 		case err := <-watch.Errors:
 			log.Error("file_watcher", "error", err)
-			return
-		case <-yd.exit:
-			return
+			panic(err) // panic is used here to avoid silent exit of the event handler goroutine
+		case <-ctx.Done():
+			return // exit on context cancellation
 		case <-watch.Events:
 			source = "watcher"
 			interval = 1
@@ -293,13 +292,6 @@ func (yd YDisk) getOutput(userLang bool) string {
 		return ""
 	}
 	return string(out)
-}
-
-// Close deactivates the daemon connection: stops event handler that closes file watcher
-// and Changes channel.
-func (yd *YDisk) Close() {
-	yd.exit <- struct{}{}
-	<-yd.exit // Wait for the event handler completion
 }
 
 // Output returns the output string of `yandex-disk status` command in the current user language.
