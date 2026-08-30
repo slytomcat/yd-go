@@ -7,7 +7,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/slytomcat/systray v1.10.5-0.20250611183948-9bd0132c1649
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/text v0.28.0
+	golang.org/x/text v0.39.0
 )
 
 require (
